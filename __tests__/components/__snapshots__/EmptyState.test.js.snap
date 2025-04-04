@@ -1,0 +1,221 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EmptyState renders empty notes state 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "marginTop": 20,
+      "paddingHorizontal": 32,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "marginBottom": 24,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "backgroundColor": "#0077FF15",
+          "borderRadius": 60,
+          "height": 120,
+          "justifyContent": "center",
+          "width": 120,
+        }
+      }
+    >
+      <View
+        testID="icon-document-text"
+      >
+        document-text
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "marginBottom": 32,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#000000",
+          "fontSize": 20,
+          "fontWeight": "700",
+          "letterSpacing": 0.5,
+          "marginBottom": 12,
+          "textAlign": "center",
+        }
+      }
+    >
+      notes.emptyNotes
+    </Text>
+    <Text
+      style={
+        {
+          "color": "#666666",
+          "fontSize": 15,
+          "letterSpacing": 0.3,
+          "lineHeight": 22,
+          "textAlign": "center",
+        }
+      }
+    >
+      notes.emptyNotesMessage
+    </Text>
+  </View>
+  <View>
+    <View
+      accessibilityState={
+        {
+          "busy": undefined,
+          "checked": undefined,
+          "disabled": undefined,
+          "expanded": undefined,
+          "selected": undefined,
+        }
+      }
+      accessibilityValue={
+        {
+          "max": undefined,
+          "min": undefined,
+          "now": undefined,
+          "text": undefined,
+        }
+      }
+      accessible={true}
+      collapsable={false}
+      focusable={true}
+      onClick={[Function]}
+      onResponderGrant={[Function]}
+      onResponderMove={[Function]}
+      onResponderRelease={[Function]}
+      onResponderTerminate={[Function]}
+      onResponderTerminationRequest={[Function]}
+      onStartShouldSetResponder={[Function]}
+      style={
+        {
+          "alignItems": "center",
+          "backgroundColor": "#0077FF",
+          "borderRadius": 12,
+          "elevation": 2,
+          "flexDirection": "row",
+          "gap": 8,
+          "opacity": 1,
+          "paddingHorizontal": 20,
+          "paddingVertical": 12,
+          "shadowColor": "#000",
+          "shadowOffset": {
+            "height": 1,
+            "width": 0,
+          },
+          "shadowOpacity": 0.2,
+          "shadowRadius": 1.41,
+        }
+      }
+    >
+      <View
+        testID="icon-add-circle"
+      >
+        add-circle
+      </View>
+      <Text
+        style={
+          {
+            "color": "#FFFFFF",
+            "fontSize": 15,
+            "fontWeight": "600",
+          }
+        }
+      >
+        notes.createNote
+      </Text>
+    </View>
+  </View>
+</View>
+`;
+
+exports[`EmptyState renders with custom icon 1`] = `
+<View
+  style={
+    {
+      "alignItems": "center",
+      "flex": 1,
+      "justifyContent": "center",
+      "marginTop": 20,
+      "paddingHorizontal": 32,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "marginBottom": 24,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "backgroundColor": "#0077FF15",
+          "borderRadius": 60,
+          "height": 120,
+          "justifyContent": "center",
+          "width": 120,
+        }
+      }
+    >
+      <View
+        testID="icon-star"
+      >
+        star
+      </View>
+    </View>
+  </View>
+  <View
+    style={
+      {
+        "marginBottom": 32,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#000000",
+          "fontSize": 20,
+          "fontWeight": "700",
+          "letterSpacing": 0.5,
+          "marginBottom": 12,
+          "textAlign": "center",
+        }
+      }
+    >
+      Test with Star
+    </Text>
+    <Text
+      style={
+        {
+          "color": "#666666",
+          "fontSize": 15,
+          "letterSpacing": 0.3,
+          "lineHeight": 22,
+          "textAlign": "center",
+        }
+      }
+    >
+      Custom Icon Test
+    </Text>
+  </View>
+</View>
+`;

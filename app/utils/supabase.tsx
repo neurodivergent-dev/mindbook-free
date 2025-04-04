@@ -1,0 +1,37 @@
+// This utility file is used to create a Supabase client instance
+// with custom storage for mobile apps using AsyncStorage.
+// It also imports necessary dependencies and handles environment variables.
+// It is important to keep this file secure and not expose sensitive information.
+// Do not expose this file to the public or share it without proper security measures.
+// This file is not meant to be used in a web environment, as it uses AsyncStorage for storage.
+import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import 'react-native-url-polyfill/auto';
+import Constants from 'expo-constants';
+
+// Get values using Constants (comes from .env via app.config.js)
+const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl;
+const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey;
+
+console.log('Supabase config:', {
+  url: SUPABASE_URL,
+  key: SUPABASE_ANON_KEY ? 'set (hidden for security)' : 'missing',
+});
+
+// Create StorageAdapter for mobile apps
+const customStorageAdapter = {
+  getItem: key => AsyncStorage.getItem(key),
+  setItem: (key, value) => AsyncStorage.setItem(key, value),
+  removeItem: key => AsyncStorage.removeItem(key),
+};
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storage: customStorageAdapter, // Usage with AsyncStorage
+  },
+});
+
+export default supabase;

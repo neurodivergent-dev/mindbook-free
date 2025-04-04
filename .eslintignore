@@ -1,0 +1,7 @@
+# .eslintignore
+android/
+ios/
+build/
+node_modules/
+.expo/
+dist/

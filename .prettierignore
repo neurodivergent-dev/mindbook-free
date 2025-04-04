@@ -1,0 +1,27 @@
+# Build outputs
+.next
+build
+dist
+out
+
+# Dependencies
+node_modules
+package-lock.json
+yarn.lock
+
+# Expo
+.expo
+.expo-shared
+web-build
+android
+ios
+
+# Misc
+.cache
+.env
+.env.*
+.vercel
+.DS_Store
+*.log
+coverage
+__generated__ 

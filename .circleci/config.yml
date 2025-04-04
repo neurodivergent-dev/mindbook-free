@@ -1,0 +1,32 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@5.1.0
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/node:18.19
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+          cache-path: ~/project/node_modules
+          cache-version: v1
+      - run:
+          name: Lint code
+          command: npx eslint . --ext .js,.jsx,.ts,.tsx
+      - run:
+          name: Type check
+          command: npx tsc --noEmit
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build-and-test:
+          filters:
+            branches:
+              only:
+                - main
+                - develop
