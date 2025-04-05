@@ -21,7 +21,7 @@ export default {
   expo: {
     name: 'Mindbook Pro',
     slug: 'mindbook',
-    version: '4.0.1',
+    version: '4.0.2',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'automatic',
