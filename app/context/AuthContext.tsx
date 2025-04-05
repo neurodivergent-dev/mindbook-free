@@ -26,7 +26,7 @@ interface AuthContextType {
   isGuestModeActive: boolean;
   isGuestMode: boolean;
   login: (email: string, password: string) => Promise<AuthResult>;
-  register: (email: string, password: string) => Promise<AuthResult>;
+  register: (email: string, password: string, displayName?: string) => Promise<AuthResult>;
   logout: () => Promise<AuthResult>;
   loginWithGoogle: () => Promise<AuthResult>;
   registerWithGoogle: () => Promise<AuthResult>;
@@ -210,14 +210,25 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Sign up
-  const register = async (email, password) => {
+  const register = async (email, password, displayName = '') => {
     try {
       setLoading(true);
-      const { error } = await supabaseAuth.signUp(email, password);
+
+      // Add displayName to user metadata
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: await supabaseAuth.getRedirectUrl('auth-callback'),
+          data: {
+            full_name: displayName,
+          },
+        },
+      });
+
       if (error) throw error;
 
-      // Note: We could use metadata for displayName, but that is not needed for now
-      return { success: true };
+      return { success: true, data };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       return { success: false, error: errorMessage };

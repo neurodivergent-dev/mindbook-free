@@ -58,7 +58,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const result = await register(email, password);
+      const result = await register(email, password, displayName);
 
       if (result.success) {
         // Show alert for email verification

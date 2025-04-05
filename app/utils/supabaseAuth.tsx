@@ -14,7 +14,7 @@ import Constants from 'expo-constants';
 WebBrowser.maybeCompleteAuthSession();
 
 // Helper function that creates the most appropriate redirectTo URL for the device
-(path: string) => {
+export const getRedirectUrl = (path: string) => {
   // In production mode
   if (!__DEV__) {
     // Using native app scheme
