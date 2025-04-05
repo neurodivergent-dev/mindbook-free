@@ -32,6 +32,7 @@ interface AuthContextType {
   registerWithGoogle: () => Promise<AuthResult>;
   continueAsGuest: () => Promise<AuthResult>;
   forceLogin: () => Promise<AuthResult>;
+  resetPassword: (email: string) => Promise<AuthResult>;
 }
 
 // We create with type instead of empty object
@@ -359,6 +360,51 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Password reset function
+  const resetPassword = async (email: string) => {
+    try {
+      console.log(`Attempting to send password reset email to: ${email}`);
+
+      // Email formatı kontrolü
+      if (!email || !email.includes('@')) {
+        return {
+          success: false,
+          error: 'Please enter a valid email address',
+        };
+      }
+
+      // Send password reset email via Supabase
+      // Redirect URL set from Dashboard will be used
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+      if (error) {
+        // If the error is "User not found", show a private message to the user
+        if (error.message?.includes('User not found') || error.message?.includes('Invalid email')) {
+          return {
+            success: false,
+            error: 'This email is not registered in our system.',
+          };
+        }
+        throw error;
+      }
+
+      console.log('Password reset email sent successfully');
+      return {
+        success: true,
+        message: 'Please check your email and follow the instructions to reset your password.',
+      };
+    } catch (error) {
+      console.error('Password reset error:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'An error occurred while sending the reset email.',
+      };
+    }
+  };
+
   if (loading) {
     return null;
   }
@@ -377,6 +423,7 @@ export function AuthProvider({ children }) {
         forceLogin,
         isGuestMode,
         isGuestModeActive,
+        resetPassword,
       }}
     >
       {children}

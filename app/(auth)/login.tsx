@@ -204,7 +204,7 @@ export default function LoginScreen() {
 
         <View style={styles.links}>
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/password-recovery')}
+            onPress={() => router.push('/(auth)/reset-password')}
             style={styles.forgotPasswordLink}
           >
             <Text style={[styles.forgotPasswordText, { color: theme.textSecondary }]}>
