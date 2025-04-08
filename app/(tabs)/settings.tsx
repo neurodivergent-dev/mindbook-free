@@ -63,6 +63,7 @@ const Settings = () => {
   const [hasPassword, setHasPassword] = useState(false);
   const [showColorOptions, setShowColorOptions] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [userDisplayName, setUserDisplayName] = useState('');
 
   const loadAutoBackupSetting = useCallback(async () => {
     try {
@@ -78,6 +79,29 @@ const Settings = () => {
       console.error('Error loading auto backup setting:', error);
     }
   }, [user]);
+
+  // Get user display name from metadata
+  const getUserDisplayName = useCallback(() => {
+    if (!user) return '';
+
+    // Try to get name from user metadata
+    if (user.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+
+    // Try to get from email (username part)
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+
+    return 'User';
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setUserDisplayName(getUserDisplayName());
+    }
+  }, [user, getUserDisplayName]);
 
   const loadLastBackupTime = useCallback(async () => {
     try {
@@ -824,11 +848,78 @@ const Settings = () => {
     }
   }, [hasPassword, t]);
 
+  // User Profile Card Component
+  const UserProfileCard = () => {
+    if (!user || isGuestMode) {
+      return (
+        <View
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              marginBottom: 24,
+            },
+          ]}
+        >
+          <View style={styles.profileCardContent}>
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={32} color={theme.textSecondary} />
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: theme.text }]}>
+                {t('settings.guestUser')}
+              </Text>
+              <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>
+                {t('settings.signInToSync')}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.loginButton, { backgroundColor: themeColors[accentColor] }]}
+              onPress={forceLogin}
+            >
+              <Text style={styles.loginButtonText}>{t('common.login')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    // First letter of name for avatar
+    const avatarInitial = userDisplayName.charAt(0).toUpperCase();
+
+    return (
+      <View
+        style={[
+          styles.profileCard,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.border,
+            marginBottom: 24,
+          },
+        ]}
+      >
+        <View style={styles.profileCardContent}>
+          <View style={[styles.avatar, { backgroundColor: themeColors[accentColor] }]}>
+            <Text style={styles.avatarText}>{avatarInitial}</Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={[styles.profileName, { color: theme.text }]}>{userDisplayName}</Text>
+            <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>{user.email}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <FontModal />
       <LanguageModal />
       <ScrollView style={styles.content}>
+        {/* User Profile Card */}
+        <UserProfileCard />
+
         {/* Theme Mode */}
         <View style={[styles.section, { borderBottomColor: theme.border }]}>
           <SectionHeader title={t('settings.themeMode')} />
@@ -1411,6 +1502,26 @@ export default Settings;
 const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
 
 const styles = StyleSheet.create({
+  avatar: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   backupButtonContainer: {
     alignItems: 'center',
     flexDirection: 'column',
@@ -1492,6 +1603,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 8,
+  },
+  loginButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    marginLeft: 'auto',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   manualBackupButton: {
     alignItems: 'center',
@@ -1585,6 +1708,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     width: '100%',
+  },
+  profileCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 12,
+  },
+  profileCardContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  profileEmail: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  profileInfo: {
+    marginLeft: 12,
+  },
+  profileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   section: {
     borderBottomWidth: 1,

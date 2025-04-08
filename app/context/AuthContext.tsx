@@ -285,12 +285,13 @@ export function AuthProvider({ children }) {
       const result = await supabaseAuth.alternativeGoogleSignIn();
 
       if (!result.success) {
-        throw new Error(result.error || 'Google kayıt işlemi başarısız oldu');
+        throw new Error(result.error || 'Google sign up failed');
       }
 
       return { success: true, data: result.data };
     } catch (error) {
-      const errorMessage = typeof error === 'string' ? error : 'Google kayıt hatası oluştu';
+      const errorMessage =
+        typeof error === 'string' ? error : 'A Google registration error occurred';
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -376,7 +377,7 @@ export function AuthProvider({ children }) {
     try {
       console.log(`Attempting to send password reset email to: ${email}`);
 
-      // Email formatı kontrolü
+      // Email format control
       if (!email || !email.includes('@')) {
         return {
           success: false,
@@ -384,9 +385,13 @@ export function AuthProvider({ children }) {
         };
       }
 
+      // Redirect to landing page (without spaces)
+      const redirectTo = 'https://mindbookpro.netlify.app/auth-action';
+
       // Send password reset email via Supabase
-      // Redirect URL set from Dashboard will be used
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTo,
+      });
 
       if (error) {
         // If the error is "User not found", show a private message to the user

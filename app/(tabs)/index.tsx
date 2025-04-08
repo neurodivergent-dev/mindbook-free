@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  FlatList,
   Text,
   TouchableOpacity,
-  RefreshControl,
   Alert,
   Share,
+  ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { useSearch } from '../context/SearchContext';
@@ -36,9 +36,16 @@ const COLORS = {
   BADGE_BG: 'rgba(0,0,0,0.05)',
 };
 
+// Define page size for pagination
+const PAGE_SIZE = 20;
+
 export default function NotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const [visibleNotes, setVisibleNotes] = useState<Note[]>([]);
+  const [page, setPage] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const { theme, themeColors, accentColor, themeMode } = useTheme();
   const { searchQuery } = useSearch() || { searchQuery: '' };
   const { selectedCategory } = useLocalSearchParams();
@@ -162,6 +169,11 @@ export default function NotesScreen() {
       });
 
       setFilteredNotes(filtered);
+
+      // Reset pagination
+      setPage(0);
+      setVisibleNotes(filtered.slice(0, PAGE_SIZE));
+      setHasMore(filtered.length > PAGE_SIZE);
     },
     [notes, searchQuery, selectedCategory, sortBy]
   );
@@ -180,16 +192,26 @@ export default function NotesScreen() {
     }
   }, [filterNotes, notes]);
 
-  const toggleNoteSelection = (noteId: string) => {
-    const newSelectedNotes = new Set(selectedNotes);
-    if (newSelectedNotes.has(noteId)) {
-      newSelectedNotes.delete(noteId);
-    } else {
-      newSelectedNotes.add(noteId);
-    }
-    setSelectedNotes(newSelectedNotes);
-    setIsSelectionMode(newSelectedNotes.size > 0);
-  };
+  // Update visible notes when filtered notes change
+  useEffect(() => {
+    setVisibleNotes(filteredNotes.slice(0, PAGE_SIZE));
+    setHasMore(filteredNotes.length > PAGE_SIZE);
+    setPage(0);
+  }, [filteredNotes]);
+
+  const toggleNoteSelection = useCallback(
+    (noteId: string) => {
+      const newSelectedNotes = new Set(selectedNotes);
+      if (newSelectedNotes.has(noteId)) {
+        newSelectedNotes.delete(noteId);
+      } else {
+        newSelectedNotes.add(noteId);
+      }
+      setSelectedNotes(newSelectedNotes);
+      setIsSelectionMode(newSelectedNotes.size > 0);
+    },
+    [selectedNotes]
+  );
 
   const handleSelectAll = () => {
     if (selectedNotes.size === filteredNotes.length) {
@@ -430,11 +452,17 @@ export default function NotesScreen() {
     ]);
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadNotes();
     setRefreshing(false);
-  };
+    // Reset pagination state
+    setPage(0);
+    if (filteredNotes.length > 0) {
+      setVisibleNotes(filteredNotes.slice(0, PAGE_SIZE));
+      setHasMore(filteredNotes.length > PAGE_SIZE);
+    }
+  }, [loadNotes, filteredNotes]);
 
   const renderEmptyState = () => {
     if (selectedCategory) {
@@ -570,6 +598,71 @@ export default function NotesScreen() {
     ? themeColors[accentColor]
     : themeColors[accentColor] + '15';
 
+  // Load more notes when user scrolls to the end
+  const loadMoreNotes = () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+
+    const nextPage = page + 1;
+    const start = nextPage * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+
+    if (start < filteredNotes.length) {
+      const newNotes = [...visibleNotes, ...filteredNotes.slice(start, end)];
+      setVisibleNotes(newNotes);
+      setPage(nextPage);
+      setHasMore(end < filteredNotes.length);
+    } else {
+      setHasMore(false);
+    }
+
+    setIsLoadingMore(false);
+  };
+
+  // Render a note item
+  const renderNoteItem = useCallback(
+    ({ item }: { item: Note }) => (
+      <NoteCard
+        key={item.id}
+        note={item}
+        onRefresh={onRefresh}
+        isSelectionMode={isSelectionMode}
+        isSelected={selectedNotes.has(item.id)}
+        onLongPress={() => {
+          setIsSelectionMode(true);
+          toggleNoteSelection(item.id);
+        }}
+        onPress={() => {
+          if (isSelectionMode) {
+            toggleNoteSelection(item.id);
+          } else {
+            router.push({
+              pathname: '/(modal)/edit-note',
+              params: { id: item.id },
+            });
+          }
+        }}
+        showReadingTime={true}
+        showTags={true}
+        showLastEditInfo={true}
+        style={styles.noteItemMargin}
+      />
+    ),
+    [isSelectionMode, selectedNotes, onRefresh, router, toggleNoteSelection]
+  );
+
+  // Footer component to show loading indicator
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="small" color={themeColors[accentColor]} />
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {isSelectionMode && renderActionBar()}
@@ -671,50 +764,32 @@ export default function NotesScreen() {
         </TouchableOpacity>
       )}
 
-      <FlatList
-        data={filteredNotes}
-        renderItem={({ item }) => (
-          <NoteCard
-            key={item.id}
-            note={item}
-            onRefresh={onRefresh}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedNotes.has(item.id)}
-            onLongPress={() => {
-              setIsSelectionMode(true);
-              toggleNoteSelection(item.id);
-            }}
-            onPress={() => {
-              if (isSelectionMode) {
-                toggleNoteSelection(item.id);
-              } else {
-                router.push({
-                  pathname: '/(modal)/edit-note',
-                  params: { id: item.id },
-                });
-              }
-            }}
-            showReadingTime={true}
-            showTags={true}
-            showLastEditInfo={true}
-            style={styles.noteItemMargin}
-          />
-        )}
-        keyExtractor={item => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          isSelectionMode ? styles.listPaddingWithSelection : styles.listPaddingWithoutSelection,
-        ]}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[themeColors[accentColor]]}
-            tintColor={themeColors[accentColor]}
-          />
-        }
-      />
+      <View style={styles.listContainer}>
+        {(() => {
+          const containerStyle = {
+            paddingHorizontal: 8,
+            paddingVertical: 8,
+            paddingBottom: isSelectionMode ? 80 : 16,
+          };
+
+          return (
+            <FlashList
+              data={visibleNotes}
+              estimatedItemSize={200}
+              renderItem={renderNoteItem}
+              keyExtractor={item => item.id}
+              onEndReached={loadMoreNotes}
+              onEndReachedThreshold={0.5}
+              ListEmptyComponent={renderEmptyState}
+              ListFooterComponent={renderFooter}
+              showsVerticalScrollIndicator={true}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              contentContainerStyle={containerStyle}
+            />
+          );
+        })()}
+      </View>
       {renderSortMenu()}
     </View>
   );
@@ -832,15 +907,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  listContent: {
-    flexGrow: 1,
-    padding: 8,
+  listContainer: {
+    flex: 1,
   },
-  listPaddingWithSelection: {
-    paddingBottom: 80,
-  },
-  listPaddingWithoutSelection: {
-    paddingBottom: 16,
+  loaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
   },
   noteItemMargin: {
     marginHorizontal: 4,
