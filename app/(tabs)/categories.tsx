@@ -5,7 +5,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
-import { getCategories, addCategory, deleteCategory, getAllNotes } from '../utils/storage';
+import {
+  getCategories,
+  addCategory,
+  deleteCategory,
+  getAllNotes,
+  getNotesByCategory,
+} from '../utils/storage';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
 import CategoryInputModal from '../components/CategoryInputModal';
@@ -40,20 +46,31 @@ export default function CategoriesScreen() {
   };
 
   const loadNoteCounts = async () => {
-    const notes = await getAllNotes();
-    const counts = {};
+    try {
+      // Get all active notes count
+      const notes = await getAllNotes();
+      const activeNotes = notes.filter(note => !note.isTrash && !note.isArchived);
+      const total = activeNotes.length;
+      setTotalNotes(total);
 
-    const activeNotes = notes.filter(note => !note.isTrash && !note.isArchived);
-    const total = activeNotes.length;
+      // Get loaded categories
+      const loadedCategories = await getCategories();
 
-    activeNotes.forEach(note => {
-      if (note.category) {
-        counts[note.category] = (counts[note.category] || 0) + 1;
+      // Create a counts object
+      const counts = {};
+
+      // For each category, use indexed function to get notes
+      for (const category of loadedCategories) {
+        const categoryNotes = await getNotesByCategory(category);
+        // Only count active notes (not trash or archived)
+        const activeCategoryNotes = categoryNotes.filter(note => !note.isTrash && !note.isArchived);
+        counts[category] = activeCategoryNotes.length;
       }
-    });
 
-    setCategoryNotes(counts);
-    setTotalNotes(total);
+      setCategoryNotes(counts);
+    } catch (error) {
+      console.error('Error loading note counts:', error);
+    }
   };
 
   const handleAddCategory = async categoryName => {

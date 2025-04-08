@@ -45,6 +45,10 @@ export const saveNote = async note => {
 
     notes.unshift(newNote);
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+    // Update indices
+    await buildNoteIndices();
+
     return true;
   } catch (error) {
     return false;
@@ -68,6 +72,10 @@ export const updateNote = async (noteId, updatedNote) => {
     };
 
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+    // Update indices
+    await buildNoteIndices();
+
     return true;
   } catch (error) {
     throw new Error('Error updating note');
@@ -81,6 +89,9 @@ export const deleteNote = async noteId => {
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
     const filteredNotes = notes.filter(note => !noteIds.includes(note.id));
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(filteredNotes));
+
+    // Update indices
+    await buildNoteIndices();
 
     // Change timestamp approach didn't work, call backup directly
     try {
@@ -115,6 +126,10 @@ export const toggleFavorite = async noteId => {
 
   notes[noteIndex].isFavorite = !notes[noteIndex].isFavorite;
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+  // Update indices
+  await buildNoteIndices();
+
   return true;
 };
 
@@ -129,6 +144,10 @@ export const toggleArchive = async noteId => {
 
   notes[noteIndex].isArchived = !notes[noteIndex].isArchived;
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+  // Update indices
+  await buildNoteIndices();
+
   return true;
 };
 
@@ -159,6 +178,9 @@ export const moveToTrash = async noteId => {
     }
 
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+
+    // Update indices
+    await buildNoteIndices();
 
     // Call backup directly after moving to trash
     try {
@@ -194,6 +216,9 @@ export const restoreFromTrash = async noteId => {
 
     notes[noteIndex].isTrash = false;
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+    // Update indices
+    await buildNoteIndices();
 
     // Backup operation - should not affect the main operation if it fails
     try {
@@ -307,4 +332,149 @@ export default {
   getFavoriteNotes,
   NOTES_KEY,
   CATEGORIES_KEY,
+};
+
+// Index keys
+export const CATEGORY_INDEX_KEY = '@notes_index_categories';
+export const FAVORITE_INDEX_KEY = '@notes_index_favorites';
+export const DATE_INDEX_KEY = '@notes_index_dates';
+
+// Build indices for faster filtering
+export const buildNoteIndices = async () => {
+  try {
+    const notes = await getAllNotes();
+
+    // Category index: { category: [noteId1, noteId2, ...] }
+    const categoryIndex = {};
+
+    // Favorite index: [noteId1, noteId2, ...]
+    const favoriteIds = [];
+
+    // Date index (by month/year): { '2023-06': [noteId1, noteId2, ...] }
+    const dateIndex = {};
+
+    notes.forEach(note => {
+      // Category index
+      if (note.category) {
+        if (!categoryIndex[note.category]) {
+          categoryIndex[note.category] = [];
+        }
+        categoryIndex[note.category].push(note.id);
+      }
+
+      // Favorite index
+      if (note.isFavorite) {
+        favoriteIds.push(note.id);
+      }
+
+      // Date index
+      const date = new Date(note.updatedAt || note.createdAt);
+      const dateKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      if (!dateIndex[dateKey]) {
+        dateIndex[dateKey] = [];
+      }
+      dateIndex[dateKey].push(note.id);
+    });
+
+    // Save indices
+    await AsyncStorage.setItem(CATEGORY_INDEX_KEY, JSON.stringify(categoryIndex));
+    await AsyncStorage.setItem(FAVORITE_INDEX_KEY, JSON.stringify(favoriteIds));
+    await AsyncStorage.setItem(DATE_INDEX_KEY, JSON.stringify(dateIndex));
+
+    console.log('Note indices built successfully');
+    return true;
+  } catch (error) {
+    console.error('Error building indices:', error);
+    return false;
+  }
+};
+
+// Get notes by category using the index
+export const getNotesByCategory = async category => {
+  try {
+    // Get the category index
+    const indexStr = await AsyncStorage.getItem(CATEGORY_INDEX_KEY);
+    const categoryIndex = indexStr ? JSON.parse(indexStr) : {};
+
+    // Get note IDs for this category
+    const noteIds = categoryIndex[category] || [];
+    if (noteIds.length === 0) return [];
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Filter only the relevant notes
+    return allNotes.filter(note => noteIds.includes(note.id));
+  } catch (error) {
+    console.error('Error getting notes by category:', error);
+    return [];
+  }
+};
+
+// Get favorite notes using the index
+export const getFavoriteNotesIndexed = async () => {
+  try {
+    // Get the favorite index
+    const indexStr = await AsyncStorage.getItem(FAVORITE_INDEX_KEY);
+    const favoriteIds = indexStr ? JSON.parse(indexStr) : [];
+
+    if (favoriteIds.length === 0) return [];
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Filter only favorite notes
+    return allNotes.filter(
+      note => favoriteIds.includes(note.id) && !note.isTrash && !note.isArchived
+    );
+  } catch (error) {
+    console.error('Error getting favorite notes:', error);
+    return [];
+  }
+};
+
+// Get notes by date range
+export const getNotesByDateRange = async (startDate, endDate) => {
+  try {
+    // Get the date index
+    const indexStr = await AsyncStorage.getItem(DATE_INDEX_KEY);
+    const dateIndex = indexStr ? JSON.parse(indexStr) : {};
+
+    // Convert dates to Date objects if they are strings
+    const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+    const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+
+    // Calculate all the months in the range
+    const months = [];
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+      months.push(dateKey);
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    // Get all note IDs in the date range
+    const noteIds = new Set();
+    months.forEach(month => {
+      const idsForMonth = dateIndex[month] || [];
+      idsForMonth.forEach(id => noteIds.add(id));
+    });
+
+    if (noteIds.size === 0) return [];
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Filter only notes in the date range
+    return allNotes.filter(note => {
+      if (noteIds.has(note.id)) {
+        const noteDate = new Date(note.updatedAt || note.createdAt);
+        return noteDate >= start && noteDate <= end;
+      }
+      return false;
+    });
+  } catch (error) {
+    console.error('Error getting notes by date range:', error);
+    return [];
+  }
 };
