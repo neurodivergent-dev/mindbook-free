@@ -8,9 +8,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const NOTES_KEY = '@notes';
 export const CATEGORIES_KEY = '@categories';
+// Index keys
+export const CATEGORY_INDEX_KEY = '@notes_index_categories';
+export const FAVORITE_INDEX_KEY = '@notes_index_favorites';
+export const DATE_INDEX_KEY = '@notes_index_dates';
+
+// Note interface for better type checking
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  createdAt: string;
+  updatedAt: string;
+  isFavorite: boolean;
+  isArchived: boolean;
+  isTrash: boolean;
+  trashedAt?: string;
+  isVaulted?: boolean;
+  tags?: string[];
+  color?: string;
+  [key: string]: any; // Allow for additional properties
+}
 
 // Get notes
-export const getAllNotes = async () => {
+export const getAllNotes = async (): Promise<Note[]> => {
   try {
     const notesStr = await AsyncStorage.getItem(NOTES_KEY);
     if (!notesStr) return [];
@@ -19,6 +41,72 @@ export const getAllNotes = async () => {
     return notes;
   } catch (error) {
     return [];
+  }
+};
+
+// Batch get notes by IDs - new optimized function
+export const batchGetNotes = async (noteIds: string[]): Promise<Note[]> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return [];
+
+    // Get all notes in one operation
+    const allNotes = await getAllNotes();
+
+    // Filter only the notes with matching IDs
+    return allNotes.filter(note => noteIds.includes(note.id));
+  } catch (error) {
+    console.error('Error in batch get notes:', error);
+    return [];
+  }
+};
+
+// Batch update notes - new optimized function
+export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<boolean> => {
+  try {
+    if (!notesToUpdate || notesToUpdate.length === 0) return false;
+
+    // Make sure each note to update has an ID
+    const validUpdates = notesToUpdate.filter(note => note.id);
+    if (validUpdates.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Update the matching notes
+    const updatedAllNotes = allNotes.map(note => {
+      const updateInfo = validUpdates.find(update => update.id === note.id);
+      if (updateInfo) {
+        return {
+          ...note,
+          ...updateInfo,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return note;
+    });
+
+    // Save all notes in one operation
+    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes));
+
+    // Update indices
+    await buildNoteIndices();
+
+    return true;
+  } catch (error) {
+    console.error('Error in batch update notes:', error);
+    return false;
+  }
+};
+
+// Get a single note by ID - new helper function
+export const getNoteById = async (noteId: string): Promise<Note | null> => {
+  try {
+    const notes = await getAllNotes();
+    const note = notes.find(note => note.id === noteId);
+    return note || null;
+  } catch (error) {
+    console.error('Error getting note by ID:', error);
+    return null;
   }
 };
 
@@ -314,30 +402,253 @@ export const getFavoriteNotes = async () => {
   }
 };
 
-// Export all functions
-export default {
-  getAllNotes,
-  saveNote,
-  updateNote,
-  deleteNote,
-  moveToTrash,
-  restoreFromTrash,
-  toggleFavorite,
-  toggleArchive,
-  getCategories,
-  addCategory,
-  deleteCategory,
-  getArchivedNotes,
-  getTrashNotes,
-  getFavoriteNotes,
-  NOTES_KEY,
-  CATEGORIES_KEY,
+// Get notes by category using the index - optimized with batch operation
+export const getNotesByCategory = async (category: string): Promise<Note[]> => {
+  try {
+    // Get the category index
+    const indexStr = await AsyncStorage.getItem(CATEGORY_INDEX_KEY);
+    const categoryIndex = indexStr ? JSON.parse(indexStr) : {};
+
+    // Get note IDs for this category
+    const noteIds = categoryIndex[category] || [];
+    if (noteIds.length === 0) return [];
+
+    // Use batch operation to get notes
+    return await batchGetNotes(noteIds);
+  } catch (error) {
+    console.error('Error getting notes by category:', error);
+    return [];
+  }
 };
 
-// Index keys
-export const CATEGORY_INDEX_KEY = '@notes_index_categories';
-export const FAVORITE_INDEX_KEY = '@notes_index_favorites';
-export const DATE_INDEX_KEY = '@notes_index_dates';
+// Get favorite notes using the index - optimized with batch operation
+export const getFavoriteNotesIndexed = async (): Promise<Note[]> => {
+  try {
+    // Get the favorite index
+    const indexStr = await AsyncStorage.getItem(FAVORITE_INDEX_KEY);
+    const favoriteIds = indexStr ? JSON.parse(indexStr) : [];
+
+    if (favoriteIds.length === 0) return [];
+
+    // Use batch operation to get notes
+    const favoriteNotes = await batchGetNotes(favoriteIds);
+
+    // Filter only active favorites
+    return favoriteNotes.filter(note => !note.isTrash && !note.isArchived);
+  } catch (error) {
+    console.error('Error getting favorite notes:', error);
+    return [];
+  }
+};
+
+// Get notes by date range - optimized with batch operation
+export const getNotesByDateRange = async (
+  startDate: Date | string,
+  endDate: Date | string
+): Promise<Note[]> => {
+  try {
+    // Get the date index
+    const indexStr = await AsyncStorage.getItem(DATE_INDEX_KEY);
+    const dateIndex = indexStr ? JSON.parse(indexStr) : {};
+
+    // Convert dates to Date objects if they are strings
+    const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+    const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
+
+    // Calculate all the months in the range
+    const months = [];
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+      months.push(dateKey);
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    // Get all note IDs in the date range
+    const noteIds = new Set<string>();
+    months.forEach(month => {
+      const idsForMonth = dateIndex[month] || [];
+      idsForMonth.forEach(id => noteIds.add(id));
+    });
+
+    if (noteIds.size === 0) return [];
+
+    // Use batch operation to get notes
+    const dateRangeNotes = await batchGetNotes(Array.from(noteIds));
+
+    // Filter by actual date range
+    return dateRangeNotes.filter(note => {
+      const noteDate = new Date(note.updatedAt || note.createdAt);
+      return noteDate >= start && noteDate <= end;
+    });
+  } catch (error) {
+    console.error('Error getting notes by date range:', error);
+    return [];
+  }
+};
+
+// Add a batch toggle favorite function
+export const batchToggleFavorite = async (noteIds: string[]): Promise<boolean> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Find the notes to update
+    const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
+
+    // Toggle favorite status for each note
+    const updates = notesToUpdate.map(note => ({
+      id: note.id,
+      isFavorite: !note.isFavorite,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    // Use batch update
+    return await batchUpdateNotes(updates);
+  } catch (error) {
+    console.error('Error in batch toggle favorite:', error);
+    return false;
+  }
+};
+
+// Add a batch toggle archive function
+export const batchToggleArchive = async (noteIds: string[]): Promise<boolean> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Find the notes to update
+    const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
+
+    // Toggle archive status for each note
+    const updates = notesToUpdate.map(note => ({
+      id: note.id,
+      isArchived: !note.isArchived,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    // Use batch update
+    return await batchUpdateNotes(updates);
+  } catch (error) {
+    console.error('Error in batch toggle archive:', error);
+    return false;
+  }
+};
+
+// Add a batch move to trash function
+export const batchMoveToTrash = async (noteIds: string[]): Promise<boolean> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Find the notes to update
+    const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
+
+    // Set trash status for each note
+    const now = new Date().toISOString();
+    const updates = notesToUpdate.map(note => ({
+      id: note.id,
+      isTrash: true,
+      trashedAt: now,
+      updatedAt: now,
+    }));
+
+    // Use batch update
+    const result = await batchUpdateNotes(updates);
+
+    // Call backup directly after moving to trash
+    try {
+      const { backupToCloud, getCurrentUserId } = require('./backup');
+      const userId = await getCurrentUserId();
+      if (userId) {
+        await backupToCloud(userId);
+      }
+    } catch (e) {
+      console.error('Backup error after trashing notes:', e);
+      // Continue anyway since the main operation succeeded
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error in batch move to trash:', error);
+    return false;
+  }
+};
+
+// Add a batch restore from trash function
+export const batchRestoreFromTrash = async (noteIds: string[]): Promise<boolean> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Find the notes to update
+    const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
+
+    // Set restore status for each note
+    const updates = notesToUpdate.map(note => ({
+      id: note.id,
+      isTrash: false,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    // Use batch update
+    const result = await batchUpdateNotes(updates);
+
+    // Backup operation
+    try {
+      const { backupToCloud, getCurrentUserId } = require('./backup');
+      const userId = await getCurrentUserId();
+      if (userId) {
+        await backupToCloud(userId);
+      }
+    } catch (e) {
+      console.error('Backup error after restoring notes:', e);
+      // Continue anyway since the main operation succeeded
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error in batch restore from trash:', error);
+    return false;
+  }
+};
+
+// Add a batch update category function
+export const batchUpdateCategory = async (
+  noteIds: string[],
+  category: string | null
+): Promise<boolean> => {
+  try {
+    if (!noteIds || noteIds.length === 0) return false;
+
+    // Get all notes
+    const allNotes = await getAllNotes();
+
+    // Find the notes to update
+    const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
+
+    // Update category for each note
+    const updates = notesToUpdate.map(note => ({
+      id: note.id,
+      category: category,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    // Use batch update
+    return await batchUpdateNotes(updates);
+  } catch (error) {
+    console.error('Error in batch update category:', error);
+    return false;
+  }
+};
 
 // Build indices for faster filtering
 export const buildNoteIndices = async () => {
@@ -389,92 +700,35 @@ export const buildNoteIndices = async () => {
   }
 };
 
-// Get notes by category using the index
-export const getNotesByCategory = async category => {
-  try {
-    // Get the category index
-    const indexStr = await AsyncStorage.getItem(CATEGORY_INDEX_KEY);
-    const categoryIndex = indexStr ? JSON.parse(indexStr) : {};
-
-    // Get note IDs for this category
-    const noteIds = categoryIndex[category] || [];
-    if (noteIds.length === 0) return [];
-
-    // Get all notes
-    const allNotes = await getAllNotes();
-
-    // Filter only the relevant notes
-    return allNotes.filter(note => noteIds.includes(note.id));
-  } catch (error) {
-    console.error('Error getting notes by category:', error);
-    return [];
-  }
-};
-
-// Get favorite notes using the index
-export const getFavoriteNotesIndexed = async () => {
-  try {
-    // Get the favorite index
-    const indexStr = await AsyncStorage.getItem(FAVORITE_INDEX_KEY);
-    const favoriteIds = indexStr ? JSON.parse(indexStr) : [];
-
-    if (favoriteIds.length === 0) return [];
-
-    // Get all notes
-    const allNotes = await getAllNotes();
-
-    // Filter only favorite notes
-    return allNotes.filter(
-      note => favoriteIds.includes(note.id) && !note.isTrash && !note.isArchived
-    );
-  } catch (error) {
-    console.error('Error getting favorite notes:', error);
-    return [];
-  }
-};
-
-// Get notes by date range
-export const getNotesByDateRange = async (startDate, endDate) => {
-  try {
-    // Get the date index
-    const indexStr = await AsyncStorage.getItem(DATE_INDEX_KEY);
-    const dateIndex = indexStr ? JSON.parse(indexStr) : {};
-
-    // Convert dates to Date objects if they are strings
-    const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
-    const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
-
-    // Calculate all the months in the range
-    const months = [];
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-      const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
-      months.push(dateKey);
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-
-    // Get all note IDs in the date range
-    const noteIds = new Set();
-    months.forEach(month => {
-      const idsForMonth = dateIndex[month] || [];
-      idsForMonth.forEach(id => noteIds.add(id));
-    });
-
-    if (noteIds.size === 0) return [];
-
-    // Get all notes
-    const allNotes = await getAllNotes();
-
-    // Filter only notes in the date range
-    return allNotes.filter(note => {
-      if (noteIds.has(note.id)) {
-        const noteDate = new Date(note.updatedAt || note.createdAt);
-        return noteDate >= start && noteDate <= end;
-      }
-      return false;
-    });
-  } catch (error) {
-    console.error('Error getting notes by date range:', error);
-    return [];
-  }
+// Export all functions
+export default {
+  getAllNotes,
+  saveNote,
+  updateNote,
+  deleteNote,
+  moveToTrash,
+  restoreFromTrash,
+  toggleFavorite,
+  toggleArchive,
+  getCategories,
+  addCategory,
+  deleteCategory,
+  getArchivedNotes,
+  getTrashNotes,
+  getFavoriteNotes,
+  getNotesByCategory,
+  getFavoriteNotesIndexed,
+  getNotesByDateRange,
+  buildNoteIndices,
+  NOTES_KEY,
+  CATEGORIES_KEY,
+  // New batch functions
+  batchGetNotes,
+  batchUpdateNotes,
+  getNoteById,
+  batchToggleFavorite,
+  batchToggleArchive,
+  batchMoveToTrash,
+  batchRestoreFromTrash,
+  batchUpdateCategory,
 };
