@@ -15,7 +15,7 @@ import { StyleSheet, View, StatusBar, useColorScheme, AppState } from 'react-nat
 import CustomDrawer from './components/CustomDrawer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import backup from './utils/backup';
-import { NOTES_KEY } from './utils/storage';
+import { NOTES_KEY, buildNoteIndices } from './utils/storage';
 import { triggerAutoBackup } from './utils/backup';
 import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_700Bold } from '@expo-google-fonts/poppins';
@@ -135,6 +135,25 @@ function RootLayoutNav() {
     return () => {
       subscription.remove();
     };
+  }, []);
+
+  // Build note indices for faster filtering
+  useEffect(() => {
+    const initIndices = async () => {
+      try {
+        // Check if there are any notes to index
+        const notesStr = await AsyncStorage.getItem(NOTES_KEY);
+        if (notesStr) {
+          console.log('Building note indices for faster filtering...');
+          await buildNoteIndices();
+          console.log('Note indices built successfully');
+        }
+      } catch (error) {
+        console.error('Error initializing note indices:', error);
+      }
+    };
+
+    initIndices();
   }, []);
 
   useEffect(() => {
