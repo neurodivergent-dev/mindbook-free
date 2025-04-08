@@ -15,7 +15,13 @@ import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { useSearch } from '../context/SearchContext';
-import { getAllNotes, NOTES_KEY } from '../utils/storage';
+import {
+  getAllNotes,
+  NOTES_KEY,
+  batchToggleFavorite,
+  batchToggleArchive,
+  batchMoveToTrash,
+} from '../utils/storage';
 import NoteCard from '../components/NoteCard';
 import EmptyState from '../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
@@ -201,16 +207,23 @@ export default function NotesScreen() {
 
   const toggleNoteSelection = useCallback(
     (noteId: string) => {
-      const newSelectedNotes = new Set(selectedNotes);
-      if (newSelectedNotes.has(noteId)) {
-        newSelectedNotes.delete(noteId);
-      } else {
-        newSelectedNotes.add(noteId);
-      }
-      setSelectedNotes(newSelectedNotes);
-      setIsSelectionMode(newSelectedNotes.size > 0);
+      setSelectedNotes(prevSelected => {
+        const newSelectedNotes = new Set(prevSelected);
+        if (newSelectedNotes.has(noteId)) {
+          newSelectedNotes.delete(noteId);
+        } else {
+          newSelectedNotes.add(noteId);
+        }
+
+        // isSelectionMode durumunu Set'in boyutuna bağlı olarak güncelle
+        setTimeout(() => {
+          setIsSelectionMode(newSelectedNotes.size > 0);
+        }, 0);
+
+        return newSelectedNotes; // Her zaman yeni bir Set referansı döndürür
+      });
     },
-    [selectedNotes]
+    [] // boş bağımlılık listesi çünkü setState fonksiyonlarını kullanıyoruz
   );
 
   const handleSelectAll = () => {
@@ -245,6 +258,36 @@ export default function NotesScreen() {
     }
   };
 
+  const handleFavorite = async () => {
+    if (selectedNotes.size === 0) {
+      Alert.alert(t('common.warning'), t('notes.selectNotesToFavorite'));
+      return;
+    }
+
+    try {
+      // Convert Set to Array for the batch operation
+      const selectedNoteIds = Array.from(selectedNotes);
+
+      // Use batch update
+      const success = await batchToggleFavorite(selectedNoteIds);
+
+      if (success) {
+        // Refresh notes on success
+        await loadNotes();
+        // Clear selection
+        setSelectedNotes(new Set());
+        setIsSelectionMode(false);
+
+        // Notify the user
+        Alert.alert(t('common.success'), t('notes.favoriteUpdated'));
+      } else {
+        Alert.alert(t('common.error'), t('notes.favoriteUpdateError'));
+      }
+    } catch (error) {
+      Alert.alert(t('common.error'), t('notes.favoriteUpdateError'));
+    }
+  };
+
   const handleArchive = async () => {
     if (selectedNotes.size === 0) {
       Alert.alert(t('common.warning'), t('notes.selectNotesToArchive'));
@@ -252,28 +295,24 @@ export default function NotesScreen() {
     }
 
     try {
-      const allNotes = await getAllNotes();
-      const selectedNotesList = Array.from(selectedNotes);
+      // Convert Set to Array for the batch operation
+      const selectedNoteIds = Array.from(selectedNotes);
 
-      // Update selected notes
-      const updatedNotes = allNotes.map(note => {
-        if (selectedNotesList.includes(note.id)) {
-          return { ...note, isArchived: true };
-        }
-        return note;
-      });
+      // Use batch update
+      const success = await batchToggleArchive(selectedNoteIds);
 
-      // Perform bulk update
-      await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+      if (success) {
+        // Refresh notes on success
+        await loadNotes();
+        // Clear selection
+        setSelectedNotes(new Set());
+        setIsSelectionMode(false);
 
-      // Update UI
-      setNotes(updatedNotes);
-      filterNotes(updatedNotes);
-      setSelectedNotes(new Set());
-      setIsSelectionMode(false);
-
-      // Notify the user
-      Alert.alert(t('common.success'), t('notes.notesArchived', { count: selectedNotes.size }));
+        // Notify the user
+        Alert.alert(t('common.success'), t('notes.notesArchived', { count: selectedNotes.size }));
+      } else {
+        Alert.alert(t('common.error'), t('notes.archiveError'));
+      }
     } catch (error) {
       Alert.alert(t('common.error'), t('notes.archiveError'));
     }
@@ -292,52 +331,26 @@ export default function NotesScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const notesStr = await AsyncStorage.getItem(NOTES_KEY);
-            const allNotes = notesStr ? JSON.parse(notesStr) : [];
-            const selectedNotesList = Array.from(selectedNotes);
+            // Convert Set to Array for the batch operation
+            const selectedNoteIds = Array.from(selectedNotes);
 
-            const updatedNotes = allNotes.map(note => {
-              if (selectedNotesList.includes(note.id)) {
-                return {
-                  ...note,
-                  isTrash: true,
-                  trashedAt: new Date().toISOString(),
-                };
-              }
-              return note;
-            });
+            // Use batch update
+            const success = await batchMoveToTrash(selectedNoteIds);
 
-            await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+            if (success) {
+              // Refresh notes on success
+              await loadNotes();
+              // Clear selection
+              setSelectedNotes(new Set());
+              setIsSelectionMode(false);
 
-            // Make state updates sequentially
-            await Promise.all([
-              setNotes(updatedNotes),
-              setSelectedNotes(new Set()),
-              setIsSelectionMode(false),
-            ]);
-
-            // Do the final filtering
-            filterNotes(updatedNotes);
-
-            Alert.alert(
-              t('common.success'),
-              t('notes.notesMovedToTrash', { count: selectedNotes.size })
-            );
-
-            // Backup notes to cloud after moving to trash - bypass hasChanged check
-            try {
-              const { backupToCloud, getCurrentUserId } = require('../utils/backup');
-
-              //get user id with getCurrentUserId
-              const userId = await getCurrentUserId();
-
-              if (userId) {
-                await backupToCloud(userId);
-              } else {
-                console.log('User id not found, skipping backup after moving notes to trash');
-              }
-            } catch (syncError) {
-              console.error('Error during backup after moving notes to trash:', syncError);
+              // Notify the user
+              Alert.alert(
+                t('common.success'),
+                t('notes.notesMovedToTrash', { count: selectedNotes.size })
+              );
+            } else {
+              Alert.alert(t('common.error'), t('notes.moveToTrashError'));
             }
           } catch (error) {
             Alert.alert(t('common.error'), t('notes.moveToTrashError'));
@@ -345,40 +358,6 @@ export default function NotesScreen() {
         },
       },
     ]);
-  };
-
-  const handleFavorite = async () => {
-    if (selectedNotes.size === 0) {
-      Alert.alert(t('common.warning'), t('notes.selectNotesToFavorite'));
-      return;
-    }
-
-    try {
-      const allNotes = await getAllNotes();
-      const selectedNotesList = Array.from(selectedNotes);
-
-      // Update selected notes
-      const updatedNotes = allNotes.map(note => {
-        if (selectedNotesList.includes(note.id)) {
-          return { ...note, isFavorite: !note.isFavorite };
-        }
-        return note;
-      });
-
-      // Perform bulk update
-      await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
-
-      // Update UI
-      setNotes(updatedNotes);
-      filterNotes(updatedNotes);
-      setSelectedNotes(new Set());
-      setIsSelectionMode(false);
-
-      // Notify the user
-      Alert.alert(t('common.success'), t('notes.favoriteUpdated'));
-    } catch (error) {
-      Alert.alert(t('common.error'), t('notes.favoriteUpdateError'));
-    }
   };
 
   const handleMoveToVault = async () => {
@@ -786,6 +765,7 @@ export default function NotesScreen() {
               refreshing={refreshing}
               onRefresh={onRefresh}
               contentContainerStyle={containerStyle}
+              extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
             />
           );
         })()}
