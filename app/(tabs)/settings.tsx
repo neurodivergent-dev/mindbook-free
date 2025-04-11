@@ -1,4 +1,3 @@
-/* eslint-disable react-native/no-inline-styles, react-native/no-color-literals */
 // This file is Settings screen component for a React Native application. It includes various settings options such as theme mode, font size, language selection, and backup/restore functionality. The component uses hooks for state management and context for theme and language settings. It also includes modals for selecting fonts and languages, as well as password management features. The component is styled using StyleSheet from React Native and includes error handling and user feedback through alerts.
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -12,6 +11,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -31,6 +31,20 @@ import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import NetInfo from '@react-native-community/netinfo';
 import supabase from '../utils/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+
+const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
+const TRANSPARENT = 'transparent';
+const WHITE = '#fff';
+const BORDER_WIDTH = 1;
+const BORDER_COLOR = 'rgba(0,0,0,0.1)';
+const SHADOW_COLOR = '#000';
+const AVATAR_PLACEHOLDER_COLOR = 'rgba(0,0,0,0.05)';
+const DANGER_COLOR = '#ef4444';
+const LOGIN_COLOR = '#3b82f6';
+const ACTIVE_OPACITY = 1;
+const DISABLED_OPACITY = 0.5;
 
 const Settings = () => {
   const {
@@ -64,6 +78,8 @@ const Settings = () => {
   const [showColorOptions, setShowColorOptions] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [userDisplayName, setUserDisplayName] = useState('');
+  const [profileImage, setProfileImage] = useState(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const loadAutoBackupSetting = useCallback(async () => {
     try {
@@ -564,7 +580,7 @@ const Settings = () => {
         activeOpacity={1}
         onPress={() => setShowFontModal(false)}
       >
-        <View style={[styles.modalView, { backgroundColor: theme.card, maxHeight: '70%' }]}>
+        <View style={[styles.modalView, { backgroundColor: theme.card }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>
               {t('settings.selectFont')}
@@ -574,7 +590,10 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={{ flexGrow: 0 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.scrollContentContainer}
+          >
             {Object.values(fontFamilies).map(font => (
               <TouchableOpacity
                 key={font.id}
@@ -582,9 +601,9 @@ const Settings = () => {
                   styles.modalItem,
                   {
                     backgroundColor:
-                      fontFamily === font.id ? themeColors[accentColor] : 'transparent',
+                      fontFamily === font.id ? themeColors[accentColor] : TRANSPARENT,
                     borderBottomColor: theme.border,
-                    borderBottomWidth: 1,
+                    borderBottomWidth: BORDER_WIDTH,
                   },
                 ]}
                 onPress={() => {
@@ -596,14 +615,14 @@ const Settings = () => {
                   style={[
                     styles.modalItemText,
                     {
-                      color: fontFamily === font.id ? '#fff' : theme.text,
+                      color: fontFamily === font.id ? WHITE : theme.text,
                       fontFamily: font.family,
                     },
                   ]}
                 >
                   {font.id === 'system' ? t('settings.systemFont') : font.name()}
                 </Text>
-                {fontFamily === font.id && <Ionicons name="checkmark" size={24} color="#fff" />}
+                {fontFamily === font.id && <Ionicons name="checkmark" size={24} color={WHITE} />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -620,11 +639,11 @@ const Settings = () => {
       onRequestClose={() => setShowLanguageModal(false)}
     >
       <TouchableOpacity
-        style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+        style={styles.modalOverlay}
         activeOpacity={1}
         onPress={() => setShowLanguageModal(false)}
       >
-        <View style={[styles.modalView, { backgroundColor: theme.card, maxHeight: '70%' }]}>
+        <View style={[styles.modalView, { backgroundColor: theme.card }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>
               {t('settings.selectLanguage')}
@@ -637,7 +656,10 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={{ flexGrow: 0 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.scrollContentContainer}
+          >
             {Object.entries(languages).map(([langCode, langName]) => (
               <TouchableOpacity
                 key={langCode}
@@ -645,9 +667,9 @@ const Settings = () => {
                   styles.modalItem,
                   {
                     backgroundColor:
-                      currentLanguage === langCode ? themeColors[accentColor] : 'transparent',
+                      currentLanguage === langCode ? themeColors[accentColor] : TRANSPARENT,
                     borderBottomColor: theme.border,
-                    borderBottomWidth: 1,
+                    borderBottomWidth: BORDER_WIDTH,
                   },
                 ]}
                 onPress={() => {
@@ -659,14 +681,14 @@ const Settings = () => {
                   style={[
                     styles.modalItemText,
                     {
-                      color: currentLanguage === langCode ? '#fff' : theme.text,
+                      color: currentLanguage === langCode ? WHITE : theme.text,
                     },
                   ]}
                 >
                   {String(langName)}
                 </Text>
                 {currentLanguage === langCode && (
-                  <Ionicons name="checkmark" size={24} color="#fff" />
+                  <Ionicons name="checkmark" size={24} color={WHITE} />
                 )}
               </TouchableOpacity>
             ))}
@@ -709,7 +731,7 @@ const Settings = () => {
       onRequestClose={() => setShowPasswordModal(false)}
     >
       <TouchableOpacity
-        style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+        style={[styles.modalOverlay, styles.modalOverlayBackground]}
         activeOpacity={1}
         onPress={() => setShowPasswordModal(false)}
       >
@@ -806,7 +828,7 @@ const Settings = () => {
 
           {hasPassword && (
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#dc2626', marginTop: 12 }]}
+              style={[styles.dangerButton, styles.modalButton, styles.marginTop12]}
               onPress={handleRemovePassword}
             >
               <Text style={styles.modalButtonText}>{t('settings.removePassword')}</Text>
@@ -848,6 +870,222 @@ const Settings = () => {
     }
   }, [hasPassword, t]);
 
+  // Get user profile image
+  const getUserProfileImage = useCallback(async () => {
+    if (!user || user.isAnonymous) return;
+
+    try {
+      // Check if user has profile image in metadata
+      if (user.user_metadata?.profile_image_url) {
+        setProfileImage(user.user_metadata.profile_image_url);
+      }
+    } catch (error) {
+      console.error('Error loading profile image:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadAutoBackupSetting();
+    loadLastBackupTime();
+    checkPasswordStatus();
+
+    if (user) {
+      setUserDisplayName(getUserDisplayName());
+      getUserProfileImage();
+    }
+
+    // Monitor internet connection changes
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(!!state.isConnected);
+    });
+
+    // Clear the listener when the component is unmounted
+    return () => unsubscribe();
+  }, [
+    loadAutoBackupSetting,
+    loadLastBackupTime,
+    checkPasswordStatus,
+    getUserDisplayName,
+    getUserProfileImage,
+    user,
+  ]);
+
+  // Pick and upload profile image
+  const handleProfileImageUpload = async () => {
+    if (!user || user.isAnonymous) {
+      Alert.alert(t('common.warning'), t('settings.loginRequiredForProfileImage'));
+      return;
+    }
+
+    if (!isConnected) {
+      Alert.alert(t('common.error'), t('common.noInternetConnection'));
+      return;
+    }
+
+    try {
+      // Request media library permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('settings.cameraPermissionDenied'));
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (result.canceled) return;
+
+      setIsUploadingImage(true);
+
+      // Get image data
+      const imageUri = result.assets[0].uri;
+      const fileExtension = imageUri.split('.').pop();
+
+      // Create a user-specific folder path for the file (required for RLS policies)
+      const filePath = `${user.id}/profile-${Date.now()}.${fileExtension}`;
+
+      // Read the file as base64
+      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, decode(base64Image), {
+          contentType: `image/${fileExtension}`,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error('Error uploading image:', error);
+        Alert.alert(
+          t('common.error'),
+          `${t('settings.imageUploadFailed')}: ${error.message || JSON.stringify(error)}`
+        );
+        setIsUploadingImage(false);
+        return;
+      }
+
+      // Get the public URL
+      const { data: publicUrlData } = supabase.storage.from('profiles').getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // Update user metadata
+      const { error: userError } = await supabase.auth.updateUser({
+        data: { profile_image_url: publicUrl },
+      });
+
+      if (userError) {
+        console.error('Error updating user profile:', userError);
+        Alert.alert(
+          t('common.error'),
+          `${t('settings.profileUpdateFailed')}: ${userError.message || JSON.stringify(userError)}`
+        );
+      } else {
+        setProfileImage(publicUrl);
+        Alert.alert(t('common.success'), t('settings.profileImageUpdated'));
+      }
+    } catch (error) {
+      console.error('Profile image upload error:', error);
+      Alert.alert(t('common.error'), t('settings.imageUploadFailed'));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Function to decode Base64 to ArrayBuffer
+  const decode = base64 => {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  };
+
+  // Remove profile image
+  const handleRemoveProfileImage = async () => {
+    if (!user || user.isAnonymous || !profileImage) return;
+
+    if (!isConnected) {
+      Alert.alert(t('common.error'), t('common.noInternetConnection'));
+      return;
+    }
+
+    try {
+      Alert.alert(t('settings.removeProfileImage'), t('settings.removeProfileImageConfirm'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            setIsUploadingImage(true);
+
+            try {
+              // Extract file path from URL - need to parse more carefully
+              // URL will be something like https://domain.supabase.co/storage/v1/object/public/profiles/user-id/filename.jpg
+              let filePath = null;
+
+              // If it's a Supabase URL, extract just the path part after the bucket name
+              if (profileImage.includes('/profiles/')) {
+                const pathParts = profileImage.split('/profiles/');
+                if (pathParts.length > 1) {
+                  filePath = pathParts[1];
+                }
+              } else {
+                // Fallback to just using the filename
+                filePath = profileImage.split('/').pop();
+              }
+
+              // Remove file from storage if path was successfully extracted
+              if (filePath) {
+                console.log('Removing image at path:', filePath);
+                const { error: deleteError } = await supabase.storage
+                  .from('profiles')
+                  .remove([filePath]);
+
+                if (deleteError) {
+                  console.log('Error deleting file, but continuing anyway:', deleteError);
+                  // Continue anyway to update metadata
+                }
+              }
+
+              // Update user metadata
+              const { error } = await supabase.auth.updateUser({
+                data: { profile_image_url: null },
+              });
+
+              if (error) {
+                console.error('Error removing profile image:', error);
+                Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
+              } else {
+                setProfileImage(null);
+                Alert.alert(t('common.success'), t('settings.profileImageRemoved'));
+              }
+            } catch (error) {
+              console.error('Error removing profile image:', error);
+              Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
+            }
+
+            setIsUploadingImage(false);
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('Error removing profile image:', error);
+      Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
+      setIsUploadingImage(false);
+    }
+  };
+
   // User Profile Card Component
   const UserProfileCard = () => {
     if (!user || isGuestMode) {
@@ -858,8 +1096,8 @@ const Settings = () => {
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              marginBottom: 24,
             },
+            styles.profileCardMargin,
           ]}
         >
           <View style={styles.profileCardContent}>
@@ -870,7 +1108,11 @@ const Settings = () => {
               <Text style={[styles.profileName, { color: theme.text }]}>
                 {t('settings.guestUser')}
               </Text>
-              <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>
+              <Text
+                style={[styles.profileEmail, { color: theme.textSecondary }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
                 {t('settings.signInToSync')}
               </Text>
             </View>
@@ -895,17 +1137,56 @@ const Settings = () => {
           {
             backgroundColor: theme.card,
             borderColor: theme.border,
-            marginBottom: 24,
           },
+          styles.profileCardMargin,
         ]}
       >
         <View style={styles.profileCardContent}>
-          <View style={[styles.avatar, { backgroundColor: themeColors[accentColor] }]}>
-            <Text style={styles.avatarText}>{avatarInitial}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.profileImageContainer}
+            onPress={handleProfileImageUpload}
+            disabled={isUploadingImage}
+          >
+            {isUploadingImage ? (
+              <View style={[styles.avatar, { backgroundColor: theme.card }]}>
+                <ActivityIndicator color={themeColors[accentColor]} size="small" />
+              </View>
+            ) : profileImage ? (
+              <View style={styles.avatarWithImage}>
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: themeColors[accentColor] }]}>
+                <Text style={styles.avatarText}>{avatarInitial}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: theme.text }]}>{userDisplayName}</Text>
-            <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>{user.email}</Text>
+            <Text
+              style={[styles.profileEmail, { color: theme.textSecondary }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {user.email}
+            </Text>
+
+            {profileImage && (
+              <TouchableOpacity
+                style={[styles.removePhotoButton, { borderColor: theme.border }]}
+                onPress={handleRemoveProfileImage}
+                disabled={isUploadingImage}
+              >
+                <Text style={[styles.removePhotoText, { color: DANGER_COLOR }]}>
+                  {t('settings.removePhoto')}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -945,7 +1226,7 @@ const Settings = () => {
                     styles.themeOption,
                     {
                       backgroundColor:
-                        themeMode === mode.id ? themeColors[accentColor] : 'transparent',
+                        themeMode === mode.id ? themeColors[accentColor] : TRANSPARENT,
                     },
                   ]}
                   onPress={() => changeThemeMode(mode.id)}
@@ -953,12 +1234,12 @@ const Settings = () => {
                   <Ionicons
                     name={mode.icon}
                     size={20}
-                    color={themeMode === mode.id ? '#fff' : theme.text}
+                    color={themeMode === mode.id ? WHITE : theme.text}
                   />
                   <Text
                     style={[
                       styles.themeText,
-                      { color: themeMode === mode.id ? '#fff' : theme.text },
+                      { color: themeMode === mode.id ? WHITE : theme.text },
                     ]}
                   >
                     {mode.name}
@@ -1015,7 +1296,7 @@ const Settings = () => {
                     }}
                   >
                     {accentColor === item.id && (
-                      <Ionicons name="checkmark" size={20} color="white" />
+                      <Ionicons name="checkmark" size={20} color={WHITE} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -1061,7 +1342,7 @@ const Settings = () => {
                       styles.sizeControl,
                       {
                         backgroundColor:
-                          fontSize === size.id ? themeColors[accentColor] : 'transparent',
+                          fontSize === size.id ? themeColors[accentColor] : TRANSPARENT,
                         borderColor: themeColors[accentColor],
                       },
                     ]}
@@ -1071,8 +1352,7 @@ const Settings = () => {
                       style={[
                         styles.sizeControlText,
                         {
-                          color: fontSize === size.id ? '#fff' : theme.text,
-                          fontSize: 12,
+                          color: fontSize === size.id ? WHITE : theme.text,
                         },
                       ]}
                     >
@@ -1133,13 +1413,11 @@ const Settings = () => {
                 <View
                   style={[
                     styles.settingItem,
+                    styles.settingItemContainer,
                     {
                       borderBottomColor: theme.border,
                       borderColor: themeColors[accentColor],
-                      borderWidth: 1,
-                      borderRadius: 12,
-                      padding: 8,
-                      marginBottom: 8,
+                      borderWidth: BORDER_WIDTH,
                     },
                   ]}
                 >
@@ -1154,7 +1432,9 @@ const Settings = () => {
                           (lastBackupTime
                             ? new Date(lastBackupTime).toLocaleString()
                             : t('common.notAvailable'))
-                        : t('settings.autoBackupDescription')}
+                        : t('settings.autoBackupDescription') +
+                          ' ' +
+                          t('settings.realTimeBackupDescription')}
                     </Text>
                   </View>
                   <Switch
@@ -1170,13 +1450,11 @@ const Settings = () => {
               <View
                 style={[
                   styles.settingItem,
+                  styles.settingItemContainer,
                   {
                     borderBottomColor: theme.border,
                     borderColor: themeColors[accentColor],
-                    borderWidth: 1,
-                    borderRadius: 12,
-                    padding: 8,
-                    marginBottom: 8,
+                    borderWidth: BORDER_WIDTH,
                   },
                 ]}
               >
@@ -1191,7 +1469,7 @@ const Settings = () => {
                 <Ionicons name="log-in-outline" size={24} color={themeColors[accentColor]} />
               </View>
             )}
-
+            {/* Before the View component containing the backupButtonContainer */}
             <View style={styles.backupButtonContainer}>
               <TouchableOpacity
                 style={[
@@ -1199,7 +1477,10 @@ const Settings = () => {
                   {
                     backgroundColor: theme.card,
                     borderColor: themeColors[accentColor],
-                    opacity: !user || user?.isAnonymous || isBackingUp || !isConnected ? 0.5 : 1,
+                    opacity:
+                      !user || user?.isAnonymous || isBackingUp || !isConnected
+                        ? DISABLED_OPACITY
+                        : ACTIVE_OPACITY,
                   },
                 ]}
                 onPress={handleManualBackup}
@@ -1241,7 +1522,10 @@ const Settings = () => {
                   {
                     backgroundColor: theme.card,
                     borderColor: themeColors[accentColor],
-                    opacity: !user || user?.isAnonymous || isRestoring || !isConnected ? 0.5 : 1,
+                    opacity:
+                      !user || user?.isAnonymous || isRestoring || !isConnected
+                        ? DISABLED_OPACITY
+                        : ACTIVE_OPACITY,
                   },
                 ]}
                 onPress={handleRestoreBackup}
@@ -1281,11 +1565,14 @@ const Settings = () => {
               <TouchableOpacity
                 style={[
                   styles.manualBackupButton,
+                  styles.marginTop16,
                   {
                     backgroundColor: theme.card,
-                    borderColor: '#ef4444',
-                    marginTop: 16,
-                    opacity: !user || user?.isAnonymous || !isConnected ? 0.5 : 1,
+                    borderColor: DANGER_COLOR,
+                    opacity:
+                      !user || user?.isAnonymous || !isConnected
+                        ? DISABLED_OPACITY
+                        : ACTIVE_OPACITY,
                   },
                 ]}
                 onPress={handleClearAllData}
@@ -1295,7 +1582,7 @@ const Settings = () => {
                   name="trash-outline"
                   size={20}
                   color={
-                    !user || user?.isAnonymous || !isConnected ? theme.textSecondary : '#ef4444'
+                    !user || user?.isAnonymous || !isConnected ? theme.textSecondary : DANGER_COLOR
                   }
                 />
                 <Text
@@ -1305,7 +1592,7 @@ const Settings = () => {
                       color:
                         !user || user?.isAnonymous || !isConnected
                           ? theme.textSecondary
-                          : '#ef4444',
+                          : DANGER_COLOR,
                     },
                   ]}
                 >
@@ -1352,15 +1639,15 @@ const Settings = () => {
         </View>
 
         {/* Session */}
-        <View style={[styles.section, { borderBottomColor: theme.border, marginTop: 24 }]}>
+        <View style={[styles.section, styles.marginTop24, { borderBottomColor: theme.border }]}>
           {isGuestMode ? (
             <TouchableOpacity
               style={[
                 styles.settingButton,
                 {
                   backgroundColor: theme.card,
-                  borderColor: '#3b82f6',
-                  opacity: isConnected ? 1 : 0.5,
+                  borderColor: LOGIN_COLOR,
+                  opacity: isConnected ? ACTIVE_OPACITY : DISABLED_OPACITY,
                 },
               ]}
               onPress={() => {
@@ -1381,35 +1668,10 @@ const Settings = () => {
               }}
               disabled={!isConnected}
             >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  height: 72,
-                  paddingHorizontal: 16,
-                }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '500',
-                      color: '#3b82f6',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {t('drawer.loginOption')}
-                  </Text>
-                  <Ionicons name="log-in-outline" size={24} color="#3b82f6" />
+              <View style={styles.rowLayout}>
+                <View style={styles.centerContainer}>
+                  <Text style={styles.loginText}>{t('drawer.loginOption')}</Text>
+                  <Ionicons name="log-in-outline" size={24} color={LOGIN_COLOR} />
                 </View>
               </View>
             </TouchableOpacity>
@@ -1419,8 +1681,8 @@ const Settings = () => {
                 styles.settingButton,
                 {
                   backgroundColor: theme.card,
-                  borderColor: '#ef4444',
-                  opacity: isConnected ? 1 : 0.5,
+                  borderColor: DANGER_COLOR,
+                  opacity: isConnected ? ACTIVE_OPACITY : DISABLED_OPACITY,
                 },
               ]}
               onPress={() => {
@@ -1444,12 +1706,12 @@ const Settings = () => {
                         console.log('Logout successful, redirecting to login page...');
                         setTimeout(() => {
                           router.replace('/(auth)/login');
-                        }, 500);
+                        }, 300);
                       } catch (error) {
                         console.error('Logout error:', error);
                         setTimeout(() => {
                           router.replace('/(auth)/login');
-                        }, 500);
+                        }, 300);
                       }
                     },
                   },
@@ -1457,35 +1719,10 @@ const Settings = () => {
               }}
               disabled={!isConnected}
             >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  height: 72,
-                  paddingHorizontal: 16,
-                }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: '500',
-                      color: '#ef4444',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {t('settings.signOut')}
-                  </Text>
-                  <Ionicons name="log-out-outline" size={24} color="#ef4444" />
+              <View style={styles.rowLayout}>
+                <View style={styles.centerContainer}>
+                  <Text style={styles.dangerText}>{t('settings.signOut')}</Text>
+                  <Ionicons name="log-out-outline" size={24} color={DANGER_COLOR} />
                 </View>
               </View>
             </TouchableOpacity>
@@ -1499,8 +1736,6 @@ const Settings = () => {
 
 export default Settings;
 
-const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
-
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
@@ -1511,16 +1746,25 @@ const styles = StyleSheet.create({
   },
   avatarPlaceholder: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: AVATAR_PLACEHOLDER_COLOR,
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
     width: 40,
   },
   avatarText: {
-    color: '#fff',
+    color: WHITE,
     fontSize: 16,
     fontWeight: '600',
+  },
+  avatarWithImage: {
+    alignItems: 'center',
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    width: 60,
   },
   backupButtonContainer: {
     alignItems: 'center',
@@ -1529,6 +1773,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
     marginTop: -8,
+  },
+  centerContainer: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
   },
   closeButton: {
     alignItems: 'center',
@@ -1568,9 +1819,18 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  dangerButton: {
+    backgroundColor: DANGER_COLOR,
+  },
+  dangerText: {
+    color: DANGER_COLOR,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   fontSizeButton: {
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     overflow: 'hidden',
   },
   fontSizeContent: {
@@ -1607,26 +1867,32 @@ const styles = StyleSheet.create({
   loginButton: {
     alignItems: 'center',
     borderRadius: 8,
-    marginLeft: 'auto',
+    minWidth: 80,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   loginButtonText: {
-    color: '#fff',
+    color: WHITE,
     fontSize: 14,
     fontWeight: '600',
+  },
+  loginText: {
+    color: LOGIN_COLOR,
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   manualBackupButton: {
     alignItems: 'center',
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     elevation: 2,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
     marginTop: 8,
     padding: 12,
-    shadowColor: '#000',
+    shadowColor: SHADOW_COLOR,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1636,6 +1902,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  marginTop12: {
+    marginTop: 12,
+  },
+  marginTop16: {
+    marginTop: 16,
+  },
+  marginTop24: {
+    marginTop: 24,
+  },
   modalButton: {
     alignItems: 'center',
     borderRadius: 12,
@@ -1644,7 +1919,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   modalButtonText: {
-    color: '#fff',
+    color: WHITE,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1653,7 +1928,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     maxWidth: 400,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: SHADOW_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1668,7 +1943,7 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     fontSize: 16,
     height: 48,
     paddingHorizontal: 16,
@@ -1686,7 +1961,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: OVERLAY_BACKGROUND_COLOR,
     flex: 1,
     justifyContent: 'center',
   },
@@ -1698,20 +1973,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalView: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     elevation: 5,
-    maxWidth: 400,
+    margin: 20,
+    maxHeight: '70%',
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: SHADOW_COLOR,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    width: '100%',
+    shadowRadius: 4,
+    width: '90%',
   },
   profileCard: {
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     marginBottom: 16,
     padding: 12,
   },
@@ -1719,20 +1997,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
   },
+  profileCardMargin: {
+    marginBottom: 24,
+  },
   profileEmail: {
     fontSize: 12,
     opacity: 0.7,
   },
+  profileImage: {
+    borderRadius: 30,
+    height: '100%',
+    width: '100%',
+  },
+  profileImageContainer: {
+    position: 'relative',
+  },
   profileInfo: {
+    flex: 1,
     marginLeft: 12,
+    marginRight: 8,
   },
   profileName: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
+  removePhotoButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 4,
+    borderWidth: 1,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  removePhotoText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  rowLayout: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: 72,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  scrollContentContainer: {
+    flexGrow: 0,
+  },
   section: {
-    borderBottomWidth: 1,
+    borderBottomWidth: BORDER_WIDTH,
     marginBottom: 24,
     paddingBottom: 0,
   },
@@ -1746,22 +2059,22 @@ const styles = StyleSheet.create({
   },
   selectedColor: {
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: SHADOW_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     transform: [{ scale: 1.1 }],
   },
   selectedColorPreview: {
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderColor: BORDER_COLOR,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     height: 28,
     width: 28,
   },
   settingButton: {
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     overflow: 'hidden',
   },
   settingContent: {
@@ -1772,7 +2085,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   settingGroup: {
-    backgroundColor: 'transparent',
+    backgroundColor: TRANSPARENT,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -1781,11 +2094,16 @@ const styles = StyleSheet.create({
   },
   settingItem: {
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: TRANSPARENT,
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
+  },
+  settingItemContainer: {
+    borderRadius: 12,
+    marginBottom: 8,
+    padding: 8,
   },
   settingItemInfo: {
     flex: 1,
@@ -1811,12 +2129,13 @@ const styles = StyleSheet.create({
   sizeControl: {
     alignItems: 'center',
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: BORDER_WIDTH,
     height: 28,
     justifyContent: 'center',
     width: 28,
   },
   sizeControlText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   themeContainer: {
