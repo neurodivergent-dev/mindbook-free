@@ -42,6 +42,7 @@ export default {
       },
       package: 'com.melihcandemir.mindbook',
       newArchEnabled: true,
+      versionCode: 2,
     },
     web: {
       favicon: './assets/icon.png',

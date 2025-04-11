@@ -1,7 +1,7 @@
 // This file is Main Screen of the app, which is the main entry point for the app.
 // It contains the main logic for displaying notes, categories, and other features.
 // It also handles the navigation and state management for the app.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -642,6 +643,14 @@ export default function NotesScreen() {
     );
   };
 
+  // Create the FlashList content container style based on selection mode
+  const flashListContentStyle = useMemo(() => {
+    if (isSelectionMode) {
+      return styles.flashListContentWithSelection;
+    }
+    return styles.flashListContent;
+  }, [isSelectionMode]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {isSelectionMode && renderActionBar()}
@@ -714,9 +723,34 @@ export default function NotesScreen() {
               {notes.length > 0
                 ? t('notes.lastEdit') +
                   ': ' +
-                  new Date(
-                    Math.max(...notes.map(n => new Date(n.updatedAt || n.createdAt).getTime()))
-                  ).toLocaleDateString()
+                  (() => {
+                    try {
+                      // Filter out any notes with invalid dates first
+                      const validNotes = notes.filter(n => {
+                        const dateStr = n.updatedAt || n.createdAt;
+                        if (!dateStr) return false;
+                        const date = new Date(dateStr);
+                        return !isNaN(date.getTime());
+                      });
+
+                      if (validNotes.length === 0) return t('common.notAvailable');
+
+                      // Find the most recent date
+                      const latestTimestamp = Math.max(
+                        ...validNotes.map(n => new Date(n.updatedAt || n.createdAt).getTime())
+                      );
+
+                      // Check if the result is valid
+                      if (isNaN(latestTimestamp) || latestTimestamp === -Infinity) {
+                        return t('common.notAvailable');
+                      }
+
+                      return new Date(latestTimestamp).toLocaleDateString();
+                    } catch (error) {
+                      console.error('Error formatting last edit date:', error);
+                      return t('common.notAvailable');
+                    }
+                  })()
                 : t('notes.emptyNotes')}
             </Text>
           </View>
@@ -744,31 +778,21 @@ export default function NotesScreen() {
       )}
 
       <View style={styles.listContainer}>
-        {(() => {
-          const containerStyle = {
-            paddingHorizontal: 8,
-            paddingVertical: 8,
-            paddingBottom: isSelectionMode ? 80 : 16,
-          };
-
-          return (
-            <FlashList
-              data={visibleNotes}
-              estimatedItemSize={200}
-              renderItem={renderNoteItem}
-              keyExtractor={item => item.id}
-              onEndReached={loadMoreNotes}
-              onEndReachedThreshold={0.5}
-              ListEmptyComponent={renderEmptyState}
-              ListFooterComponent={renderFooter}
-              showsVerticalScrollIndicator={true}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              contentContainerStyle={containerStyle}
-              extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
-            />
-          );
-        })()}
+        <FlashList
+          data={visibleNotes}
+          estimatedItemSize={200}
+          renderItem={renderNoteItem}
+          keyExtractor={item => item.id}
+          onEndReached={loadMoreNotes}
+          onEndReachedThreshold={0.5}
+          ListEmptyComponent={<View style={styles.emptyStateWrapper}>{renderEmptyState()}</View>}
+          ListFooterComponent={renderFooter}
+          showsVerticalScrollIndicator={true}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          contentContainerStyle={flashListContentStyle}
+          extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
+        />
       </View>
       {renderSortMenu()}
     </View>
@@ -863,6 +887,23 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  emptyStateWrapper: {
+    alignItems: 'center',
+    flex: 1,
+    height: Dimensions.get('window').height * 0.6,
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  flashListContent: {
+    paddingBottom: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  flashListContentWithSelection: {
+    paddingBottom: 80,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   header: {
     alignItems: 'center',

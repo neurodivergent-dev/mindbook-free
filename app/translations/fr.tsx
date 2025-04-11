@@ -60,6 +60,7 @@ export default {
     noLocalNotesToBackup: 'Aucune note locale trouvée à sauvegarder.',
     noCloudBackupsFound:
       "Aucune sauvegarde trouvée dans le stockage cloud. Vous devez d'abord créer une sauvegarde.",
+    login: 'Connexion',
   },
   auth: {
     login: 'Connexion',
@@ -334,6 +335,7 @@ export default {
     autoBackup: 'Sauvegarde automatique',
     lastBackup: 'Dernière sauvegarde',
     autoBackupDescription: 'Sauvegardez automatiquement vos notes',
+    realTimeBackupDescription: 'et immédiatement après chaque sauvegarde de note.',
     backupNow: 'Sauvegarder maintenant',
     backupSuccess: 'Sauvegarde effectuée avec succès',
     backupError: "Une erreur s'est produite lors de la sauvegarde",
@@ -369,6 +371,8 @@ export default {
     removePassword: 'Supprimer le mot de passe',
     newPassword: 'Nouveau mot de passe',
     biometricAuth: 'Authentification biométrique',
+    guestUser: 'Utilisateur Invité',
+    signInToSync: 'Connectez-vous pour synchroniser les notes entre appareils',
     about: 'À propos',
     version: 'Version',
     buildDate: 'Date de création',

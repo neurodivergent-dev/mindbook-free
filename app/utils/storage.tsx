@@ -73,13 +73,14 @@ export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<
     const allNotes = await getAllNotes();
 
     // Update the matching notes
+    const now = new Date().toISOString();
     const updatedAllNotes = allNotes.map(note => {
       const updateInfo = validUpdates.find(update => update.id === note.id);
       if (updateInfo) {
         return {
           ...note,
           ...updateInfo,
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
         };
       }
       return note;
@@ -90,6 +91,24 @@ export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<
 
     // Update indices
     await buildNoteIndices();
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
+
+    // Check if auto-backup is enabled and trigger immediate backup
+    try {
+      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+      if (autoBackupEnabled === 'true') {
+        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+        const userId = await getCurrentUserId();
+        if (userId) {
+          triggerAutoBackup(userId, true); // Force immediate backup
+        }
+      }
+    } catch (error) {
+      console.error('Error during auto-backup after batch update:', error);
+      // Continue anyway since the main update operation succeeded
+    }
 
     return true;
   } catch (error) {
@@ -137,6 +156,24 @@ export const saveNote = async note => {
     // Update indices
     await buildNoteIndices();
 
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
+
+    // Check if auto-backup is enabled and trigger immediate backup
+    try {
+      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+      if (autoBackupEnabled === 'true') {
+        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+        const userId = await getCurrentUserId();
+        if (userId) {
+          triggerAutoBackup(userId, true); // Force immediate backup
+        }
+      }
+    } catch (error) {
+      console.error('Error during auto-backup after save:', error);
+      // Continue anyway since the main save operation succeeded
+    }
+
     return true;
   } catch (error) {
     return false;
@@ -153,16 +190,35 @@ export const updateNote = async (noteId, updatedNote) => {
       throw new Error('Note not found');
     }
 
+    const now = new Date().toISOString();
     notes[noteIndex] = {
       ...notes[noteIndex],
       ...updatedNote,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     };
 
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
     // Update indices
     await buildNoteIndices();
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
+
+    // Check if auto-backup is enabled and trigger immediate backup
+    try {
+      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+      if (autoBackupEnabled === 'true') {
+        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+        const userId = await getCurrentUserId();
+        if (userId) {
+          triggerAutoBackup(userId, true); // Force immediate backup
+        }
+      }
+    } catch (error) {
+      console.error('Error during auto-backup after update:', error);
+      // Continue anyway since the main update operation succeeded
+    }
 
     return true;
   } catch (error) {
@@ -180,6 +236,10 @@ export const deleteNote = async noteId => {
 
     // Update indices
     await buildNoteIndices();
+
+    // Set lastChangeTimestamp for backup detection
+    const now = new Date().toISOString();
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
     // Change timestamp approach didn't work, call backup directly
     try {
@@ -213,10 +273,14 @@ export const toggleFavorite = async noteId => {
   }
 
   notes[noteIndex].isFavorite = !notes[noteIndex].isFavorite;
+  notes[noteIndex].updatedAt = new Date().toISOString();
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
   // Update indices
   await buildNoteIndices();
+
+  // Set lastChangeTimestamp for backup detection
+  await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
 
   return true;
 };
@@ -231,10 +295,14 @@ export const toggleArchive = async noteId => {
   }
 
   notes[noteIndex].isArchived = !notes[noteIndex].isArchived;
+  notes[noteIndex].updatedAt = new Date().toISOString();
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
   // Update indices
   await buildNoteIndices();
+
+  // Set lastChangeTimestamp for backup detection
+  await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
 
   return true;
 };
@@ -269,6 +337,10 @@ export const moveToTrash = async noteId => {
 
     // Update indices
     await buildNoteIndices();
+
+    // Set lastChangeTimestamp for backup detection
+    const now = new Date().toISOString();
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
     // Call backup directly after moving to trash
     try {
@@ -307,6 +379,10 @@ export const restoreFromTrash = async noteId => {
 
     // Update indices
     await buildNoteIndices();
+
+    // Set lastChangeTimestamp for backup detection
+    const now = new Date().toISOString();
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
     // Backup operation - should not affect the main operation if it fails
     try {
@@ -363,12 +439,20 @@ export const deleteCategory = async category => {
   const allNotes = await getAllNotes();
   const updatedNotes = allNotes.map(note => {
     if (note.category === category) {
-      return { ...note, category: null };
+      return {
+        ...note,
+        category: null,
+        updatedAt: new Date().toISOString(),
+      };
     }
     return note;
   });
 
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+
+  // Set lastChangeTimestamp for backup detection
+  await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
   return true;
 };
 
@@ -506,7 +590,12 @@ export const batchToggleFavorite = async (noteIds: string[]): Promise<boolean> =
     }));
 
     // Use batch update
-    return await batchUpdateNotes(updates);
+    const result = await batchUpdateNotes(updates);
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+    return result;
   } catch (error) {
     console.error('Error in batch toggle favorite:', error);
     return false;
@@ -532,7 +621,12 @@ export const batchToggleArchive = async (noteIds: string[]): Promise<boolean> =>
     }));
 
     // Use batch update
-    return await batchUpdateNotes(updates);
+    const result = await batchUpdateNotes(updates);
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+    return result;
   } catch (error) {
     console.error('Error in batch toggle archive:', error);
     return false;
@@ -561,6 +655,9 @@ export const batchMoveToTrash = async (noteIds: string[]): Promise<boolean> => {
 
     // Use batch update
     const result = await batchUpdateNotes(updates);
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
     // Call backup directly after moving to trash
     try {
@@ -593,14 +690,18 @@ export const batchRestoreFromTrash = async (noteIds: string[]): Promise<boolean>
     const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
 
     // Set restore status for each note
+    const now = new Date().toISOString();
     const updates = notesToUpdate.map(note => ({
       id: note.id,
       isTrash: false,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     }));
 
     // Use batch update
     const result = await batchUpdateNotes(updates);
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
     // Backup operation
     try {
@@ -636,14 +737,20 @@ export const batchUpdateCategory = async (
     const notesToUpdate = allNotes.filter(note => noteIds.includes(note.id));
 
     // Update category for each note
+    const now = new Date().toISOString();
     const updates = notesToUpdate.map(note => ({
       id: note.id,
       category: category,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     }));
 
     // Use batch update
-    return await batchUpdateNotes(updates);
+    const result = await batchUpdateNotes(updates);
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
+
+    return result;
   } catch (error) {
     console.error('Error in batch update category:', error);
     return false;

@@ -15,8 +15,7 @@ import { StyleSheet, View, StatusBar, useColorScheme, AppState } from 'react-nat
 import CustomDrawer from './components/CustomDrawer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import backup from './utils/backup';
-import { NOTES_KEY, buildNoteIndices } from './utils/storage';
-import { triggerAutoBackup } from './utils/backup';
+import { NOTES_KEY, buildNoteIndices, getAllNotes } from './utils/storage';
 import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { Raleway_400Regular, Raleway_700Bold } from '@expo-google-fonts/raleway';
@@ -24,6 +23,9 @@ import { Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { useTranslation } from 'react-i18next';
 import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
+import { initNetworkManager } from './utils/networkManager';
+import { OfflineService } from './services/offline';
+import { initStorage } from './utils/initStorage';
 
 import {
   DarkTheme,
@@ -56,9 +58,44 @@ function RootLayoutNav() {
   const [isLoginRequested, setIsLoginRequested] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const { t } = useTranslation();
+  const [navigationHandled, setNavigationHandled] = useState(false);
+  const [appInitialized, setAppInitialized] = useState(false);
 
-  // Check if the user has completed onboarding
+  // Sequential app initialization
   useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Step 1: Initialize network services first (critical)
+        console.log('Initializing network manager...');
+        await initNetworkManager();
+
+        console.log('Initializing offline service...');
+        await OfflineService.initialize();
+
+        console.log('Network services initialized successfully');
+
+        // Step 2: Check onboarding status after network initialization
+        await checkOnboardingStatus();
+
+        // Step 3: Initialize storage buckets
+        console.log('Initializing storage buckets...');
+        await initStorage();
+        console.log('Storage buckets initialized successfully');
+
+        // Step 4: Initialize other services in parallel
+        await Promise.all([initIndices()]);
+
+        // Step 5: Mark app as fully initialized
+        setAppInitialized(true);
+        console.log('App initialization complete');
+      } catch (error) {
+        console.error('Error during app initialization:', error);
+        // Even on error, mark as initialized to avoid app blocking
+        setAppInitialized(true);
+      }
+    };
+
+    // Helper functions
     const checkOnboardingStatus = async () => {
       try {
         const value = await AsyncStorage.getItem('@onboarding_completed');
@@ -81,64 +118,6 @@ function RootLayoutNav() {
       }
     };
 
-    checkOnboardingStatus();
-  }, [setHasSeenOnboarding]);
-
-  // Add an AppState listener to watch the app transition from background to foreground
-  useEffect(() => {
-    const handleAppStateChange = async nextAppState => {
-      if (nextAppState === 'active') {
-        // Recheck session state
-        try {
-          const storedSession = await AsyncStorage.getItem('userSession');
-          if (storedSession) {
-            const sessionData = JSON.parse(storedSession);
-
-            if (sessionData.access_token && sessionData.refresh_token) {
-              // Refresh the Supabase session
-              const { data, error } = await supabase.auth.setSession({
-                access_token: sessionData.access_token,
-                refresh_token: sessionData.refresh_token,
-              });
-
-              if (error) {
-                // If session refresh fails, no logout is required
-                // User will be automatically directed to the login screen
-                console.error('Session refresh failed:', error.message);
-              } else if (data?.session) {
-                // Update session information
-                await AsyncStorage.setItem(
-                  'userSession',
-                  JSON.stringify({
-                    isLoggedIn: true,
-                    isAnonymous: false,
-                    email: data.session.user.email,
-                    isGuestMode: false,
-                    access_token: data.session.access_token,
-                    refresh_token: data.session.refresh_token,
-                    timestamp: new Date().toISOString(),
-                    user_id: data.session.user.id,
-                  })
-                );
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error checking session:', error);
-        }
-      }
-    };
-
-    // Add AppState listener
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  // Build note indices for faster filtering
-  useEffect(() => {
     const initIndices = async () => {
       try {
         // Check if there are any notes to index
@@ -153,58 +132,20 @@ function RootLayoutNav() {
       }
     };
 
-    initIndices();
-  }, []);
+    initializeApp();
+  }, [setHasSeenOnboarding]);
 
+  // Add back the automatic backup interval functionality with dependency on initialization state
   useEffect(() => {
-    if (isLoginRequested && segments.length > 0 && segments[0] === '(auth)') {
-      setIsLoginRequested(false);
-    }
-  }, [segments, isLoginRequested]);
+    // Don't start the backup interval until app is fully initialized
+    if (!appInitialized) return;
 
-  useEffect(() => {
-    // @ts-ignore - We ignore the global TypeScript type
-    global.requestLogin = () => {
-      setIsLoginRequested(true);
-      router.replace('/(auth)/login');
-    };
-  }, [router]);
-
-  useEffect(() => {
-    const segmentsArray = segments as string[];
-    const isNotesTab =
-      segmentsArray.length > 0 &&
-      segmentsArray[0] === '(tabs)' &&
-      (segmentsArray.length < 2 || !segmentsArray[1] || segmentsArray[1] === 'index');
-
-    // @ts-ignore - We ignore the global TypeScript type
-    global.toggleDrawer = () => {
-      if (isNotesTab) {
-        setIsDrawerVisible(prev => !prev);
-      }
-    };
-
-    if (!isNotesTab && isDrawerVisible) {
-      setIsDrawerVisible(false);
-    }
-  }, [segments, isDrawerVisible]);
-
-  useEffect(() => {
-    const handleAutoBackup = async () => {
-      if (user && !loading) {
-        await triggerAutoBackup(user);
-      }
-    };
-
-    handleAutoBackup();
-  }, [user, loading]);
-
-  // Auto backup process
-  useEffect(() => {
-    // Check if user is logged in
+    // Don't proceed if user is not logged in
     if (!user) return;
     const isLoggedIn = user && !user.isAnonymous;
     if (!isLoggedIn) return;
+
+    console.log('Setting up automatic backup interval...');
 
     // Create a function to check for automatic backup
     const checkForAutomaticBackup = async () => {
@@ -244,7 +185,7 @@ function RootLayoutNav() {
       }
     };
 
-    // Check for backup when the component mounts
+    // Initial check for backup
     checkForAutomaticBackup();
 
     // Set interval to check for backup (every 30 minutes)
@@ -255,10 +196,128 @@ function RootLayoutNav() {
     return () => {
       clearInterval(backupInterval);
     };
-  }, [user, t]);
+  }, [appInitialized, user, t]);
+
+  // Add an AppState listener to watch the app transition from background to foreground
+  useEffect(() => {
+    const handleAppStateChange = async nextAppState => {
+      if (nextAppState === 'active') {
+        // Recheck session state
+        try {
+          const storedSession = await AsyncStorage.getItem('userSession');
+          if (!storedSession) {
+            // Reset navigation handled flag when there's no session
+            setNavigationHandled(false);
+          }
+
+          if (storedSession) {
+            const sessionData = JSON.parse(storedSession);
+
+            if (sessionData.access_token && sessionData.refresh_token) {
+              // Refresh the Supabase session
+              const { data, error } = await supabase.auth.setSession({
+                access_token: sessionData.access_token,
+                refresh_token: sessionData.refresh_token,
+              });
+
+              if (error) {
+                // If session refresh fails, no logout is required
+                // Only log errors that are not related to missing refresh token
+                if (!error.message.includes('Refresh Token Not Found')) {
+                  console.error('Session refresh failed:', error.message);
+                } else {
+                  // Silently handle missing refresh token errors
+                  console.log('Session needs renewal, redirecting to login when needed');
+                }
+              } else if (data?.session) {
+                // Update session information
+                await AsyncStorage.setItem(
+                  'userSession',
+                  JSON.stringify({
+                    isLoggedIn: true,
+                    isAnonymous: false,
+                    email: data.session.user.email,
+                    isGuestMode: false,
+                    access_token: data.session.access_token,
+                    refresh_token: data.session.refresh_token,
+                    timestamp: new Date().toISOString(),
+                    user_id: data.session.user.id,
+                  })
+                );
+
+                // Get fresh user data to check for profile image updates
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (!userError && userData?.user) {
+                  // Check if the user profile data has been updated (especially profile image)
+                  const currentProfileImage = await AsyncStorage.getItem('@profile_image_url');
+                  const newProfileImage = userData.user.user_metadata?.profile_image_url;
+
+                  // If profile image has changed, update local storage
+                  if (newProfileImage && newProfileImage !== currentProfileImage) {
+                    console.log('Profile image updated from web, syncing to mobile...');
+                    await AsyncStorage.setItem('@profile_image_url', newProfileImage);
+
+                    // Cache timestamp for profile image to force reload
+                    await AsyncStorage.setItem('@profile_image_timestamp', Date.now().toString());
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking session:', error);
+        }
+      }
+    };
+
+    // Add AppState listener
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLoginRequested && segments.length > 0 && segments[0] === '(auth)') {
+      setIsLoginRequested(false);
+    }
+  }, [segments, isLoginRequested]);
+
+  useEffect(() => {
+    // @ts-ignore - We ignore the global TypeScript type
+    global.requestLogin = () => {
+      setIsLoginRequested(true);
+      router.replace('/(auth)/login');
+    };
+  }, [router]);
+
+  useEffect(() => {
+    const segmentsArray = segments as string[];
+    const isNotesTab =
+      segmentsArray.length > 0 &&
+      segmentsArray[0] === '(tabs)' &&
+      (segmentsArray.length < 2 || !segmentsArray[1] || segmentsArray[1] === 'index');
+
+    // @ts-ignore - We ignore the global TypeScript type
+    global.toggleDrawer = () => {
+      if (isNotesTab) {
+        setIsDrawerVisible(prev => !prev);
+      }
+    };
+
+    if (!isNotesTab && isDrawerVisible) {
+      setIsDrawerVisible(false);
+    }
+  }, [segments, isDrawerVisible]);
 
   useEffect(() => {
     const manageNavigation = async () => {
+      // Don't navigate until app is fully initialized
+      if (!appInitialized) {
+        return;
+      }
+
       // Check onboarding status
       if (checkingOnboarding) {
         try {
@@ -277,6 +336,7 @@ function RootLayoutNav() {
       if (!loading && !checkingOnboarding) {
         const segmentsArray = segments as string[];
         const inAuthGroup = segmentsArray[0] === '(auth)';
+        const inTabsGroup = segmentsArray[0] === '(tabs)';
         const inOnboardingScreen = inAuthGroup && segmentsArray[1] === 'onboarding';
         const inLoginScreen = inAuthGroup && segmentsArray[1] === 'login';
 
@@ -285,7 +345,15 @@ function RootLayoutNav() {
           inOnboardingScreen,
           inLoginScreen,
           inAuthGroup,
+          inTabsGroup,
+          navigationHandled,
         });
+
+        // If we're already in the tabs group and the user is logged in,
+        // we shouldn't redirect back to the index tab
+        if (inTabsGroup && (user || isGuestMode) && navigationHandled) {
+          return;
+        }
 
         setTimeout(() => {
           // 1. Onboarding control
@@ -309,13 +377,14 @@ function RootLayoutNav() {
               return;
             }
 
-            // 2.3. If the user is logged in
+            // 2.3. If the user is logged in and in auth group
             if ((user || isGuestMode) && inAuthGroup) {
               router.replace('/(tabs)/');
+              setNavigationHandled(true);
               return;
             }
 
-            // 2.4. If the user is not logged in
+            // 2.4. If the user is not logged in and not in auth group
             if (!user && !isGuestMode && !inAuthGroup) {
               router.replace('/(auth)/login');
               return;
@@ -335,7 +404,9 @@ function RootLayoutNav() {
     router,
     hasSeenOnboarding,
     checkingOnboarding,
+    navigationHandled,
     setHasSeenOnboarding,
+    appInitialized,
   ]);
 
   return (
@@ -521,14 +592,3 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
 });
-
-// Helper function to get all notes
-const getAllNotes = async () => {
-  try {
-    const notesJson = await AsyncStorage.getItem(NOTES_KEY);
-    return notesJson ? JSON.parse(notesJson) : [];
-  } catch (error) {
-    console.error('Error getting all notes:', error);
-    return [];
-  }
-};

@@ -362,17 +362,20 @@ export const getCurrentUserId = async () => {
 
 /**
  * Automatic backup trigger
- * @param {Object} user - User information
+ * @param {Object|string} user - User information or user ID
+ * @param {boolean} forceBackup - Force backup regardless of conditions
  * @returns {Promise<Object|null>} - Backup result or null
  */
-export const triggerAutoBackup = async user => {
+export const triggerAutoBackup = async (user, forceBackup = false) => {
   try {
     // User controls
     let userId = null;
 
     // User information sent as a parameter
-    if (user && user.id) {
+    if (user && typeof user === 'object' && user.id) {
       userId = user.id;
+    } else if (user && typeof user === 'string') {
+      userId = user; // If a string is passed, assume it's the user ID
     } else {
       // Check active user
       userId = await getCurrentUserId();
@@ -382,6 +385,25 @@ export const triggerAutoBackup = async user => {
       return null;
     }
 
+    // If forceBackup is true, bypass all checks and perform backup immediately
+    if (forceBackup) {
+      console.log('Forcing immediate backup...');
+      const backupResult = await backupToCloud(userId);
+
+      if (backupResult.success) {
+        // Update last backup timestamp after successful backup
+        const now = new Date().toISOString();
+        await AsyncStorage.setItem('@lastBackupTimestamp', now);
+        await AsyncStorage.setItem('@last_backup_time', now);
+        console.log('Immediate backup completed successfully');
+      } else {
+        console.error('Immediate backup failed:', backupResult.error || 'Unknown error');
+      }
+
+      return backupResult;
+    }
+
+    // Normal backup flow with checks (existing code)
     // Check last backup date
     const lastBackupDate = await getLastCloudBackupDate(userId);
     const now = new Date();
