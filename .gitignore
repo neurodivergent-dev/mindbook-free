@@ -157,5 +157,5 @@ android_backup
 package-lock.backup.json
 
 mindbook-landing/
-
+mindbook/
 .cursorignore
