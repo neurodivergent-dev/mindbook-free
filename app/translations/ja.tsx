@@ -58,6 +58,7 @@ export default {
     noLocalNotesToBackup: 'バックアップするローカルノートが見つかりません。',
     noCloudBackupsFound:
       'クラウドストレージにバックアップが見つかりません。最初にバックアップを作成する必要があります。',
+    login: 'ログイン',
   },
   auth: {
     login: 'ログイン',
@@ -314,6 +315,7 @@ export default {
     autoBackup: '自動バックアップ',
     lastBackup: '最後のバックアップ',
     autoBackupDescription: 'ノートを自動的にバックアップ',
+    realTimeBackupDescription: 'そして各ノートを保存した直後に。',
     backupNow: '今すぐバックアップ',
     backupSuccess: 'バックアップが正常に完了しました',
     backupError: 'バックアップ中にエラーが発生しました',
@@ -345,9 +347,11 @@ export default {
     english: '英語',
     backup: 'バックアップ',
     lockNotes: 'ノートをロック',
-    removePassword: 'パスワード削除',
+    removePassword: 'パスワードを削除',
     newPassword: '新しいパスワード',
     biometricAuth: '生体認証',
+    guestUser: 'ゲストユーザー',
+    signInToSync: 'サインインしてデバイス間でノートを同期する',
     about: 'アプリについて',
     version: 'バージョン',
     buildDate: 'ビルド日',

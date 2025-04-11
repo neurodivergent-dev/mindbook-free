@@ -58,6 +58,7 @@ export default {
     noLocalNotesToBackup: 'Keine lokalen Notizen zum Sichern gefunden.',
     noCloudBackupsFound:
       'Keine Backups im Cloud-Speicher gefunden. Sie müssen zuerst ein Backup erstellen.',
+    login: 'Anmelden',
   },
   auth: {
     login: 'Anmelden',
@@ -328,6 +329,7 @@ export default {
     autoBackup: 'Automatische Sicherung',
     lastBackup: 'Letzte Sicherung',
     autoBackupDescription: 'Automatisches Sichern deiner Notizen',
+    realTimeBackupDescription: 'und sofort nach dem Speichern jeder Notiz.',
     backupNow: 'Jetzt sichern',
     backupSuccess: 'Sicherung erfolgreich abgeschlossen',
     backupError: 'Während der Sicherung ist ein Fehler aufgetreten',
@@ -363,6 +365,8 @@ export default {
     removePassword: 'Passwort entfernen',
     newPassword: 'Neues Passwort',
     biometricAuth: 'Biometrische Authentifizierung',
+    guestUser: 'Gastbenutzer',
+    signInToSync: 'Melden Sie sich an, um Notizen zwischen Geräten zu synchronisieren',
     about: 'Über',
     version: 'Version',
     buildDate: 'Erstellungsdatum',

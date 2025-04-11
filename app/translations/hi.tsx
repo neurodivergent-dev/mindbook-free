@@ -55,6 +55,7 @@ export default {
     noLocalNotesToBackup: 'बैकअप के लिए कोई स्थानीय नोट्स नहीं मिले।',
     noCloudBackupsFound:
       'क्लाउड स्टोरेज में कोई बैकअप नहीं मिला। आपको पहले एक बैकअप बनाने की आवश्यकता है।',
+    login: 'लॉगिन',
   },
   auth: {
     login: 'लॉगिन',
@@ -313,6 +314,7 @@ export default {
     autoBackup: 'स्वचालित बैकअप',
     lastBackup: 'अंतिम बैकअप',
     autoBackupDescription: 'अपने नोट्स का स्वचालित बैकअप लें',
+    realTimeBackupDescription: 'और प्रत्येक नोट सहेजने के तुरंत बाद।',
     backupNow: 'अब बैकअप लें',
     backupSuccess: 'बैकअप सफलतापूर्वक पूरा हुआ',
     backupError: 'बैकअप के दौरान त्रुटि हुई',
@@ -345,6 +347,8 @@ export default {
     removePassword: 'पासवर्ड हटाएं',
     newPassword: 'नया पासवर्ड',
     biometricAuth: 'बायोमेट्रिक प्रमाणीकरण',
+    guestUser: 'अतिथि उपयोगकर्ता',
+    signInToSync: 'डिवाइसों के बीच नोट्स सिंक करने के लिए साइन इन करें',
     about: 'के बारे में',
     version: 'संस्करण',
     buildDate: 'मार्च 2025',
@@ -386,6 +390,7 @@ export default {
     noLocalNotesToBackup: 'बैकअप के लिए कोई स्थानीय नोट्स नहीं मिले।',
     noCloudBackupsFound:
       'क्लाउड स्टोरेज में कोई बैकअप नहीं मिला। आपको पहले एक बैकअप बनाने की आवश्यकता है।',
+    login: 'लॉगिन',
   },
   drawer: {
     home: 'होम',
