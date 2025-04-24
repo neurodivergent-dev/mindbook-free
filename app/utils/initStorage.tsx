@@ -21,7 +21,7 @@ export const initStorage = async () => {
     }
 
     // List of required buckets
-    const requiredBuckets = [PROFILES_BUCKET, BACKUPS_BUCKET, NOTES_BUCKET];
+    const requiredBuckets = [BACKUPS_BUCKET, NOTES_BUCKET];
 
     // Check if any required buckets are missing
     const missingBuckets = requiredBuckets.filter(

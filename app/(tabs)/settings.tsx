@@ -32,7 +32,7 @@ import i18n from 'i18next';
 import NetInfo from '@react-native-community/netinfo';
 import supabase from '../utils/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { cloudinaryService } from '../utils/cloudinaryService';
 
 const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
 const TRANSPARENT = 'transparent';
@@ -875,9 +875,30 @@ const Settings = () => {
     if (!user || user.isAnonymous) return;
 
     try {
-      // Check if user has profile image in metadata
+      // Check for Cloudinary image first (new method)
+      const publicId = user.user_metadata?.avatar_public_id;
+      if (publicId) {
+        // Use Cloudinary service to get URL with proper transformations and cache busting
+        const imageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
+        if (imageUrl) {
+          console.log('Using Cloudinary image URL:', imageUrl);
+          setProfileImage(imageUrl);
+          return;
+        }
+      }
+
+      // Fallback to legacy method (direct URL from metadata)
       if (user.user_metadata?.profile_image_url) {
-        setProfileImage(user.user_metadata.profile_image_url);
+        console.log('Using legacy profile image URL from metadata');
+
+        // Add timestamp for cache busting
+        const url = user.user_metadata.profile_image_url;
+        const timestamp = Date.now();
+        const urlWithCacheBuster = url.includes('?')
+          ? `${url}&t=${timestamp}`
+          : `${url}?t=${timestamp}`;
+
+        setProfileImage(urlWithCacheBuster);
       }
     } catch (error) {
       console.error('Error loading profile image:', error);
@@ -943,55 +964,31 @@ const Settings = () => {
 
       setIsUploadingImage(true);
 
-      // Get image data
+      // Get image URI
       const imageUri = result.assets[0].uri;
-      const fileExtension = imageUri.split('.').pop();
 
-      // Create a user-specific folder path for the file (required for RLS policies)
-      const filePath = `${user.id}/profile-${Date.now()}.${fileExtension}`;
+      // Upload to Cloudinary using our service
+      const uploadResult = await cloudinaryService.uploadProfileImage(imageUri, user.id);
 
-      // Read the file as base64
-      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, decode(base64Image), {
-          contentType: `image/${fileExtension}`,
-          upsert: true,
-        });
-
-      if (error) {
-        console.error('Error uploading image:', error);
-        Alert.alert(
-          t('common.error'),
-          `${t('settings.imageUploadFailed')}: ${error.message || JSON.stringify(error)}`
-        );
-        setIsUploadingImage(false);
+      if (!uploadResult.success) {
+        console.error('Error uploading image:', uploadResult.error);
+        Alert.alert(t('common.error'), `${t('settings.imageUploadFailed')}: ${uploadResult.error}`);
         return;
       }
 
-      // Get the public URL
-      const { data: publicUrlData } = supabase.storage.from('profiles').getPublicUrl(filePath);
+      // Update UI with new image URL
+      setProfileImage(uploadResult.url);
+      Alert.alert(t('common.success'), t('settings.profileImageUpdated'));
 
-      const publicUrl = publicUrlData.publicUrl;
-
-      // Update user metadata
-      const { error: userError } = await supabase.auth.updateUser({
-        data: { profile_image_url: publicUrl },
-      });
-
-      if (userError) {
-        console.error('Error updating user profile:', userError);
-        Alert.alert(
-          t('common.error'),
-          `${t('settings.profileUpdateFailed')}: ${userError.message || JSON.stringify(userError)}`
-        );
-      } else {
-        setProfileImage(publicUrl);
-        Alert.alert(t('common.success'), t('settings.profileImageUpdated'));
+      // Also refresh the user data to ensure we have the latest metadata
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        if (data.user) {
+          // Update any other UI that depends on user data
+          setUserDisplayName(getUserDisplayName());
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing session:', refreshError);
       }
     } catch (error) {
       console.error('Profile image upload error:', error);
@@ -999,16 +996,6 @@ const Settings = () => {
     } finally {
       setIsUploadingImage(false);
     }
-  };
-
-  // Function to decode Base64 to ArrayBuffer
-  const decode = base64 => {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
   };
 
   // Remove profile image
@@ -1030,59 +1017,32 @@ const Settings = () => {
             setIsUploadingImage(true);
 
             try {
-              // Extract file path from URL - need to parse more carefully
-              // URL will be something like https://domain.supabase.co/storage/v1/object/public/profiles/user-id/filename.jpg
-              let filePath = null;
+              // Remove profile image using our Cloudinary service
+              const result = await cloudinaryService.removeProfileImage(user.id);
 
-              // If it's a Supabase URL, extract just the path part after the bucket name
-              if (profileImage.includes('/profiles/')) {
-                const pathParts = profileImage.split('/profiles/');
-                if (pathParts.length > 1) {
-                  filePath = pathParts[1];
-                }
-              } else {
-                // Fallback to just using the filename
-                filePath = profileImage.split('/').pop();
-              }
-
-              // Remove file from storage if path was successfully extracted
-              if (filePath) {
-                console.log('Removing image at path:', filePath);
-                const { error: deleteError } = await supabase.storage
-                  .from('profiles')
-                  .remove([filePath]);
-
-                if (deleteError) {
-                  console.log('Error deleting file, but continuing anyway:', deleteError);
-                  // Continue anyway to update metadata
-                }
-              }
-
-              // Update user metadata
-              const { error } = await supabase.auth.updateUser({
-                data: { profile_image_url: null },
-              });
-
-              if (error) {
-                console.error('Error removing profile image:', error);
+              if (!result.success) {
+                console.error('Error removing profile image:', result.error);
                 Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
-              } else {
-                setProfileImage(null);
-                Alert.alert(t('common.success'), t('settings.profileImageRemoved'));
+                return;
               }
-            } catch (error) {
-              console.error('Error removing profile image:', error);
-              Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
-            }
 
-            setIsUploadingImage(false);
+              // Update UI
+              setProfileImage(null);
+              Alert.alert(t('common.success'), t('settings.profileImageRemoved'));
+
+              // Refresh session to get updated metadata
+              await supabase.auth.refreshSession();
+            } catch (error) {
+              console.error('Error in profile image removal:', error);
+              Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
+            } finally {
+              setIsUploadingImage(false);
+            }
           },
         },
       ]);
     } catch (error) {
-      console.error('Error removing profile image:', error);
-      Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
-      setIsUploadingImage(false);
+      console.error('Error in remove profile image dialog:', error);
     }
   };
 
