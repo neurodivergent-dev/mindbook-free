@@ -1,4 +1,3 @@
-// Enhanced NewNote with improved keyboard management
 // This file is Creates a new note screen for the app.
 // It includes a title input, content input, category selection, and a save button.
 // It also includes a toolbar for inserting markdown formatting into the content input.
