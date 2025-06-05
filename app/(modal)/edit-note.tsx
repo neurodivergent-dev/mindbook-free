@@ -31,7 +31,6 @@ import { triggerAutoBackup } from '../utils/backup';
 import { showToast as androidShowToast, useBackButtonHandler } from '../utils/android';
 import supabase from '../utils/supabase';
 import CategoryInputModal from '../components/CategoryInputModal';
-import { getContrastTextColor } from '../../utils/contrastColor';
 import { BLACK } from '../../utils/colors';
 
 interface MarkdownToolbarProps {
@@ -442,9 +441,7 @@ export default function EditNoteModal() {
                 const isSelected = selectedCategory === category;
                 const chipBg = isSelected ? themeColors[accentColor] : theme.card;
                 const chipBorder = isSelected ? themeColors[accentColor] : theme.border;
-                const textColor = isSelected
-                  ? getContrastTextColor(themeColors[accentColor])
-                  : themeColors[accentColor];
+                const textColor = isSelected ? '#fff' : themeColors[accentColor];
                 return (
                   <TouchableOpacity
                     key={category}
