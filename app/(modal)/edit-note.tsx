@@ -31,11 +31,14 @@ import { triggerAutoBackup } from '../utils/backup';
 import { showToast as androidShowToast, useBackButtonHandler } from '../utils/android';
 import supabase from '../utils/supabase';
 import CategoryInputModal from '../components/CategoryInputModal';
+import { getContrastTextColor } from '../../utils/contrastColor';
+import { BLACK } from '../../utils/colors';
 
 interface MarkdownToolbarProps {
   onInsert: (text: string) => void;
 }
 
+// This toolbar UI is aligned with app/(tabs)/new-note.tsx for professional consistency.
 const MarkdownToolbar = memo(({ onInsert }: MarkdownToolbarProps) => {
   const { theme, themeColors, accentColor } = useTheme();
   const [isVisible, setIsVisible] = useState(false);
@@ -60,20 +63,36 @@ const MarkdownToolbar = memo(({ onInsert }: MarkdownToolbarProps) => {
     },
   ];
 
+  // Centralized toolbar styles for professional consistency
+  const toolbarStyles = {
+    container: [
+      styles.toolbarContainer,
+      {
+        backgroundColor: theme.card,
+        borderColor: theme.border,
+        borderWidth: 1,
+        overflow: 'hidden',
+      },
+    ],
+    toggle: [styles.toolbarToggle, { backgroundColor: themeColors[accentColor] }],
+    button: () => [
+      styles.toolButton,
+      {
+        backgroundColor: theme.background,
+        borderColor: themeColors[accentColor] + '30',
+      },
+    ],
+    label: [styles.toolLabel, { color: themeColors[accentColor] }],
+  };
+
   return (
-    <View style={[styles.toolbarContainer, { backgroundColor: theme.card }]}>
+    <View style={toolbarStyles.container}>
       <TouchableOpacity
-        style={[styles.toolbarToggle, { backgroundColor: themeColors[accentColor] }]}
+        style={toolbarStyles.toggle}
         onPress={() => setIsVisible(!isVisible)}
         activeOpacity={0.8}
       >
-        <Ionicons
-          name={isVisible ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color="#FFF"
-          as
-          string
-        />
+        <Ionicons name={isVisible ? 'chevron-up' : 'chevron-down'} size={20} color="#FFF" />
         <Text style={styles.toolbarToggleText}>{t('notes.markdownEditor')}</Text>
       </TouchableOpacity>
 
@@ -82,24 +101,16 @@ const MarkdownToolbar = memo(({ onInsert }: MarkdownToolbarProps) => {
           {tools.map((tool, index) => (
             <TouchableOpacity
               key={index}
-              style={[
-                styles.toolButton,
-                {
-                  backgroundColor: theme.background,
-                  borderColor: themeColors[accentColor] + '30',
-                },
-              ]}
+              style={toolbarStyles.button()}
               onPress={() => onInsert(tool.insert)}
               activeOpacity={0.7}
             >
               <Ionicons
-                name={`${tool.icon}-outline` as any}
+                name={(tool.icon + '-outline') as any}
                 size={18}
                 color={themeColors[accentColor]}
               />
-              <Text style={[styles.toolLabel, { color: themeColors[accentColor] }]}>
-                {tool.label}
-              </Text>
+              <Text style={toolbarStyles.label}>{tool.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -427,43 +438,39 @@ export default function EditNoteModal() {
               style={styles.categoryScroll}
               contentContainerStyle={styles.categoryScrollContent}
             >
-              {categories.map(category => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor:
-                        selectedCategory === category ? themeColors[accentColor] : theme.card,
-                      borderColor:
-                        selectedCategory === category ? themeColors[accentColor] : theme.border,
-                      elevation: 2 as number,
-                      shadowColor: '#000' as string,
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.2 as number,
-                      shadowRadius: 1.41 as number,
-                    },
-                  ]}
-                  onPress={() => {
-                    handleCategoryPress(category);
-                    setShowCategoryPicker(false);
-                  }}
-                  onLongPress={() => handleDeleteCategory(category)}
-                >
-                  <Text
+              {categories.map(category => {
+                const isSelected = selectedCategory === category;
+                const chipBg = isSelected ? themeColors[accentColor] : theme.card;
+                const chipBorder = isSelected ? themeColors[accentColor] : theme.border;
+                const textColor = isSelected
+                  ? getContrastTextColor(themeColors[accentColor])
+                  : themeColors[accentColor];
+                return (
+                  <TouchableOpacity
+                    key={category}
                     style={[
-                      styles.categoryTextWithMargin,
-                      {
-                        color: themeColors[accentColor],
-                      },
+                      isSelected ? styles.categoryChipSelected : styles.categoryChipUnselected,
+                      { backgroundColor: chipBg, borderColor: chipBorder },
                     ]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
+                    onPress={() => {
+                      handleCategoryPress(category);
+                      setShowCategoryPicker(false);
+                    }}
+                    onLongPress={() => handleDeleteCategory(category)}
                   >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        isSelected ? styles.categoryTextSelected : styles.categoryTextUnselected,
+                        { color: textColor },
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
               <TouchableOpacity
                 style={[
                   styles.categoryChip,
@@ -471,7 +478,7 @@ export default function EditNoteModal() {
                     backgroundColor: theme.card,
                     borderColor: themeColors[accentColor],
                     elevation: 2 as number,
-                    shadowColor: '#000' as string,
+                    shadowColor: BLACK,
                     shadowOffset: { width: 0, height: 1 },
                     shadowOpacity: 0.2 as number,
                     shadowRadius: 1.41 as number,
@@ -1025,6 +1032,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
+  categoryChipSelected: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    elevation: 2,
+    flexDirection: 'row',
+    height: 32,
+    justifyContent: 'center',
+    marginRight: 8,
+    minWidth: 80,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    shadowColor: BLACK,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  categoryChipUnselected: {
+    alignItems: 'center',
+    backgroundColor: undefined,
+    borderColor: undefined,
+    borderRadius: 12,
+    borderWidth: 1,
+    elevation: 2,
+    flexDirection: 'row',
+    height: 32,
+    justifyContent: 'center',
+    marginRight: 8,
+    minWidth: 80,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    shadowColor: BLACK,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
   categoryScroll: {
     paddingVertical: 12,
   },
@@ -1037,7 +1080,15 @@ const styles = StyleSheet.create({
     maxWidth: 90,
     textAlign: 'center',
   },
-  categoryTextWithMargin: {
+  categoryTextSelected: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 2,
+    maxWidth: 90,
+    textAlign: 'center',
+  },
+  categoryTextUnselected: {
+    color: undefined,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 2,
@@ -1097,7 +1148,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 4,
     marginTop: 8,
-    shadowColor: '#000' as string,
+    shadowColor: BLACK,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1198,7 +1249,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 2,
     marginBottom: 16,
-    shadowColor: '#000' as string,
+    shadowColor: BLACK,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
