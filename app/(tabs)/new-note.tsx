@@ -1,6 +1,11 @@
 // This file is Creates a new note screen for the app.
 // It includes a title input, content input, category selection, and a save button.
 // It also includes a toolbar for inserting markdown formatting into the content input.
+// Enhanced NewNote with improved keyboard management
+// This file is Creates a new note screen for the app.
+// It includes a title input, content input, category selection, and a save button.
+// It also includes a toolbar for inserting markdown formatting into the content input.
+// Enhanced NewNote with improved keyboard management
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -13,6 +18,8 @@ import {
   KeyboardAvoidingView,
   Image,
   Platform,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +32,6 @@ import supabase from '../utils/supabase';
 import { showToast as platformShowToast } from '../utils/android';
 import CategoryInputModal from '../components/CategoryInputModal';
 
-// Let's define a palette for constant color values
 const Colors = {
   transparent: 'transparent',
   white: '#fff',
@@ -52,7 +58,7 @@ const MarkdownToolbar = ({ onInsert }: MarkdownToolbarProps) => {
     { icon: 'list', label: '•', insert: '- ', description: t('notes.list') },
     { icon: 'list-circle', label: '1.', insert: '1. ', description: t('notes.numberedList') },
     { icon: 'link', label: 'URL', insert: '[text](url)', description: t('notes.link') },
-    { icon: 'code-slash', label: '<>', insert: '`kod`', description: t('notes.code') },
+    { icon: 'code-slash', label: '<>', insert: '`code`', description: t('notes.code') },
     { icon: 'document-text', label: '"', insert: '> ', description: t('notes.quote') },
     {
       icon: 'image',
@@ -62,10 +68,23 @@ const MarkdownToolbar = ({ onInsert }: MarkdownToolbarProps) => {
     },
   ];
 
+  const toolbarStyles = {
+    container: [styles.toolbarContainer, { backgroundColor: theme.card }],
+    toggle: [styles.toolbarToggle, { backgroundColor: themeColors[accentColor] }],
+    button: () => [
+      styles.toolButton,
+      {
+        backgroundColor: theme.background,
+        borderColor: themeColors[accentColor] + '30',
+      },
+    ],
+    label: [styles.toolLabel, { color: themeColors[accentColor] }],
+  };
+
   return (
-    <View style={[styles.toolbarContainer, { backgroundColor: theme.card }]}>
+    <View style={toolbarStyles.container}>
       <TouchableOpacity
-        style={[styles.toolbarToggle, { backgroundColor: themeColors[accentColor] }]}
+        style={toolbarStyles.toggle}
         onPress={() => setIsVisible(!isVisible)}
         activeOpacity={0.8}
       >
@@ -78,13 +97,7 @@ const MarkdownToolbar = ({ onInsert }: MarkdownToolbarProps) => {
           {tools.map((tool, index) => (
             <TouchableOpacity
               key={index}
-              style={[
-                styles.toolButton,
-                {
-                  backgroundColor: theme.background,
-                  borderColor: themeColors[accentColor] + '30',
-                },
-              ]}
+              style={toolbarStyles.button()}
               onPress={() => onInsert(tool.insert)}
               activeOpacity={0.7}
             >
@@ -93,9 +106,7 @@ const MarkdownToolbar = ({ onInsert }: MarkdownToolbarProps) => {
                 size={18}
                 color={themeColors[accentColor]}
               />
-              <Text style={[styles.toolLabel, { color: themeColors[accentColor] }]}>
-                {tool.label}
-              </Text>
+              <Text style={toolbarStyles.label}>{tool.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -104,8 +115,15 @@ const MarkdownToolbar = ({ onInsert }: MarkdownToolbarProps) => {
   );
 };
 
-// Let's make a definition for the state type of the categories.
 type CategoryState = string[] | [];
+
+interface ExtendedTextInput extends TextInput {
+  _lastNativeSelection?: {
+    start: number;
+    end: number;
+  };
+  setNativeProps(props: object): void;
+}
 
 const NewNote = () => {
   const [title, setTitle] = useState('');
@@ -115,28 +133,81 @@ const NewNote = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
   const router = useRouter();
   const { theme, accentColor, themeColors, fontSize, fontSizes, fontFamily, fontFamilies } =
     useTheme();
   const { t } = useTranslation();
-  const contentRef = useRef<TextInput | null>(null);
 
-  // Let's define a custom type for contentRef's _lastNativeSelection
-  interface ExtendedTextInput extends TextInput {
-    _lastNativeSelection?: {
-      start: number;
-      end: number;
-    };
-    setNativeProps(props: object): void;
-  }
+  // Refs for scroll management
+  const scrollViewRef = useRef<ScrollView>(null);
+  const titleRef = useRef<TextInput>(null);
+  const contentRef = useRef<TextInput>(null);
+  const screenHeight = Dimensions.get('window').height;
 
   useEffect(() => {
     loadCategories();
+
+    // Keyboard event listeners
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      e => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
 
   const loadCategories = async () => {
     const loadedCategories = await getCategories();
     setCategories(loadedCategories);
+  };
+
+  // Smart scroll function to keep focused input visible
+  const scrollToInput = (inputRef: React.RefObject<TextInput>, extraOffset: number = 0) => {
+    if (inputRef.current && scrollViewRef.current && isKeyboardVisible) {
+      setTimeout(
+        () => {
+          inputRef.current?.measure((x, y, width, height, pageX, pageY) => {
+            const inputBottom = pageY + height;
+            const keyboardTop = screenHeight - keyboardHeight;
+            const bufferSpace = 80; // Extra space between input and keyboard
+
+            if (inputBottom + bufferSpace > keyboardTop) {
+              const scrollOffset = inputBottom + bufferSpace - keyboardTop + extraOffset;
+              scrollViewRef.current?.scrollTo({
+                y: scrollOffset,
+                animated: true,
+              });
+            }
+          });
+        },
+        Platform.OS === 'ios' ? 300 : 100
+      ); // iOS needs more delay for keyboard animation
+    }
+  };
+
+  const handleTitleFocus = () => {
+    scrollToInput(titleRef, 20);
+  };
+
+  const handleContentFocus = () => {
+    scrollToInput(contentRef, 40);
   };
 
   const handleAddCategory = async (categoryName: string) => {
@@ -183,8 +254,6 @@ const NewNote = () => {
       console.log('Note save result:', result);
 
       if (result) {
-        // Auto backup trigger
-        // Use Supabase auth instead of Firebase
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
           triggerAutoBackup(userData.user);
@@ -248,13 +317,9 @@ const NewNote = () => {
   };
 
   const handleContentChange = (newContent: string) => {
-    // Update contentRef directly too
     if (contentRef.current) {
-      // Update native control directly (critical for deletion)
       contentRef.current.setNativeProps({ text: newContent });
     }
-
-    // State update (for normal flow)
     setContent(newContent);
   };
 
@@ -264,26 +329,19 @@ const NewNote = () => {
       const selection = (contentRef.current as ExtendedTextInput)._lastNativeSelection;
 
       if (!selection) {
-        // If there is no selection, add it to the end
         setContent(currentContent + text);
         return;
       }
 
       const start = selection.start;
       const end = selection.end;
-
-      // Get text before and after the cursor
       const beforeCursor = currentContent.substring(0, start);
       const afterCursor = currentContent.substring(end);
-
-      // Insert new text at cursor position
       const newContent = beforeCursor + text + afterCursor;
+
       setContent(newContent);
 
-      // Place the cursor at the end of the inserted text
       const newCursorPosition = start + text.length;
-
-      // Position the cursor immediately
       (contentRef.current as ExtendedTextInput).setNativeProps({
         selection: {
           start: newCursorPosition,
@@ -293,287 +351,314 @@ const NewNote = () => {
     }
   };
 
+  // Calculate keyboard avoiding view offset
+  const getKeyboardVerticalOffset = () => {
+    if (Platform.OS === 'ios') {
+      return 90;
+    }
+    return 0;
+  };
+
+  // Dynamic styles
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: theme.background }],
+    scrollViewContent: [
+      styles.scrollViewContent,
+      { paddingBottom: isKeyboardVisible ? keyboardHeight + 100 : 100 }, // Extra space for fixed buttons
+    ],
+    titleInput: [
+      styles.titleInput,
+      {
+        color: theme.text,
+        backgroundColor: theme.card,
+        fontSize: fontSizes[fontSize].contentSize + 4,
+        fontFamily: fontFamilies[fontFamily].family,
+        borderColor: theme.border,
+      },
+    ],
+    pickerButton: [
+      styles.pickerButton,
+      showCategoryPicker && styles.pickerButtonActive,
+      {
+        backgroundColor: theme.card,
+        borderColor: showCategoryPicker ? themeColors[accentColor] : theme.border,
+      },
+    ],
+    pickerText: [styles.pickerText, { color: theme.text }],
+    pickerChevron: {
+      color: showCategoryPicker ? themeColors[accentColor] : theme.text,
+    },
+    pickerIcon: {
+      color: showCategoryPicker ? themeColors[accentColor] : theme.text,
+    },
+    dropdownContainer: [styles.dropdownContainer, { backgroundColor: theme.card }],
+    categoryChip: (category: string) => [
+      styles.categoryChip,
+      {
+        backgroundColor: selectedCategory === category ? themeColors[accentColor] : theme.card,
+        borderColor: selectedCategory === category ? themeColors[accentColor] : theme.border,
+      },
+      styles.categoryChipShadow,
+    ],
+    categoryText: (category: string) => [
+      styles.categoryTextWithMargin,
+      {
+        color: selectedCategory === category ? Colors.white : themeColors[accentColor],
+      },
+    ],
+    addCategoryChip: [
+      styles.categoryChip,
+      {
+        backgroundColor: theme.card,
+        borderColor: themeColors[accentColor],
+      },
+      styles.categoryChipShadow,
+    ],
+    addCategoryText: [styles.categoryText, { color: themeColors[accentColor] }],
+    readingContainer: [styles.readingContainer, { borderColor: theme.border }],
+    contentInput: [
+      styles.contentInput,
+      {
+        color: theme.text,
+        backgroundColor: theme.card,
+        fontSize: fontSizes[fontSize].contentSize,
+        fontFamily: fontFamilies[fontFamily].family,
+        borderColor: theme.border,
+      },
+    ],
+    fixedButtonContainer: [styles.fixedButtonContainer, { backgroundColor: theme.background }],
+    primaryButton: [
+      styles.button,
+      styles.primaryButton,
+      {
+        backgroundColor: themeColors[accentColor],
+        shadowColor: themeColors[accentColor],
+      },
+    ],
+    secondaryButton: [
+      styles.button,
+      styles.secondaryButton,
+      { borderColor: themeColors[accentColor] },
+    ],
+    primaryButtonText: [
+      styles.buttonText,
+      {
+        fontSize: fontSizes[fontSize].contentSize,
+        fontFamily: fontFamilies[fontFamily].family,
+      },
+    ],
+    secondaryButtonText: [
+      styles.buttonText,
+      {
+        fontSize: fontSizes[fontSize].contentSize,
+        fontFamily: fontFamilies[fontFamily].family,
+        color: themeColors[accentColor],
+      },
+    ],
+  };
+
+  const markdownStyles = {
+    body: {
+      color: theme.text,
+      fontFamily: fontFamilies[fontFamily].family,
+      fontSize: fontSizes[fontSize].contentSize,
+    },
+    heading1: {
+      color: theme.text,
+      fontFamily: fontFamilies[fontFamily].family,
+      fontSize: fontSizes[fontSize].contentSize * 1.8,
+    },
+    heading2: {
+      color: theme.text,
+      fontFamily: fontFamilies[fontFamily].family,
+      fontSize: fontSizes[fontSize].contentSize * 1.5,
+    },
+    heading3: {
+      color: theme.text,
+      fontFamily: fontFamilies[fontFamily].family,
+      fontSize: fontSizes[fontSize].contentSize * 1.2,
+    },
+    paragraph: {
+      color: theme.text,
+      fontFamily: fontFamilies[fontFamily].family,
+      fontSize: fontSizes[fontSize].contentSize,
+      lineHeight: fontSizes[fontSize].contentSize * 1.5,
+    },
+    link: {
+      color: themeColors[accentColor],
+      fontSize: fontSizes[fontSize].contentSize,
+    },
+    blockquote: {
+      backgroundColor: theme.card,
+      borderColor: themeColors[accentColor],
+      fontSize: fontSizes[fontSize].contentSize,
+    },
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={dynamicStyles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={getKeyboardVerticalOffset()}
       >
-        <TextInput
-          style={[
-            styles.titleInput,
-            {
-              color: theme.text,
-              backgroundColor: theme.card,
-              fontSize: fontSizes[fontSize].contentSize + 4,
-              fontFamily: fontFamilies[fontFamily].family,
-            },
-          ]}
-          placeholder={t('notes.noteTitle')}
-          placeholderTextColor={theme.textSecondary}
-          value={title}
-          onChangeText={text => {
-            // Apply 40 character limit for title
-            if (text.length <= 40) {
-              setTitle(text);
-            }
-          }}
-          maxLength={40} // Maximum 40 characters
-        />
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={dynamicStyles.scrollViewContent}
+        >
+          <TextInput
+            ref={titleRef}
+            style={dynamicStyles.titleInput}
+            placeholder={t('notes.noteTitle')}
+            placeholderTextColor={theme.textSecondary}
+            value={title}
+            onChangeText={text => {
+              if (text.length <= 40) {
+                setTitle(text);
+              }
+            }}
+            onFocus={handleTitleFocus}
+            maxLength={40}
+          />
 
-        <MarkdownToolbar onInsert={handleToolInsert} />
+          <MarkdownToolbar onInsert={handleToolInsert} />
 
-        <View style={styles.pickerContainer}>
-          <TouchableOpacity
-            style={[
-              styles.pickerButton,
-              showCategoryPicker && styles.pickerButtonActive,
-              {
-                backgroundColor: theme.card,
-                borderColor: showCategoryPicker ? themeColors[accentColor] : theme.border,
-              },
-            ]}
-            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-          >
-            <View style={styles.pickerButtonContent}>
-              <View style={styles.pickerLeftContent}>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              style={dynamicStyles.pickerButton}
+              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+            >
+              <View style={styles.pickerButtonContent}>
+                <View style={styles.pickerLeftContent}>
+                  <Ionicons
+                    name="pricetag-outline"
+                    size={20}
+                    color={dynamicStyles.pickerIcon.color}
+                  />
+                  <Text style={dynamicStyles.pickerText}>
+                    {selectedCategory || t('notes.selectCategory')}
+                  </Text>
+                </View>
                 <Ionicons
-                  name="pricetag-outline"
+                  name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  color={showCategoryPicker ? themeColors[accentColor] : theme.text}
+                  color={dynamicStyles.pickerChevron.color}
                 />
-                <Text style={[styles.pickerText, { color: theme.text }]}>
-                  {selectedCategory || t('notes.selectCategory')}
-                </Text>
               </View>
-              <Ionicons
-                name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={showCategoryPicker ? themeColors[accentColor] : theme.text}
-              />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {showCategoryPicker && (
-            <View style={[styles.dropdownContainer, { backgroundColor: theme.card }]}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryScroll}
-                contentContainerStyle={styles.categoryScrollContent}
-              >
-                {categories.map(category => (
+            {showCategoryPicker && (
+              <View style={dynamicStyles.dropdownContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.categoryScroll}
+                  contentContainerStyle={styles.categoryScrollContent}
+                >
+                  {categories.map(category => (
+                    <TouchableOpacity
+                      key={category}
+                      style={dynamicStyles.categoryChip(category)}
+                      onPress={() => {
+                        handleCategoryPress(category);
+                        setShowCategoryPicker(false);
+                      }}
+                      onLongPress={() => handleDeleteCategory(category)}
+                    >
+                      <Text
+                        style={dynamicStyles.categoryText(category)}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {category}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                   <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryChip,
-                      {
-                        backgroundColor:
-                          selectedCategory === category ? themeColors[accentColor] : theme.card,
-                        borderColor:
-                          selectedCategory === category ? themeColors[accentColor] : theme.border,
-                      },
-                      styles.categoryChipShadow,
-                    ]}
-                    onPress={() => {
-                      handleCategoryPress(category);
-                      setShowCategoryPicker(false);
-                    }}
-                    onLongPress={() => handleDeleteCategory(category)}
+                    style={dynamicStyles.addCategoryChip}
+                    onPress={() => setShowCategoryModal(true)}
                   >
+                    <Ionicons name="add" size={14} color={themeColors[accentColor]} />
                     <Text
-                      style={[
-                        styles.categoryTextWithMargin,
-                        {
-                          color:
-                            selectedCategory === category ? Colors.white : themeColors[accentColor],
-                        },
-                      ]}
+                      style={dynamicStyles.addCategoryText}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {category}
+                      {t('common.create')}
                     </Text>
                   </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: theme.card,
-                      borderColor: themeColors[accentColor],
-                    },
-                    styles.categoryChipShadow,
-                  ]}
-                  onPress={() => setShowCategoryModal(true)}
-                >
-                  <Ionicons name="add" size={14} color={themeColors[accentColor]} />
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      {
-                        color: themeColors[accentColor],
-                      },
-                    ]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {t('common.create')}
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          )}
-        </View>
-
-        {isReadingMode ? (
-          <View style={styles.readingContainer}>
-            <Markdown
-              style={{
-                body: {
-                  color: theme.text,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  fontSize: fontSizes[fontSize].contentSize,
-                },
-                heading1: {
-                  color: theme.text,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  fontSize: fontSizes[fontSize].contentSize * 1.8,
-                },
-                heading2: {
-                  color: theme.text,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  fontSize: fontSizes[fontSize].contentSize * 1.5,
-                },
-                heading3: {
-                  color: theme.text,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  fontSize: fontSizes[fontSize].contentSize * 1.2,
-                },
-                paragraph: {
-                  color: theme.text,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  fontSize: fontSizes[fontSize].contentSize,
-                  lineHeight: fontSizes[fontSize].contentSize * 1.5,
-                },
-                link: {
-                  color: themeColors[accentColor],
-                  fontSize: fontSizes[fontSize].contentSize,
-                },
-                blockquote: {
-                  backgroundColor: theme.card,
-                  borderColor: themeColors[accentColor],
-                  fontSize: fontSizes[fontSize].contentSize,
-                },
-              }}
-              rules={{
-                image: (node, index) => {
-                  const { src, alt } = node.attributes;
-                  return (
-                    <Image
-                      key={`image-${index}-${src}`}
-                      source={{ uri: src }}
-                      style={styles.markdownImage}
-                      accessible={true}
-                      accessibilityLabel={alt || 'Markdown image'}
-                    />
-                  );
-                },
-              }}
-            >
-              {content}
-            </Markdown>
+                </ScrollView>
+              </View>
+            )}
           </View>
-        ) : (
-          <TextInput
-            ref={contentRef}
-            style={[
-              styles.contentInput,
-              {
-                color: theme.text,
-                backgroundColor: theme.card,
-                fontSize: fontSizes[fontSize].contentSize,
-                fontFamily: fontFamilies[fontFamily].family,
-              },
-            ]}
-            placeholder={t('notes.noteContent')}
-            placeholderTextColor={theme.textSecondary}
-            value={content}
-            onChangeText={handleContentChange}
-            onSelectionChange={event => {
-              if (contentRef.current) {
-                (contentRef.current as ExtendedTextInput)._lastNativeSelection =
-                  event.nativeEvent.selection;
-              }
-            }}
-            multiline
-            textAlignVertical="top"
-            editable={!isReadingMode}
-            onPressIn={() => isReadingMode && showToast()}
-          />
-        )}
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.primaryButton,
-              {
-                backgroundColor: themeColors[accentColor],
-                shadowColor: themeColors[accentColor],
-              },
-            ]}
-            onPress={handleSave}
-          >
-            <Ionicons name="checkmark-circle-outline" size={24} color="white" />
-            <Text
-              style={[
-                styles.buttonText,
-                {
-                  fontSize: fontSizes[fontSize].contentSize,
-                  fontFamily: fontFamilies[fontFamily].family,
-                },
-              ]}
-            >
-              {t('common.save')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.secondaryButton,
-              {
-                borderColor: themeColors[accentColor],
-              },
-            ]}
-            onPress={handleReadingMode}
-          >
-            <Ionicons
-              name={isReadingMode ? 'create-outline' : 'eye-outline'}
-              size={24}
-              color={themeColors[accentColor]}
+          {isReadingMode ? (
+            <View style={dynamicStyles.readingContainer}>
+              <Markdown
+                style={markdownStyles}
+                rules={{
+                  image: (node, index) => {
+                    const { src, alt } = node.attributes;
+                    return (
+                      <Image
+                        key={`image-${index}-${src}`}
+                        source={{ uri: src }}
+                        style={styles.markdownImage}
+                        accessible={true}
+                        accessibilityLabel={alt || 'Markdown image'}
+                      />
+                    );
+                  },
+                }}
+              >
+                {content}
+              </Markdown>
+            </View>
+          ) : (
+            <TextInput
+              ref={contentRef}
+              style={dynamicStyles.contentInput}
+              placeholder={t('notes.noteContent')}
+              placeholderTextColor={theme.textSecondary}
+              value={content}
+              onChangeText={handleContentChange}
+              onFocus={handleContentFocus}
+              onSelectionChange={event => {
+                if (contentRef.current) {
+                  (contentRef.current as ExtendedTextInput)._lastNativeSelection =
+                    event.nativeEvent.selection;
+                }
+              }}
+              multiline
+              textAlignVertical="top"
+              editable={!isReadingMode}
+              onPressIn={() => isReadingMode && showToast()}
             />
-            <Text
-              style={[
-                styles.buttonText,
-                {
-                  fontSize: fontSizes[fontSize].contentSize,
-                  fontFamily: fontFamilies[fontFamily].family,
-                  color: themeColors[accentColor],
-                },
-              ]}
-            >
-              {isReadingMode ? t('common.editMode') : t('common.readingMode')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Fixed Button Container */}
+      <View style={dynamicStyles.fixedButtonContainer}>
+        <TouchableOpacity style={dynamicStyles.primaryButton} onPress={handleSave}>
+          <Ionicons name="checkmark-circle-outline" size={24} color="white" />
+          <Text style={dynamicStyles.primaryButtonText}>{t('common.save')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={dynamicStyles.secondaryButton} onPress={handleReadingMode}>
+          <Ionicons
+            name={isReadingMode ? 'create-outline' : 'eye-outline'}
+            size={24}
+            color={themeColors[accentColor]}
+          />
+          <Text style={dynamicStyles.secondaryButtonText}>
+            {isReadingMode ? t('common.editMode') : t('common.readingMode')}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <CategoryInputModal
         visible={showCategoryModal}
@@ -583,13 +668,12 @@ const NewNote = () => {
         themeColors={themeColors}
         accentColor={accentColor}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 export default NewNote;
 
-// Styles for the NewNote component
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
@@ -600,14 +684,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 160,
     padding: 16,
-  },
-  buttonContainer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    marginTop: 16,
   },
   buttonText: {
     color: Colors.white,
@@ -657,6 +733,7 @@ const styles = StyleSheet.create({
   },
   contentInput: {
     borderRadius: 12,
+    borderWidth: 1,
     flex: 1,
     lineHeight: 24,
     marginBottom: 8,
@@ -674,6 +751,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 5,
+  },
+  fixedButtonContainer: {
+    alignItems: 'center',
+    borderTopColor: Colors.borderTransparent,
+    borderTopWidth: 1,
+    bottom: 0,
+    elevation: 8,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    left: 0,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    position: 'absolute',
+    right: 0,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   markdownImage: {
     borderRadius: 8,
@@ -722,6 +823,8 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
     padding: 16,
   },
   secondaryButton: {
