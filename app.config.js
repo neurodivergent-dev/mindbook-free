@@ -21,7 +21,7 @@ export default {
   expo: {
     name: 'Mindbook Pro',
     slug: 'mindbook',
-    version: '4.0.2',
+    version: '4.0.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'automatic',
@@ -42,7 +42,7 @@ export default {
       },
       package: 'com.melihcandemir.mindbook',
       newArchEnabled: true,
-      versionCode: 2,
+      versionCode: 3,
     },
     web: {
       favicon: './assets/icon.png',
