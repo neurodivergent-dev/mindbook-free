@@ -436,6 +436,8 @@ export default {
     github: 'Github',
     email: 'E-mail',
     buildDate: 'Março de 2025',
+    website: 'Site',
+    rate: 'Avalie-nos',
   },
   privacy: {
     pageTitle: 'Política de privacidade',

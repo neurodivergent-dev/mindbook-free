@@ -434,6 +434,8 @@ export default {
     github: 'Github',
     email: 'Электронная почта',
     buildDate: 'Март 2025',
+    website: 'Веб-сайт',
+    rate: 'Оцените нас',
   },
   privacy: {
     pageTitle: 'Политика конфиденциальности',

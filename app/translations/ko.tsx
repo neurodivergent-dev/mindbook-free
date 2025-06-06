@@ -435,6 +435,8 @@ export default {
     github: 'Github',
     email: '이메일',
     buildDate: '2025년 3월',
+    website: '웹사이트',
+    rate: '평가하기',
   },
   privacy: {
     pageTitle: '개인정보 처리방침',

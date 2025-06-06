@@ -494,6 +494,8 @@ export default {
     github: 'Github',
     email: 'Email',
     buildDate: 'March 2025',
+    website: 'Website',
+    rate: 'Rate Us',
   },
   privacy: {
     pageTitle: 'Privacy Policy',

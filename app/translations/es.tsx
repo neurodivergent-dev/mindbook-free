@@ -445,6 +445,8 @@ export default {
     github: 'Github',
     email: 'Correo electrónico',
     buildDate: 'Enero de 2025',
+    website: 'Sitio web',
+    rate: 'Califícanos',
   },
   privacy: {
     pageTitle: 'Política de privacidad',

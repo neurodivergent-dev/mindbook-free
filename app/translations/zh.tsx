@@ -421,6 +421,8 @@ export default {
     github: 'Github',
     email: '电子邮件',
     buildDate: '2025年3月',
+    website: '网站',
+    rate: '为我们评分',
   },
   privacy: {
     pageTitle: '隐私政策',

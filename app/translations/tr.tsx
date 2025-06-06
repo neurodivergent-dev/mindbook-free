@@ -467,6 +467,7 @@ export default {
     profileImageRemoved: 'Profil resmi başarıyla kaldırıldı',
     removePhoto: 'Fotoğrafı Kaldır',
     noInternetConnection: 'İnternet bağlantısı yok',
+    website: 'Websitesi',
   },
   drawer: {
     home: 'Ana Sayfa',
@@ -519,6 +520,7 @@ export default {
     github: 'Github',
     email: 'E-posta',
     buildDate: 'Mart 2025',
+    rate: 'Bizi Oyla',
   },
   privacy: {
     pageTitle: 'Gizlilik Politikası',
