@@ -384,6 +384,8 @@ export default {
     clearAllData: 'すべてのデータを消去',
     confirmClearAllData:
       'これにより、データベースからすべてのノートが完全に削除されます。この操作は取り消せません。続行してもよろしいですか？',
+    website: 'ウェブサイト',
+    rate: '評価する',
   },
   drawer: {
     home: 'ホーム',

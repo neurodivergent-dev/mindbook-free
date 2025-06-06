@@ -387,6 +387,8 @@ export default {
     noLocalNotesToBackup: 'لم يتم العثور على ملاحظات محلية للنسخ الاحتياطي.',
     noCloudBackupsFound:
       'لم يتم العثور على نسخ احتياطية في التخزين السحابي. تحتاج إلى إنشاء نسخة احتياطية أولاً.',
+    website: 'الموقع الإلكتروني',
+    rate: 'قيّمنا',
   },
   drawer: {
     home: 'الرئيسية',
@@ -437,6 +439,8 @@ export default {
     github: 'Github',
     email: 'البريد الإلكتروني',
     buildDate: 'مارس 2025',
+    website: 'الموقع الإلكتروني',
+    rate: 'قيّمنا',
   },
   privacy: {
     pageTitle: 'سياسة الخصوصية',

@@ -493,6 +493,8 @@ export default {
     github: 'Github',
     email: 'E-Mail',
     buildDate: 'Januar 2025',
+    website: 'Webseite',
+    rate: 'Bewerte uns',
   },
   privacy: {
     pageTitle: 'Datenschutzrichtlinie',

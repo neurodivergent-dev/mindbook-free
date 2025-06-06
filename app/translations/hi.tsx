@@ -442,6 +442,8 @@ export default {
     github: 'Github',
     email: 'ईमेल',
     buildDate: 'मार्च 2025',
+    website: 'वेबसाइट',
+    rate: 'हमें रेट करें',
   },
   privacy: {
     pageTitle: 'गोपनीयता नीति',

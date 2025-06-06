@@ -32,12 +32,16 @@ const FeatureCard = ({ icon, title, description, color, theme }) => (
 
 const SocialButton = ({ icon, title, url, color, theme }) => (
   <TouchableOpacity
-    style={[styles.socialButton, { backgroundColor: color + '20' }]}
+    style={[styles.socialButton, { backgroundColor: color + '15', borderColor: color + '30' }]}
     onPress={() => Linking.openURL(url)}
     activeOpacity={0.7}
   >
-    <Ionicons name={icon} size={24} color={color} />
-    <Text style={[styles.socialButtonText, { color: theme.text }]}>{title}</Text>
+    <View style={[styles.socialIconContainer, { backgroundColor: color + '20' }]}>
+      <Ionicons name={icon} size={20} color={color} />
+    </View>
+    <Text style={[styles.socialButtonText, { color: theme.text }]} numberOfLines={1}>
+      {title}
+    </Text>
   </TouchableOpacity>
 );
 
@@ -195,6 +199,13 @@ export default function AboutScreen() {
           </Text>
           <View style={styles.socialButtons}>
             <SocialButton
+              icon="globe-outline"
+              title={t('about.website')}
+              url="https://mindbookpro.netlify.app"
+              color={themeColors[accentColor]}
+              theme={theme}
+            />
+            <SocialButton
               icon="logo-linkedin"
               title={t('about.linkedin')}
               url="https://linkedin.com/in/melihcandemir"
@@ -202,9 +213,20 @@ export default function AboutScreen() {
               theme={theme}
             />
             <SocialButton
+              icon="star-outline"
+              title={t('about.rate')}
+              url={
+                Platform.OS === 'ios'
+                  ? 'https://apps.apple.com/app/idYOUR_APP_ID'
+                  : 'https://play.google.com/store/apps/details?id=com.melihcandemir.mindbook&hl=en'
+              }
+              color="#FFD700"
+              theme={theme}
+            />
+            <SocialButton
               icon="logo-instagram"
               title={t('about.instagram')}
-              url="https://instagram.com/melihcandemir"
+              url="https://instagram.com/mindbookpro"
               color="#E1306C"
               theme={theme}
             />
@@ -218,7 +240,7 @@ export default function AboutScreen() {
             <SocialButton
               icon="mail"
               title={t('about.email')}
-              url="mailto:melihcandemir@protonmail.com"
+              url="mailto:promindbook@gmail.com"
               color={themeColors[accentColor]}
               theme={theme}
             />
@@ -381,18 +403,33 @@ const styles = StyleSheet.create({
   socialButton: {
     alignItems: 'center',
     borderRadius: 12,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
+    flex: 1,
+    marginBottom: 12,
+    marginHorizontal: 4,
+    maxWidth: (SCREEN_WIDTH - 56) / 2,
+    minWidth: (SCREEN_WIDTH - 56) / 2,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   socialButtonText: {
-    fontSize: 15,
+    flex: 1,
+    fontSize: 14,
     fontWeight: '600',
   },
   socialButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginHorizontal: -4,
+  },
+  socialIconContainer: {
+    alignItems: 'center',
+    borderRadius: 8,
+    height: 32,
+    justifyContent: 'center',
+    marginRight: 12,
+    width: 32,
   },
 });
