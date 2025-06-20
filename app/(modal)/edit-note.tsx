@@ -627,12 +627,9 @@ export default function EditNoteModal() {
           headerRight: () => (
             <View style={styles.headerRightContainer}>
               +
-              <TouchableOpacity
-                onPress={() => setShowAIAnalyzer(true)}
-                style={styles.headerIconContainer}
-              >
+              <View onTouchStart={() => setShowAIAnalyzer(true)} style={styles.headerIconContainer}>
                 <Ionicons name="analytics-outline" size={24} color="#fff" />
-              </TouchableOpacity>
+              </View>
               <View onTouchStart={handleReadingMode} style={styles.readingModeIconContainer}>
                 <Ionicons
                   name={isReadingMode ? 'create-outline' : 'eye-outline'}
