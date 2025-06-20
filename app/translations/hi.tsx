@@ -56,6 +56,17 @@ export default {
     noCloudBackupsFound:
       'क्लाउड स्टोरेज में कोई बैकअप नहीं मिला। आपको पहले एक बैकअप बनाने की आवश्यकता है।',
     login: 'लॉगिन',
+    networkFailed: 'नेटवर्क विफल',
+    networkFailedMessage: 'आप ऑफ़लाइन प्रतीत होते हैं। कृपया अपनी नेटवर्क सेटिंग्स जांचें।',
+    checkingConnection: 'आपका कनेक्शन जांचा जा रहा है...',
+    checkingConnectionTitle: 'कनेक्शन सत्यापित किया जा रहा है',
+    cellularNoData:
+      'आपके पास सेलुलर सिग्नल है लेकिन डेटा कनेक्शन नहीं है। कृपया अपनी डेटा प्लान जांचें या Wi-Fi पर स्विच करें।',
+    cellularNoDataTitle: 'डेटा कनेक्शन नहीं है',
+    dismiss: 'बंद करें',
+    tryAgain: 'फिर से प्रयास करें',
+    offline: 'ऑफ़लाइन',
+    connectionType: 'कनेक्शन प्रकार',
   },
   auth: {
     login: 'लॉगिन',
@@ -577,6 +588,7 @@ export default {
       expand: 'इस विचार को विस्तार दें',
       brainstorm: 'इस विषय पर विचार-मंथन करें',
     },
+    customPrompt: 'कस्टम प्रॉम्प्ट',
   },
   onboarding: {
     welcome: 'Mindbook Pro में आपका स्वागत है',

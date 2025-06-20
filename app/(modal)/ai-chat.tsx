@@ -1,7 +1,7 @@
 // This file is part of the "AI Assistant" module of the app.
 // It provides a chat interface for users to interact with an AI assistant.
 // The AI assistant can respond in different styles: poem, brief, or default.
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
+  Alert,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
-import Constants from 'expo-constants';
+import * as ImagePicker from 'expo-image-picker';
+import useQwenAI from '../hooks/useQwenAI';
 
 // Message type definition
 interface Message {
@@ -25,6 +28,7 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  imageUrl?: string;
 }
 
 // Response style types
@@ -42,141 +46,193 @@ export default function AIChatScreen() {
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [responseStyle, setResponseStyle] = useState<ResponseStyle>('poem'); // Default to poem style
+  const [responseStyle, setResponseStyle] = useState<ResponseStyle>('default');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { theme, themeColors, accentColor } = useTheme();
   const flatListRef = useRef<FlatList>(null);
 
+  // Initialize Qwen AI
+  const { askQuestion, analyzeImage, error } = useQwenAI();
+
+  // Show error if API key is missing
+  useEffect(() => {
+    if (error) {
+      console.error('Qwen AI Error:', error);
+    }
+  }, [error]);
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('aiAssistant.cameraPermissionDenied'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: false,
+        exif: false,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const selectedAsset = result.assets[0];
+        const uri = selectedAsset.uri;
+
+        console.log(`Selected image: ${uri}`);
+
+        if (selectedAsset.fileSize && selectedAsset.fileSize > 10 * 1024 * 1024) {
+          Alert.alert(
+            t('common.error'),
+            'The image size is too large (maximum 10MB). Please choose a smaller image.'
+          );
+          return;
+        }
+
+        const fileExtension = uri.split('.').pop()?.toLowerCase();
+
+        if (fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg') {
+          console.log(`Selected image format: ${fileExtension}`);
+
+          setSelectedImage(uri);
+
+          Alert.alert(
+            t('aiAssistant.imageUploaded'),
+            'The image has been uploaded successfully. Now you can ask a question or press the submit button to analyze the image.',
+            [{ text: 'Tamam', style: 'default' }]
+          );
+        } else {
+          Alert.alert(
+            t('common.error'),
+            'Only PNG and JPEG formats are supported. Please choose another image.'
+          );
+          setSelectedImage(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert(
+        t('common.error'),
+        'An error occurred while selecting the image. Please try again.'
+      );
+    }
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+  };
+
   const sendMessage = async () => {
-    if (!inputText.trim()) return;
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText,
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    const userPrompt = inputText;
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    setInputText('');
-
-    // Temporary message for AI response
-    const aiMessageId = (Date.now() + 1).toString();
-
-    // Add empty AI message (will be updated as response comes in)
-    setMessages(prevMessages => [
-      ...prevMessages,
-      {
-        id: aiMessageId,
-        text: '',
-        isUser: false,
-        timestamp: new Date(),
-      },
-    ]);
+    // Check for empty message
+    if (!inputText.trim() && !selectedImage) {
+      return;
+    }
 
     setIsLoading(true);
 
-    // Getting the API endpoint from environment variables
-    const apiUrl = Constants.expoConfig?.extra?.aiGenerateEndpoint || '';
-    // Extract the server address from the API URL (just take the host:port part)
-    const apiEndpoint = apiUrl.replace(/\/generate$/, '');
-
-    console.log(`Making API request to ${apiEndpoint}... Style: ${responseStyle}`);
-
     try {
-      // Progressive response API call
-      const response = await fetch(`${apiEndpoint}/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: userPrompt,
-          max_length: 80, // Reduced maximum token count
-          progressive: true,
-          style: responseStyle, // Poem or brief response mode
-        }),
-      });
+      // Let's save the image temporarily
+      const currentImage = selectedImage;
 
-      console.log('API response received, status:', response.status);
+      // Add user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        text: inputText || t('aiAssistant.imageUploaded'),
+        isUser: true,
+        timestamp: new Date(),
+        imageUrl: currentImage || undefined,
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      setMessages(prev => [...prev, userMessage]);
+      setInputText('');
+
+      // Scroll message list to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
+      // Set system message
+      const systemPrompt = getSystemPrompt();
+
+      let response;
+
+      // Image analysis or regular Q&A
+      if (currentImage) {
+        console.log('Sending image for analysis');
+        response = await analyzeImage(currentImage, inputText || 'What is in this image?');
+        // Clear the image from the input field but leave it in the message
+        setSelectedImage(null);
+      } else {
+        console.log('Asking text question');
+        response = await askQuestion(inputText, systemPrompt);
       }
 
-      // Get initial response
-      const initialData = await response.json();
-      console.log('Initial response received, completed:', initialData.completed);
+      // Error checking
+      if (response.error) {
+        console.error('AI response error:', response.error);
 
-      // Show first part immediately
-      setMessages(prevMessages =>
-        prevMessages.map(message =>
-          message.id === aiMessageId ? { ...message, text: initialData.generated_text } : message
-        )
-      );
+        // Show error message to user
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          text:
+            response.error === 'OpenRouter service is not initialized'
+              ? t('aiAssistant.qwenAiError')
+              : `${t('aiAssistant.error')}: ${response.error}`,
+          isUser: false,
+          timestamp: new Date(),
+        };
 
-      // If response is not complete (usually incomplete), continue with polling
-      if (!initialData.completed && initialData.generation_id) {
-        const generationId = initialData.generation_id;
-        let isCompleted = false;
+        setMessages(prev => [...prev, errorMessage]);
+      } else {
+        // Add successful response
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          text: response.content || t('aiAssistant.error'),
+          isUser: false,
+          timestamp: new Date(),
+        };
 
-        // Polling section - check response every 500ms
-        while (!isCompleted) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-          try {
-            console.log(`Checking ongoing response: ${generationId.slice(0, 8)}...`);
-            const continueResponse = await fetch(
-              `${apiEndpoint}/continue_generation/${generationId}`,
-              {
-                method: 'GET',
-              }
-            );
-
-            if (!continueResponse.ok) {
-              console.warn('Polling request failed:', continueResponse.status);
-              continue;
-            }
-
-            const continueData = await continueResponse.json();
-            console.log('Polling response received, completed:', continueData.completed);
-
-            // Show current response
-            setMessages(prevMessages =>
-              prevMessages.map(message =>
-                message.id === aiMessageId
-                  ? { ...message, text: continueData.generated_text }
-                  : message
-              )
-            );
-
-            // Check completion
-            if (continueData.completed) {
-              console.log('Response completed');
-              isCompleted = true;
-            }
-          } catch (pollError) {
-            console.error('Polling error:', pollError);
-            // Continue even if there's an error, it might fix in next attempt
-          }
-        }
+        setMessages(prev => [...prev, aiMessage]);
       }
 
-      console.log('Response process completed');
+      // Scroll message list to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error) {
-      console.error('AI request failed:', error);
+      console.error('Error sending message:', error);
 
-      // Update AI message in case of error
-      setMessages(prevMessages =>
-        prevMessages.map(message =>
-          message.id === aiMessageId
-            ? { ...message, text: t('aiAssistant.error') + ' ' + String(error) }
-            : message
-        )
-      );
+      // Show error message to user
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        text: `${t('aiAssistant.error')}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+        isUser: false,
+        timestamp: new Date(),
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function that determines the system message according to the response style
+  const getSystemPrompt = (): string => {
+    switch (responseStyle) {
+      case 'poem':
+        return 'You are a poet. Give your answers in verse format. Use poetic language and skip lines appropriately at the end of the line.';
+      case 'brief':
+        return 'Keep your answers short and concise. Use 2-3 sentences maximum.';
+      case 'default':
+      default:
+        return 'You are a helpful AI assistant. Give detailed and accurate answers to questions.';
     }
   };
 
@@ -223,9 +279,9 @@ export default function AIChatScreen() {
     // Poem detection - based on content
     const isPoemStyle =
       !item.isUser &&
-      // Poem format indicator: has line breaks and
-      // has "Phi-1.5" signature or many line breaks
-      (item.text.split('\n').length >= 3 || item.text.includes('Phi-1.5'));
+      responseStyle === 'poem' &&
+      // Poem format indicator: has line breaks
+      item.text.split('\n').length >= 3;
 
     // Display poem text preserving line breaks
     const formatPoemText = (text: string) => {
@@ -254,9 +310,10 @@ export default function AIChatScreen() {
           styles.messageBubble,
           item.isUser
             ? [styles.userMessage, { backgroundColor: themeColors[accentColor] }]
-            : styles.aiMessage,
+            : [styles.aiMessage, { backgroundColor: theme.card, borderColor: theme.border }],
         ]}
       >
+        {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.messageImage} />}
         {isPoemStyle ? (
           formatPoemText(item.text)
         ) : (
@@ -321,6 +378,21 @@ export default function AIChatScreen() {
         </View>
       )}
 
+      {/* Selected image preview */}
+      {selectedImage && (
+        <View
+          style={[
+            styles.imagePreviewContainer,
+            { backgroundColor: theme.card, borderTopColor: theme.border },
+          ]}
+        >
+          <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+          <TouchableOpacity style={styles.clearImageButton} onPress={clearSelectedImage}>
+            <Ionicons name="close-circle" size={24} color={themeColors.red} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={100}
@@ -331,6 +403,13 @@ export default function AIChatScreen() {
             { backgroundColor: theme.card, borderColor: themeColors.black10 },
           ]}
         >
+          <TouchableOpacity
+            style={[styles.imageButton, { backgroundColor: theme.border }]}
+            onPress={pickImage}
+          >
+            <Ionicons name="image-outline" size={20} color={theme.text} />
+          </TouchableOpacity>
+
           <TextInput
             style={[styles.input, { color: theme.text }]}
             placeholder={t('aiAssistant.placeholder')}
@@ -339,13 +418,17 @@ export default function AIChatScreen() {
             onChangeText={setInputText}
             multiline
           />
+
           <TouchableOpacity
             style={[
               styles.sendButton,
-              { backgroundColor: inputText.trim() ? themeColors[accentColor] : theme.border },
+              {
+                backgroundColor:
+                  inputText.trim() || selectedImage ? themeColors[accentColor] : theme.border,
+              },
             ]}
             onPress={sendMessage}
-            disabled={!inputText.trim() || isLoading}
+            disabled={(!inputText.trim() && !selectedImage) || isLoading}
           >
             <Ionicons name="send" size={20} color={themeColors.white} />
           </TouchableOpacity>
@@ -360,12 +443,34 @@ const styles = StyleSheet.create({
   aiMessage: {
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
+    borderWidth: 1,
+  },
+  clearImageButton: {
+    position: 'absolute',
+    right: 5,
+    top: 5,
+    zIndex: 10,
   },
   container: {
     flex: 1,
   },
   headerIcon: {
     marginTop: -36,
+  },
+  imageButton: {
+    borderRadius: 20,
+    marginRight: 8,
+    padding: 12,
+  },
+  imagePreview: {
+    borderRadius: 10,
+    height: 100,
+    width: 100,
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+    borderTopWidth: 1,
+    padding: 10,
   },
   input: {
     borderRadius: 20,
@@ -395,6 +500,13 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     maxWidth: '80%',
     padding: 12,
+  },
+  messageImage: {
+    borderRadius: 8,
+    height: 200,
+    marginBottom: 8,
+    resizeMode: 'cover',
+    width: '100%',
   },
   messageList: {
     padding: 16,

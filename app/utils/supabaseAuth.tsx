@@ -9,6 +9,8 @@ import { Platform } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
+import NetInfo from '@react-native-community/netinfo';
+import { withTimeout } from './withTimeout';
 
 // Ensure Expo WebBrowser sessions are completed
 WebBrowser.maybeCompleteAuthSession();
@@ -55,33 +57,45 @@ export const getRedirectUrl = (path: string) => {
  */
 export const getSession = async () => {
   try {
+    // First, check network connectivity
+    const networkState = await NetInfo.fetch();
+    const isConnected = networkState.isConnected && networkState.isInternetReachable;
+
     // First, let's check the session information from the local storage
     const localSession = await AsyncStorage.getItem('userSession');
 
-    // Check the Subbase session
-    const { data, error } = await supabase.auth.getSession();
+    // If we're offline but have local session, use it
+    if (!isConnected && localSession) {
+      console.log('Using cached session (device is offline)');
+      return {
+        data: {
+          session: JSON.parse(localSession),
+        },
+        error: null,
+      };
+    }
 
-    // If there is no active session from Supabase but there is one in local storage
-    if (!data.session && localSession) {
-      const sessionData = JSON.parse(localSession);
-      // If it is not a guest mode and has credentials
-      if (!sessionData.isGuestMode && sessionData.access_token) {
-        try {
-          // Try to recreate the session using local session information
-          await supabase.auth.setSession({
-            access_token: sessionData.access_token,
-            refresh_token: sessionData.refresh_token,
-          });
+    // Check the Supabase session with timeout to prevent blocking
+    if (isConnected) {
+      try {
+        return await withTimeout(supabase.auth.getSession(), 1000);
+      } catch (timeoutError) {
+        console.log('Session retrieval timed out:', timeoutError);
 
-          // Retrieve session information
-          return await supabase.auth.getSession();
-        } catch (refreshError) {
-          return { data: null, error: refreshError };
+        // Fall back to stored session if available
+        if (localSession) {
+          return {
+            data: {
+              session: JSON.parse(localSession),
+            },
+            error: null,
+          };
         }
       }
     }
 
-    return { data, error };
+    // If offline with no local session, or other error
+    return { data: null, error: new Error('Cannot retrieve session') };
   } catch (e) {
     return { data: null, error: e };
   }

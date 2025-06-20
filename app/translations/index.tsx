@@ -37,7 +37,8 @@ const resources = {
 // i18n configuration
 i18n.use(initReactI18next).init({
   resources,
-  lng: 'en', // Default language - English
+  // Note: We're not setting a default language (lng) here anymore
+  // The language will be determined by the LanguageContext based on device settings
   fallbackLng: 'en', // Language to use if translation is not found
   interpolation: {
     escapeValue: false, // React is already safe

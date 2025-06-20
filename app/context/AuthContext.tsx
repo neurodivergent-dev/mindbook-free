@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as supabaseAuth from '../utils/supabaseAuth';
 import supabase from '../utils/supabase';
 import { maybeCompleteAuthSession } from 'expo-web-browser';
+import NetInfo from '@react-native-community/netinfo';
+import { withTimeout } from '../utils/withTimeout';
 
 // Allow the authentication session to complete
 maybeCompleteAuthSession({
@@ -66,39 +68,66 @@ export function AuthProvider({ children }) {
           // Access token and refresh token control
           if (sessionData.access_token && sessionData.refresh_token) {
             try {
-              // Refresh the Supabase session
-              const { data: sessionResult, error: sessionError } = await supabase.auth.setSession({
-                access_token: sessionData.access_token,
-                refresh_token: sessionData.refresh_token,
-              });
+              // Check network connectivity before attempting to refresh the session
+              const networkState = await NetInfo.fetch();
+              const isConnected = networkState.isConnected && networkState.isInternetReachable;
 
-              if (sessionError) {
-                // Error occurred, continue with normal getSession flow
-              } else if (sessionResult?.session) {
-                setUser(sessionResult.session.user);
-                setIsGuestMode(false);
+              // If we have connectivity, try to refresh the session with a timeout
+              if (isConnected) {
+                try {
+                  // Use withTimeout to prevent blocking indefinitely
+                  const { data: sessionResult, error: sessionError } = await withTimeout(
+                    supabase.auth.setSession({
+                      access_token: sessionData.access_token,
+                      refresh_token: sessionData.refresh_token,
+                    }),
+                    2000 // 2 second timeout
+                  );
 
-                // Update session information
-                await AsyncStorage.setItem(
-                  'userSession',
-                  JSON.stringify({
-                    isLoggedIn: true,
-                    isAnonymous: false,
-                    email: sessionResult.session.user.email,
-                    isGuestMode: false,
-                    access_token: sessionResult.session.access_token,
-                    refresh_token: sessionResult.session.refresh_token,
-                    timestamp: new Date().toISOString(),
-                    user_id: sessionResult.session.user.id,
-                  })
-                );
+                  if (!sessionError && sessionResult?.session) {
+                    setUser(sessionResult.session.user);
+                    setIsGuestMode(false);
 
-                setLoading(false);
-                return; // Successful session refresh, exit function
+                    // Update session information
+                    await AsyncStorage.setItem(
+                      'userSession',
+                      JSON.stringify({
+                        isLoggedIn: true,
+                        isAnonymous: false,
+                        email: sessionResult.session.user.email,
+                        isGuestMode: false,
+                        access_token: sessionResult.session.access_token,
+                        refresh_token: sessionResult.session.refresh_token,
+                        timestamp: new Date().toISOString(),
+                        user_id: sessionResult.session.user.id,
+                      })
+                    );
+
+                    setLoading(false);
+                    return; // Successful session refresh, exit function
+                  }
+                } catch (timeoutError) {
+                  console.log('Session refresh timed out, using cached session');
+                  // Continue with cached session
+                }
               }
+
+              // If offline or refresh failed, use the cached session
+              console.log('Using cached session (offline or refresh failed)');
+              setUser({
+                id: sessionData.user_id,
+                email: sessionData.email,
+                // Set minimum required user properties
+                user_metadata: {},
+                app_metadata: {},
+                aud: 'authenticated',
+              });
+              setIsGuestMode(false);
+              setLoading(false);
+              return;
             } catch (refreshError) {
               // Error occurred, continue with normal getSession flow
-              return;
+              console.log('Session refresh error, continuing with getSession flow');
             }
           }
         }
@@ -113,39 +142,56 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // Subbase session control
-        const { data, error } = await supabaseAuth.getSession();
-        if (error) {
-          setUser(null);
-          await AsyncStorage.removeItem('userSession');
-          setLoading(false);
-          return;
-        }
+        // Check network connectivity before calling getSession
+        const networkState = await NetInfo.fetch();
+        const isConnected = networkState.isConnected && networkState.isInternetReachable;
 
-        if (data?.session?.user) {
-          setUser(data.session.user);
-          setIsGuestMode(false);
+        if (isConnected) {
+          try {
+            // Supabase session control with timeout
+            const { data, error } = await withTimeout(supabaseAuth.getSession(), 2000);
 
-          // Save full session information
-          await AsyncStorage.setItem(
-            'userSession',
-            JSON.stringify({
-              isLoggedIn: true,
-              isAnonymous: false,
-              email: data.session.user.email,
-              isGuestMode: false,
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              timestamp: new Date().toISOString(),
-              user_id: data.session.user.id,
-            })
-          );
+            if (error) {
+              setUser(null);
+              await AsyncStorage.removeItem('userSession');
+              setLoading(false);
+              return;
+            }
+
+            if (data?.session?.user) {
+              setUser(data.session.user);
+              setIsGuestMode(false);
+
+              // Save full session information
+              await AsyncStorage.setItem(
+                'userSession',
+                JSON.stringify({
+                  isLoggedIn: true,
+                  isAnonymous: false,
+                  email: data.session.user.email,
+                  isGuestMode: false,
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token,
+                  timestamp: new Date().toISOString(),
+                  user_id: data.session.user.id,
+                })
+              );
+            } else {
+              setUser(null);
+              await AsyncStorage.removeItem('userSession');
+            }
+          } catch (timeoutError) {
+            console.log('getSession timed out:', timeoutError);
+            setUser(null);
+          }
         } else {
+          // When offline and no stored session, just set user to null
+          console.log('Device is offline with no valid stored session');
           setUser(null);
-          await AsyncStorage.removeItem('userSession');
         }
       } catch (error) {
         // Clear session by default on error
+        console.error('Session check error:', error);
         setUser(null);
         await AsyncStorage.removeItem('userSession');
       } finally {

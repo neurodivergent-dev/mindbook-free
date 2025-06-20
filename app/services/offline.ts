@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getNetworkState,
   subscribeToNetworkChanges,
-  withNetworkTimeout,
+  checkAndUpdateOfflineStatus,
 } from '../utils/networkManager';
 
 // Keys for storing offline data and operations
@@ -29,6 +29,7 @@ export class OfflineService {
   static pendingOperations: OfflineOperation[] = [];
   static syncTimer: NodeJS.Timeout | null = null;
   static syncInterval = 30000; // 30 seconds
+  static syncInProgress = false;
 
   /**
    * Initialize the OfflineService and load any pending operations
@@ -45,7 +46,7 @@ export class OfflineService {
 
       // Setup network state change listener
       subscribeToNetworkChanges(state => {
-        if (state.isConnected && this.pendingOperations.length > 0) {
+        if (state.isConnected && state.effectivelyConnected && this.pendingOperations.length > 0) {
           this.syncOfflineData();
         }
       });
@@ -109,7 +110,8 @@ export class OfflineService {
       await this.savePendingOperations();
 
       // Try to sync immediately if we're online
-      if (getNetworkState().isConnected) {
+      const isOffline = await checkAndUpdateOfflineStatus();
+      if (!isOffline) {
         this.syncOfflineData();
       }
 
@@ -121,7 +123,91 @@ export class OfflineService {
   }
 
   /**
-   * Save the pending operations to AsyncStorage
+   * Synchronize offline data with the server
+   */
+  static async syncOfflineData() {
+    // Prevent multiple sync operations from running simultaneously
+    if (this.syncInProgress || this.pendingOperations.length === 0) return;
+
+    // Double-check we're actually online before attempting sync
+    const isOffline = await checkAndUpdateOfflineStatus();
+    if (isOffline) return;
+
+    this.syncInProgress = true;
+
+    try {
+      // Process operations in order (oldest first)
+      const sortedOperations = [...this.pendingOperations].sort(
+        (a, b) => a.timestamp - b.timestamp
+      );
+
+      const successfulOps: string[] = [];
+      const failedOps: string[] = [];
+
+      for (const operation of sortedOperations) {
+        try {
+          // Process operation (implementation depends on your API structure)
+          // This is a placeholder - you need to implement the actual API calls
+          const success = await this.processOperation();
+
+          if (success) {
+            successfulOps.push(operation.id);
+          } else {
+            // Increment retry count
+            operation.retryCount += 1;
+            if (operation.retryCount >= 5) {
+              // Too many retries, consider it failed
+              failedOps.push(operation.id);
+              console.warn(`Operation ${operation.id} failed after 5 attempts`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing offline operation ${operation.id}:`, error);
+          operation.retryCount += 1;
+        }
+      }
+
+      // Remove successful operations
+      if (successfulOps.length > 0) {
+        this.pendingOperations = this.pendingOperations.filter(
+          op => !successfulOps.includes(op.id)
+        );
+      }
+
+      // Remove failed operations that exceeded retry count
+      if (failedOps.length > 0) {
+        this.pendingOperations = this.pendingOperations.filter(op => !failedOps.includes(op.id));
+      }
+
+      // Save updated pending operations
+      await this.savePendingOperations();
+    } catch (error) {
+      console.error('Error syncing offline data:', error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Process a single offline operation
+   * This is a placeholder - implement the actual API calls based on your backend
+   */
+  private static async processOperation(): Promise<boolean> {
+    // This is where you would implement the actual API calls
+    // based on operation.type, operation.entity, and operation.data
+    // Return true if successful, false if failed
+
+    // Placeholder implementation
+    return new Promise(resolve => {
+      setTimeout(() => {
+        // Simulate 80% success rate
+        resolve(Math.random() > 0.2);
+      }, 500);
+    });
+  }
+
+  /**
+   * Save pending operations to AsyncStorage
    */
   private static async savePendingOperations() {
     try {
@@ -141,84 +227,11 @@ export class OfflineService {
     }
 
     // Set up new timer
-    this.syncTimer = setInterval(() => {
-      if (getNetworkState().isConnected && this.pendingOperations.length > 0) {
+    this.syncTimer = setInterval(async () => {
+      const { isConnected, effectivelyConnected } = getNetworkState();
+      if (isConnected && effectivelyConnected && this.pendingOperations.length > 0) {
         this.syncOfflineData();
       }
     }, this.syncInterval);
-  }
-
-  /**
-   * Synchronize offline data with the backend
-   */
-  static async syncOfflineData() {
-    if (!getNetworkState().isConnected || this.pendingOperations.length === 0) return;
-
-    try {
-      // Process operations in order they were created
-      const sortedOperations = [...this.pendingOperations].sort(
-        (a, b) => a.timestamp - b.timestamp
-      );
-
-      // Process each operation
-      for (const operation of sortedOperations) {
-        // Check if we're still online before each operation
-        if (!getNetworkState().isConnected) {
-          break;
-        }
-
-        try {
-          // Attempt to execute the operation with a timeout
-          // This would integrate with your API services
-          await withNetworkTimeout(async () => {
-            // Here you would call your API or service methods based on operation type
-            // For example:
-            // if (operation.type === 'create' && operation.entity === 'note') {
-            //   await noteService.createNote(operation.data);
-            // }
-
-            // Log success - replace with actual implementation
-            console.log(`Executed offline operation: ${operation.id}`);
-          }, 5000); // 5 second timeout for operations
-
-          // Remove the operation from the pending list if successful
-          this.pendingOperations = this.pendingOperations.filter(op => op.id !== operation.id);
-          await this.savePendingOperations();
-        } catch (error) {
-          // Increment retry count
-          const operationIndex = this.pendingOperations.findIndex(op => op.id === operation.id);
-          if (operationIndex !== -1) {
-            this.pendingOperations[operationIndex].retryCount += 1;
-
-            // If we've retried too many times, consider removing the operation
-            if (this.pendingOperations[operationIndex].retryCount > 5) {
-              console.warn(`Operation ${operation.id} failed too many times, removing`);
-              this.pendingOperations = this.pendingOperations.filter(op => op.id !== operation.id);
-            }
-
-            await this.savePendingOperations();
-          }
-
-          console.error(`Error processing offline operation ${operation.id}:`, error);
-        }
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
-    }
-  }
-
-  /**
-   * Get the current pending operations
-   */
-  static getPendingOperations(): OfflineOperation[] {
-    return [...this.pendingOperations];
-  }
-
-  /**
-   * Clear all pending operations
-   */
-  static async clearPendingOperations() {
-    this.pendingOperations = [];
-    await this.savePendingOperations();
   }
 }
