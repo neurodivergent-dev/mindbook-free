@@ -51,7 +51,7 @@ const getEnvVariable = (key: string): string => {
 
   // Hardcoded fallback for critical values
   if (key === 'OPENROUTER_API_KEY') {
-    return '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';
+    throw new Error('OPENROUTER_API_KEY environment variable is required');
   }
 
   if (key === 'OPENROUTER_MODEL') {
@@ -78,8 +78,8 @@ export class OpenRouterService {
    */
   constructor(
     apiKey: string = getEnvVariable('OPENROUTER_API_KEY'),
-    siteName: string = 'Mindbook',
-    siteUrl: string = 'https://mindbook.app',
+    siteName: string = 'Mindbook Pro',
+    siteUrl: string = 'https://mindbookpro.netlify.app',
     model: string = getEnvVariable('OPENROUTER_MODEL') || 'qwen/qwen2.5-vl-72b-instruct:free'
   ) {
     if (!apiKey) {

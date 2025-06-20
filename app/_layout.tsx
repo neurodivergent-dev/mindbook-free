@@ -70,19 +70,19 @@ function RootLayoutNav() {
       try {
         // Step 1: Initialize network services first (critical)
         console.log('Initializing network manager...');
-        await withTimeout(initNetworkManager(), 1000);
+        await withTimeout(initNetworkManager(), 5000);
 
         console.log('Initializing offline service...');
-        await withTimeout(OfflineService.initialize(), 1000);
+        await withTimeout(OfflineService.initialize(), 5000);
 
         console.log('Network services initialized successfully');
 
         // Step 2: Check onboarding status after network initialization
-        await withTimeout(checkOnboardingStatus(), 1000);
+        await withTimeout(checkOnboardingStatus(), 3000);
 
         // Step 3: Initialize storage buckets
         console.log('Initializing storage buckets...');
-        await withTimeout(initStorage(), 1000);
+        await withTimeout(initStorage(), 5000);
         console.log('Storage buckets initialized successfully');
 
         // Step 4: Initialize other services in parallel

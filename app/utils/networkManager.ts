@@ -146,8 +146,11 @@ const startReachabilityProbe = (immediate = false) => {
       // If primary fails, try fallbacks in parallel for faster response
       try {
         const results = await Promise.race([
-          ...FALLBACK_REACHABILITY_URLS.map(url =>
-            fetch(url, {
+          ...FALLBACK_REACHABILITY_URLS.map(url => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
+            return fetch(url, {
               method: 'HEAD',
               cache: 'no-store',
               headers: {
@@ -155,11 +158,17 @@ const startReachabilityProbe = (immediate = false) => {
                 Pragma: 'no-cache',
                 Expires: '0',
               },
-              signal: AbortSignal.timeout(timeoutDuration),
+              signal: controller.signal,
             })
-              .then(response => ({ success: response.status >= 200 && response.status < 400 }))
-              .catch(() => ({ success: false }))
-          ),
+              .then(response => {
+                clearTimeout(timeoutId);
+                return { success: response.status >= 200 && response.status < 400 };
+              })
+              .catch(() => {
+                clearTimeout(timeoutId);
+                return { success: false };
+              });
+          }),
           // Add a timeout promise that resolves after all URLs should have been tried
           new Promise<{ success: boolean }>(resolve =>
             setTimeout(() => resolve({ success: false }), timeoutDuration * 1.5)

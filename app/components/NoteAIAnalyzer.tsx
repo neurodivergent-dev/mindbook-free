@@ -50,13 +50,22 @@ const NoteAIAnalyzer: React.FC<NoteAIAnalyzerProps> = ({ noteId, noteIds, onClos
     try {
       let response;
 
+      // Validate inputs
       if (noteIds && noteIds.length > 1) {
         // For multiple notes
         const userPrompt = prompt || customPrompt || t('aiAssistant.compareNotesDefault');
+        if (!userPrompt.trim()) {
+          setAiResponse(t('aiAssistant.error'));
+          return;
+        }
         response = await analyzeMultipleNotes(noteIds, userPrompt);
       } else if (noteId) {
         // For single note
         const userPrompt = prompt || customPrompt;
+        if (!userPrompt.trim()) {
+          setAiResponse(t('aiAssistant.error'));
+          return;
+        }
         response = await analyzeNoteWithAI(noteId, userPrompt);
       } else {
         // Generate content suggestions

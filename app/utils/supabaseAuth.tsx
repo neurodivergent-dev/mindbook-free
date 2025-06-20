@@ -78,7 +78,7 @@ export const getSession = async () => {
     // Check the Supabase session with timeout to prevent blocking
     if (isConnected) {
       try {
-        return await withTimeout(supabase.auth.getSession(), 1000);
+        return await withTimeout(supabase.auth.getSession(), 5000);
       } catch (timeoutError) {
         console.log('Session retrieval timed out:', timeoutError);
 

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRef } from 'react';
 
 interface OfflineNoticeProps {
   onDismiss?: () => void;
@@ -22,9 +23,9 @@ const OfflineNotice: React.FC<OfflineNoticeProps> = ({ onDismiss }) => {
   const { effectivelyConnected, connectionType } = useNetworkState();
   const [visible, setVisible] = useState(false);
   const { t } = useTranslation();
-  const { theme, themeColors } = useTheme();
+  const { themeColors } = useTheme();
   const insets = useSafeAreaInsets();
-  const slideAnim = useState(new Animated.Value(-100))[0];
+  const slideAnim = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     if (!effectivelyConnected) {
