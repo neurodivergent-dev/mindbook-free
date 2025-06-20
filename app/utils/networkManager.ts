@@ -1,274 +1,457 @@
-// NetworkManager.ts - Handles network connectivity state management
-// This utility provides robust network state detection with debouncing to prevent UI flickering
+// NetworkManager.ts
+// Handles network connectivity state management with debouncing and reachability probes.
+
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 const NETWORK_STATE_KEY = '@network_state';
 
-// Network state with additional metadata
+// Configurable constants
+const STATE_FRESHNESS_MS = 2 * 60 * 1000; // 2 minutes
+const REACHABILITY_URL = 'https://www.google.com/generate_204';
+const FALLBACK_REACHABILITY_URLS = [
+  'https://www.cloudflare.com/cdn-cgi/trace',
+  'https://www.apple.com/library/test/success.html',
+  'https://www.amazon.com/robots.txt',
+  'https://www.microsoft.com/robots.txt',
+];
+const PROBE_INTERVAL_MS = 5_000; // 5 seconds
+const PROBE_TIMEOUT_MS = 1_000; // 1 second
+const CELLULAR_PROBE_TIMEOUT_MS = 1_000; // 1 second for cellular connections
+const MAX_REACHABILITY_FAILURES = 2;
+const CELLULAR_MAX_REACHABILITY_FAILURES = 1; // More strict for cellular
+
 export interface EnhancedNetworkState {
   isConnected: boolean;
   lastChecked: number;
-  connectionType?: string | null;
-  isInternetReachable?: boolean | null;
-  effectivelyConnected: boolean; // New property to track actual internet connectivity
+  connectionType: string | null;
+  isInternetReachable: boolean | null;
+  effectivelyConnected: boolean;
 }
 
-// Default timeout for network operations when offline (to fail fast)
-export const DEFAULT_OFFLINE_TIMEOUT = 3000; // 3 seconds
+export const DEFAULT_OFFLINE_TIMEOUT = 1_000; // 1 second
 
-// Cache the network state to reduce direct NetInfo calls
 let cachedNetworkState: EnhancedNetworkState = {
-  isConnected: true, // Assume connected by default until we know otherwise
+  isConnected: true,
   lastChecked: Date.now(),
   connectionType: null,
   isInternetReachable: null,
-  effectivelyConnected: true, // Assume effectively connected by default
+  effectivelyConnected: true,
 };
 
-// List of listeners to notify when network state changes
 const listeners: Array<(state: EnhancedNetworkState) => void> = [];
 
-// Track failed connectivity checks to determine effective connectivity
 let consecutiveReachabilityFailures = 0;
-const MAX_REACHABILITY_FAILURES = 2; // Number of consecutive failures before considering disconnected
+
+let unsubscribeNetInfo: (() => void) | null = null;
+let reachabilityIntervalId: ReturnType<typeof setInterval> | null = null;
 
 /**
- * Initialize the network manager
- * This should be called early in the app lifecycle
+ * Initialize the network manager.
+ * Call this once early in the app lifecycle.
  */
 export const initNetworkManager = async () => {
-  // Try to restore last known network state from storage
-  try {
-    const storedState = await AsyncStorage.getItem(NETWORK_STATE_KEY);
-    if (storedState) {
-      const parsedState = JSON.parse(storedState);
-      // Only use stored state if it's recent (within last 5 minutes)
-      if (Date.now() - parsedState.lastChecked < 5 * 60 * 1000) {
-        cachedNetworkState = parsedState;
+  // Parallelize storage fetch and initial NetInfo.fetch()
+  const [storedStateStr, currentState] = await Promise.all([
+    AsyncStorage.getItem(NETWORK_STATE_KEY).catch(() => null),
+    NetInfo.fetch(),
+  ]);
+
+  // Restore cached state if it's fresh
+  if (storedStateStr) {
+    try {
+      const parsed: EnhancedNetworkState = JSON.parse(storedStateStr);
+      if (Date.now() - parsed.lastChecked < STATE_FRESHNESS_MS) {
+        cachedNetworkState = parsed;
       }
+    } catch (err) {
+      console.error('Failed to parse stored network state:', err);
     }
-  } catch (error) {
-    console.error('Error loading stored network state:', error);
   }
 
-  // Subscribe to network changes with debouncing to avoid rapid state changes
-  let debounceTimeout: NodeJS.Timeout | null = null;
+  // Immediately update with the fetched state
+  updateNetworkState(currentState);
+
+  // Set up debounced listener
+  let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
   let lastStateChange = Date.now();
 
-  // Setup ongoing listener
-  NetInfo.addEventListener(state => {
-    // Clear any pending debounce
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-    }
+  unsubscribeNetInfo = NetInfo.addEventListener(state => {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
 
-    // Debounce network changes to prevent rapid toggling
-    // Only if it's been at least 2 seconds since last change
-    const debounceTime = Date.now() - lastStateChange < 2000 ? 1000 : 200;
+    const debounceDelay = Date.now() - lastStateChange < 1_000 ? 500 : 100;
 
     debounceTimeout = setTimeout(() => {
       updateNetworkState(state);
       lastStateChange = Date.now();
-    }, debounceTime);
+    }, debounceDelay);
   });
 
-  // Perform initial check
-  const initialState = await NetInfo.fetch();
-  updateNetworkState(initialState);
-
-  // Set up reachability probe to periodically check actual connectivity
-  startReachabilityProbe();
+  // Start reachability probes
+  startReachabilityProbe(true);
 };
 
 /**
- * Start a periodic probe to check actual internet reachability beyond just the connection state
+ * Clean up listeners and intervals to avoid memory leaks.
  */
-const startReachabilityProbe = () => {
-  // Check reachability every 10 seconds
-  setInterval(async () => {
+export const cleanupNetworkManager = () => {
+  if (unsubscribeNetInfo) {
+    unsubscribeNetInfo();
+    unsubscribeNetInfo = null;
+  }
+  if (reachabilityIntervalId !== null) {
+    clearInterval(reachabilityIntervalId);
+    reachabilityIntervalId = null;
+  }
+};
+
+/**
+ * Start periodic reachability checks.
+ * @param immediate Run the first check immediately if true.
+ */
+const startReachabilityProbe = (immediate = false) => {
+  const checkReachability = async () => {
     try {
-      // This timeout is intentionally short to quickly fail when connection is poor
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const isCellular = cachedNetworkState.connectionType === 'cellular';
+      const timeoutDuration = isCellular ? CELLULAR_PROBE_TIMEOUT_MS : PROBE_TIMEOUT_MS;
 
-      const response = await fetch('https://www.google.com/generate_204', {
-        method: 'HEAD',
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+      // Try primary reachability URL
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
-      clearTimeout(timeoutId);
+        const response = await fetch(REACHABILITY_URL, {
+          method: 'HEAD',
+          signal: controller.signal,
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        });
 
-      if (response.status === 204) {
-        // Success - reset failures counter
-        consecutiveReachabilityFailures = 0;
+        clearTimeout(timeoutId);
 
-        // Only update if current state is false to avoid unnecessary updates
-        if (!cachedNetworkState.effectivelyConnected) {
-          const updatedState = {
-            ...cachedNetworkState,
-            effectivelyConnected: true,
-            isInternetReachable: true,
-          };
-          cachedNetworkState = updatedState;
-          notifyListeners();
+        if (response.status === 204) {
+          handleReachabilitySuccess();
+          return;
         }
-      } else {
-        handleReachabilityFailure();
+      } catch (primaryError) {
+        console.log('Primary reachability check failed, trying fallbacks...');
       }
-    } catch (error) {
+
+      // If primary fails, try fallbacks in parallel for faster response
+      try {
+        const results = await Promise.race([
+          ...FALLBACK_REACHABILITY_URLS.map(url => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
+            return fetch(url, {
+              method: 'HEAD',
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+              },
+              signal: controller.signal,
+            })
+              .then(response => {
+                clearTimeout(timeoutId);
+                return { success: response.status >= 200 && response.status < 400 };
+              })
+              .catch(() => {
+                clearTimeout(timeoutId);
+                return { success: false };
+              });
+          }),
+          // Add a timeout promise that resolves after all URLs should have been tried
+          new Promise<{ success: boolean }>(resolve =>
+            setTimeout(() => resolve({ success: false }), timeoutDuration * 1.5)
+          ),
+        ]);
+
+        if (results.success) {
+          handleReachabilitySuccess();
+          return;
+        }
+      } catch (error) {
+        // All fallbacks failed or timed out
+      }
+
+      // If we reach here, all checks failed
+      handleReachabilityFailure();
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.warn('Reachability probe timed out');
+      } else {
+        console.error('Reachability probe error:', err);
+      }
       handleReachabilityFailure();
     }
-  }, 10000);
+  };
+
+  if (immediate) checkReachability();
+  reachabilityIntervalId = setInterval(checkReachability, PROBE_INTERVAL_MS);
 };
 
 /**
- * Handle a reachability check failure
+ * Handle successful reachability probe.
  */
-const handleReachabilityFailure = () => {
-  consecutiveReachabilityFailures++;
-
-  // If we've had multiple consecutive failures, consider effectively disconnected
-  if (
-    consecutiveReachabilityFailures >= MAX_REACHABILITY_FAILURES &&
-    cachedNetworkState.effectivelyConnected
-  ) {
-    const updatedState = {
+const handleReachabilitySuccess = () => {
+  consecutiveReachabilityFailures = 0;
+  if (!cachedNetworkState.effectivelyConnected) {
+    cachedNetworkState = {
       ...cachedNetworkState,
-      effectivelyConnected: false,
-      isInternetReachable: false,
+      effectivelyConnected: true,
+      isInternetReachable: true,
     };
-    cachedNetworkState = updatedState;
     notifyListeners();
   }
 };
 
 /**
- * Notify all listeners of the current state
+ * Handle reachability probe failures.
+ */
+const handleReachabilityFailure = () => {
+  consecutiveReachabilityFailures++;
+
+  // Different thresholds for different connection types
+  const maxFailures =
+    cachedNetworkState.connectionType === 'cellular'
+      ? CELLULAR_MAX_REACHABILITY_FAILURES
+      : MAX_REACHABILITY_FAILURES;
+
+  if (consecutiveReachabilityFailures >= maxFailures && cachedNetworkState.effectivelyConnected) {
+    cachedNetworkState = {
+      ...cachedNetworkState,
+      effectivelyConnected: false,
+      isInternetReachable: false,
+    };
+    notifyListeners();
+  }
+};
+
+/**
+ * Notify all subscribers and persist the current network state.
  */
 const notifyListeners = () => {
-  listeners.forEach(listener => listener(cachedNetworkState));
-
-  // Store in AsyncStorage for persistence
-  AsyncStorage.setItem(NETWORK_STATE_KEY, JSON.stringify(cachedNetworkState)).catch(error => {
-    console.error('Error storing network state:', error);
+  listeners.forEach(fn => fn(cachedNetworkState));
+  AsyncStorage.setItem(NETWORK_STATE_KEY, JSON.stringify(cachedNetworkState)).catch(err => {
+    console.error('Failed to store network state:', err);
   });
 };
 
 /**
- * Update the network state and notify listeners
+ * Update the cached network state based on a NetInfoState.
  */
 const updateNetworkState = (state: NetInfoState) => {
-  // Determine effective connectivity based on both connection state and reachability
-  const isEffectivelyConnected = !!(
-    state.isConnected &&
-    // If isInternetReachable is explicitly false, we know connection is bad
-    // If it's null/undefined, rely on our reachability probe track record
+  const isCellular = state.type === 'cellular';
+  const isLTE =
+    isCellular &&
+    ['4g', '5g', '4g+', 'lte', 'lte+'].includes(
+      (state.details?.cellularGeneration || '').toLowerCase()
+    );
+
+  // Special handling for cellular connections that report connected but have no data
+  if (isCellular) {
+    // If we're on cellular and isInternetReachable is explicitly false
+    if (state.isInternetReachable === false) {
+      cachedNetworkState = {
+        isConnected: false,
+        lastChecked: Date.now(),
+        connectionType: state.type,
+        isInternetReachable: false,
+        effectivelyConnected: false,
+      };
+      notifyListeners();
+      return;
+    }
+
+    // If we're on 4G/5G but isInternetReachable is null (unknown), perform an additional check
+    if (isLTE && state.isInternetReachable === null) {
+      // Start a reachability probe immediately
+      startReachabilityProbe(true);
+
+      // If we already have consecutive failures, consider as offline
+      if (consecutiveReachabilityFailures >= CELLULAR_MAX_REACHABILITY_FAILURES) {
+        cachedNetworkState = {
+          isConnected: true, // Device thinks it's connected
+          lastChecked: Date.now(),
+          connectionType: state.type,
+          isInternetReachable: false, // But we know better
+          effectivelyConnected: false,
+        };
+        notifyListeners();
+        return;
+      }
+    }
+
+    // For cellular connections on Android, be more aggressive with probing
+    if (Platform.OS === 'android' && isLTE) {
+      startReachabilityProbe(true);
+    }
+  }
+
+  // Standard connectivity determination
+  const isEffectively =
+    !!state.isConnected &&
     state.isInternetReachable !== false &&
     (state.isInternetReachable === true ||
-      consecutiveReachabilityFailures < MAX_REACHABILITY_FAILURES)
-  );
+      (!isCellular && consecutiveReachabilityFailures < MAX_REACHABILITY_FAILURES) ||
+      (isCellular && consecutiveReachabilityFailures === 0)); // More strict for cellular
 
-  const enhancedState: EnhancedNetworkState = {
+  cachedNetworkState = {
     isConnected: !!state.isConnected,
     lastChecked: Date.now(),
     connectionType: state.type,
     isInternetReachable: state.isInternetReachable,
-    effectivelyConnected: isEffectivelyConnected,
+    effectivelyConnected: isEffectively,
   };
 
-  // Update cached state
-  cachedNetworkState = enhancedState;
-
-  // Notify listeners
   notifyListeners();
 };
 
 /**
- * Get the current network state
+ * Get the current network state.
  */
-export const getNetworkState = (): EnhancedNetworkState => {
-  return cachedNetworkState;
-};
+export const getNetworkState = () => cachedNetworkState;
 
 /**
- * Force a network state refresh and return the updated state
+ * Force a network state refresh and return the updated state.
  */
-export const refreshNetworkState = async (): Promise<EnhancedNetworkState> => {
+export const refreshNetworkState = async () => {
   const state = await NetInfo.fetch();
   updateNetworkState(state);
   return cachedNetworkState;
 };
 
 /**
- * Subscribe to network state changes
- * @returns Unsubscribe function
+ * Subscribe to network state changes. Returns an unsubscribe function.
  */
-export const subscribeToNetworkChanges = (
-  callback: (state: EnhancedNetworkState) => void
-): (() => void) => {
+export const subscribeToNetworkChanges = (callback: (state: EnhancedNetworkState) => void) => {
   listeners.push(callback);
-  // Immediately notify with current state
   callback(cachedNetworkState);
-
-  // Return unsubscribe function
   return () => {
-    const index = listeners.indexOf(callback);
-    if (index !== -1) {
-      listeners.splice(index, 1);
-    }
+    const idx = listeners.indexOf(callback);
+    if (idx !== -1) listeners.splice(idx, 1);
   };
 };
 
 /**
- * React hook for using network state in components
+ * React hook for components to consume network state.
  */
 export const useNetworkState = () => {
-  const [networkState, setNetworkState] = useState<EnhancedNetworkState>(cachedNetworkState);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToNetworkChanges(setNetworkState);
-    return unsubscribe;
-  }, []);
-
-  return networkState;
+  const [state, setState] = useState<EnhancedNetworkState>(cachedNetworkState);
+  useEffect(() => subscribeToNetworkChanges(setState), []);
+  return state;
 };
 
 /**
- * Wrap a function with timeout handling for network operations
- * This prevents hanging during connectivity issues
+ * Wrap an async operation with a network-based timeout.
+ * If there's no effective connection, fails fast or returns fallback.
+ * For cellular connections, it will attempt the operation with a shorter timeout.
  */
 export const withNetworkTimeout = async <T>(
   operation: () => Promise<T>,
   timeoutMs: number = DEFAULT_OFFLINE_TIMEOUT,
-  fallbackValue?: T
+  fallback?: T
 ): Promise<T> => {
-  try {
-    // Check for EFFECTIVE connectivity instead of just isConnected
-    if (!cachedNetworkState.effectivelyConnected) {
-      // If we know we're offline, fail fast with fallback
-      if (fallbackValue !== undefined) {
-        return fallbackValue;
-      }
-      throw new Error('Network is not effectively connected');
-    }
-
-    // Create a timeout promise that rejects after specified time
-    const timeout = new Promise<never>((_, reject) => {
-      const id = setTimeout(() => {
-        clearTimeout(id);
-        reject(new Error(`Operation timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
-
-    // Race the operation against the timeout
-    return await Promise.race([operation(), timeout]);
-  } catch (error) {
-    if (fallbackValue !== undefined) {
-      return fallbackValue;
-    }
-    throw error;
+  // If we're definitely offline, fail fast or return fallback
+  if (!cachedNetworkState.effectivelyConnected) {
+    if (fallback !== undefined) return fallback;
+    throw new Error('No network connection');
   }
+
+  // For cellular connections, use a shorter timeout
+  const actualTimeout =
+    cachedNetworkState.connectionType === 'cellular'
+      ? Math.min(timeoutMs, 5000) // Max 5 seconds for cellular
+      : timeoutMs;
+
+  const timeout = new Promise<never>((_, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      reject(new Error(`Operation timed out after ${actualTimeout}ms`));
+    }, actualTimeout);
+  });
+
+  try {
+    return await Promise.race([operation(), timeout]);
+  } catch (err) {
+    // If the operation fails on cellular, check if we need to update connectivity state
+    if (cachedNetworkState.connectionType === 'cellular') {
+      consecutiveReachabilityFailures++;
+      if (consecutiveReachabilityFailures >= CELLULAR_MAX_REACHABILITY_FAILURES) {
+        cachedNetworkState = {
+          ...cachedNetworkState,
+          effectivelyConnected: false,
+          isInternetReachable: false,
+        };
+        notifyListeners();
+      }
+    }
+
+    if (fallback !== undefined) return fallback;
+    throw err;
+  }
+};
+
+/**
+ * Checks if the device is effectively offline and forces an immediate network state update if needed.
+ * This is useful for critical operations that need the most up-to-date network status.
+ *
+ * @returns A promise that resolves to true if the device is offline, false otherwise
+ */
+export const checkAndUpdateOfflineStatus = async (): Promise<boolean> => {
+  // First check the cached state
+  if (!cachedNetworkState.effectivelyConnected) {
+    return true; // We already know we're offline
+  }
+
+  // Force a network state refresh
+  const state = await NetInfo.fetch();
+  updateNetworkState(state);
+
+  // If we're on cellular, do an additional reachability check
+  if (state.type === 'cellular') {
+    try {
+      // Try a quick fetch with a short timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500); // Short timeout
+
+      const response = await fetch(REACHABILITY_URL, {
+        method: 'HEAD',
+        signal: controller.signal,
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.status !== 204) {
+        // Non-success response, likely offline
+        handleReachabilityFailure();
+        return !cachedNetworkState.effectivelyConnected;
+      }
+
+      // Success, we're online
+      handleReachabilitySuccess();
+      return false;
+    } catch (error) {
+      // Error making the request, likely offline
+      handleReachabilityFailure();
+      return true;
+    }
+  }
+
+  return !cachedNetworkState.effectivelyConnected;
 };

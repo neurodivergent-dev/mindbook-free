@@ -6,3 +6,5 @@ node_modules/
 .expo/
 dist/
 mindbook-landing/
+mindbook/
+mindbook-desktop/

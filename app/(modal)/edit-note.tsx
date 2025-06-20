@@ -32,6 +32,7 @@ import { showToast as androidShowToast, useBackButtonHandler } from '../utils/an
 import supabase from '../utils/supabase';
 import CategoryInputModal from '../components/CategoryInputModal';
 import { BLACK } from '../../utils/colors';
+import NoteAIAnalyzer from '../components/NoteAIAnalyzer';
 
 interface MarkdownToolbarProps {
   onInsert: (text: string) => void;
@@ -130,8 +131,10 @@ export default function EditNoteModal() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showColorOptions, setShowColorOptions] = useState(false);
+  const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
   const contentRef = useRef(null);
-  const { id } = useLocalSearchParams();
+  const { id: paramId } = useLocalSearchParams();
+  const id = typeof paramId === 'string' ? paramId : Array.isArray(paramId) ? paramId[0] : '';
   const router = useRouter();
   const {
     theme,
@@ -623,6 +626,13 @@ export default function EditNoteModal() {
           ),
           headerRight: () => (
             <View style={styles.headerRightContainer}>
+              +
+              <TouchableOpacity
+                onPress={() => setShowAIAnalyzer(true)}
+                style={styles.headerIconContainer}
+              >
+                <Ionicons name="analytics-outline" size={24} color="#fff" />
+              </TouchableOpacity>
               <View onTouchStart={handleReadingMode} style={styles.readingModeIconContainer}>
                 <Ionicons
                   name={isReadingMode ? 'create-outline' : 'eye-outline'}
@@ -630,11 +640,9 @@ export default function EditNoteModal() {
                   color="#fff"
                 />
               </View>
-
               <View onTouchStart={handleSave} style={styles.headerIconContainer}>
                 <Ionicons name="save-outline" size={24} color="#fff" />
               </View>
-
               <View onTouchStart={handleDelete} style={styles.headerIconContainer}>
                 <Ionicons name="trash-outline" size={24} color="#fff" />
               </View>
@@ -988,6 +996,13 @@ export default function EditNoteModal() {
         theme={theme}
         themeColors={themeColors}
         accentColor={accentColor}
+      />
+
+      {/* AI Analyzer Modal */}
+      <NoteAIAnalyzer
+        visible={showAIAnalyzer}
+        noteId={id}
+        onClose={() => setShowAIAnalyzer(false)}
       />
     </View>
   );

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
 import { useTranslation } from 'react-i18next';
 
-const APP_VERSION = '4.0.3';
+const APP_VERSION = '4.1.4';
 const BUILD_DATE = 'buildDate';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -249,9 +249,20 @@ export default function AboutScreen() {
 
         {/* Credits */}
         <View style={styles.credits}>
-          <Text style={[styles.creditsText, { color: theme.textSecondary }]}>
-            {t('about.madeWith')}
-          </Text>
+          <View style={styles.madeWithContainer}>
+            <Text style={[styles.creditsText, { color: theme.textSecondary }]}>
+              {t('about.madeWith').split('❤️')[0]}
+            </Text>
+            <Ionicons
+              name="heart-outline"
+              size={16}
+              color={themeColors.pink}
+              style={styles.heartIcon}
+            />
+            <Text style={[styles.creditsText, { color: theme.textSecondary }]}>
+              {t('about.madeWith').split('❤️')[1]}
+            </Text>
+          </View>
           <TouchableOpacity
             style={styles.privacyButton}
             onPress={() => router.push('/(modal)/privacy')}
@@ -361,6 +372,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
+  heartIcon: {
+    marginBottom: 6,
+  },
   logoContainer: {
     alignItems: 'center',
     borderRadius: 30,
@@ -369,6 +383,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 4,
     width: 120,
+  },
+  madeWithContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 8,
   },
   privacyButton: {
     padding: 8,

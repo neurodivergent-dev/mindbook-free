@@ -11,6 +11,7 @@ import {
   Share,
   ActivityIndicator,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -30,6 +31,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { encryptNotes, decryptNotes } from '../utils/encryption';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../models/Note';
+import NoteAIAnalyzer from '../components/NoteAIAnalyzer';
 
 // Color constants
 const COLORS = {
@@ -63,6 +65,7 @@ export default function NotesScreen() {
   const [sortBy, setSortBy] = useState('dateNewest');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const { t } = useTranslation();
+  const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
 
   const sortOptions = [
     { id: 'dateNewest', label: t('common.dateNewest'), icon: 'time' as const },
@@ -500,7 +503,27 @@ export default function NotesScreen() {
             />
           </TouchableOpacity>
 
-          <View style={styles.actionButtonsGroup}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.actionButtonsContainer}
+          >
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                if (selectedNotes.size > 0) {
+                  setShowAIAnalyzer(true);
+                } else {
+                  Alert.alert(t('common.warning'), t('notes.selectionHint'));
+                }
+              }}
+            >
+              <Ionicons name="analytics" size={20} color={themeColors[accentColor]} />
+              <Text style={[styles.actionText, { color: theme.text }]}>
+                {t('aiAssistant.analyzeMultipleNotes')}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.actionIconButton,
@@ -565,7 +588,7 @@ export default function NotesScreen() {
             >
               <Ionicons name="trash-outline" size={20} color={COLORS.DANGER} />
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </View>
     );
@@ -795,6 +818,13 @@ export default function NotesScreen() {
         />
       </View>
       {renderSortMenu()}
+
+      {/* AI Analyzer Modal */}
+      <NoteAIAnalyzer
+        visible={showAIAnalyzer}
+        noteIds={Array.from(selectedNotes)}
+        onClose={() => setShowAIAnalyzer(false)}
+      />
     </View>
   );
 }
@@ -823,10 +853,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     width: '100%',
   },
-  actionButtonsGroup: {
+  actionButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  actionButtonsContainer: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
+    paddingHorizontal: 8,
   },
   actionIconButton: {
     alignItems: 'center',
@@ -846,6 +888,11 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: 40,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
   },
   allNotesButton: {
     alignItems: 'center',

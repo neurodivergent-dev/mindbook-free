@@ -1,0 +1,13 @@
+PS C:\Users\melih\StudioProjects\Notepad> adb logcat *:S ReactNativeJS:V ReactNative:V
+--------- beginning of main
+06-15 10:09:08.145 14916 14916 I ReactNative: [GESTURE HANDLER] Tearing down gesture handler registered for root view com.facebook.react.runtime.ReactSurfaceView{ac9f132 V.E...... .......D 0,0-1080,2205 #b}
+06-15 10:11:16.910 30480 30480 I ReactNative: [GESTURE HANDLER] Initialize gesture handler for root view com.facebook.react.runtime.ReactSurfaceView{5ac3a06 V.E...... .......D 0,0-1080,2130 #b}
+06-15 10:11:44.116 31051 31051 I ReactNative: [GESTURE HANDLER] Initialize gesture handler for root view com.facebook.react.runtime.ReactSurfaceView{e7b5fcc V.E...... .......D 0,0-1080,2130 #b}
+06-15 10:11:54.924 31051 31103 E ReactNativeJS: [TypeError: Network request failed]
+06-15 10:11:55.238 31051 31103 E ReactNativeJS: 'Error checking storage buckets:', { [StorageUnknownError: Network request failed]
+06-15 10:11:55.238 31051 31103 E ReactNativeJS:   __isStorageError: true,
+06-15 10:11:55.238 31051 31103 E ReactNativeJS:   name: 'StorageUnknownError',
+06-15 10:11:55.238 31051 31103 E ReactNativeJS:   originalError: [TypeError: Network request failed] }
+06-15 10:16:12.994  3390  3390 I ReactNative: [GESTURE HANDLER] Initialize gesture handler for root view com.facebook.react.runtime.ReactSurfaceView{86eba85 V.E...... .......D 0,0-1080,2130 #b}
+06-15 10:20:13.124  3975  3975 I ReactNative: [GESTURE HANDLER] Initialize gesture handler for root view com.facebook.react.runtime.ReactSurfaceView{fc63ac9 V.E...... .......D 0,0-1080,2130 #b}
+06-15 10:20:19.756  4145  4145 I ReactNative: [GESTURE HANDLER] Initialize gesture handler for root view com.facebook.react.runtime.ReactSurfaceView{ac9f132 V.E...... ......ID 0,0-1080,2130 #b}

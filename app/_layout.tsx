@@ -2,6 +2,7 @@
 // It includes authentication, theme management, and language settings.
 // It also handles the onboarding process and user session management.
 // The layout uses Expo Router and React Navigation for navigation and routing.
+import { withTimeout } from './utils/withTimeout';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
@@ -11,7 +12,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { SearchProvider } from './context/SearchContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View, StatusBar, useColorScheme, AppState } from 'react-native';
+import { StyleSheet, View, StatusBar, useColorScheme } from 'react-native';
 import CustomDrawer from './components/CustomDrawer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import backup from './utils/backup';
@@ -26,13 +27,15 @@ import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
 import { initNetworkManager } from './utils/networkManager';
 import { OfflineService } from './services/offline';
 import { initStorage } from './utils/initStorage';
+import { OfflineProvider } from './context/OfflineContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import NetworkAwareSessionHandler from './components/NetworkAwareSessionHandler';
 
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
-import supabase from './utils/supabase';
 
 // Color constants
 const COLORS = {
@@ -67,19 +70,19 @@ function RootLayoutNav() {
       try {
         // Step 1: Initialize network services first (critical)
         console.log('Initializing network manager...');
-        await initNetworkManager();
+        await withTimeout(initNetworkManager(), 5000);
 
         console.log('Initializing offline service...');
-        await OfflineService.initialize();
+        await withTimeout(OfflineService.initialize(), 5000);
 
         console.log('Network services initialized successfully');
 
         // Step 2: Check onboarding status after network initialization
-        await checkOnboardingStatus();
+        await withTimeout(checkOnboardingStatus(), 3000);
 
         // Step 3: Initialize storage buckets
         console.log('Initializing storage buckets...');
-        await initStorage();
+        await withTimeout(initStorage(), 5000);
         console.log('Storage buckets initialized successfully');
 
         // Step 4: Initialize other services in parallel
@@ -89,8 +92,13 @@ function RootLayoutNav() {
         setAppInitialized(true);
         console.log('App initialization complete');
       } catch (error) {
-        console.error('Error during app initialization:', error);
-        // Even on error, mark as initialized to avoid app blocking
+        if (error instanceof Error) {
+          console.error('App init error:', error.message);
+        } else {
+          console.error('App init unknown error:', error);
+        }
+
+        // fallback olarak yine de devam ettir
         setAppInitialized(true);
       }
     };
@@ -198,85 +206,7 @@ function RootLayoutNav() {
     };
   }, [appInitialized, user, t]);
 
-  // Add an AppState listener to watch the app transition from background to foreground
-  useEffect(() => {
-    const handleAppStateChange = async nextAppState => {
-      if (nextAppState === 'active') {
-        // Recheck session state
-        try {
-          const storedSession = await AsyncStorage.getItem('userSession');
-          if (!storedSession) {
-            // Reset navigation handled flag when there's no session
-            setNavigationHandled(false);
-          }
-
-          if (storedSession) {
-            const sessionData = JSON.parse(storedSession);
-
-            if (sessionData.access_token && sessionData.refresh_token) {
-              // Refresh the Supabase session
-              const { data, error } = await supabase.auth.setSession({
-                access_token: sessionData.access_token,
-                refresh_token: sessionData.refresh_token,
-              });
-
-              if (error) {
-                // If session refresh fails, no logout is required
-                // Only log errors that are not related to missing refresh token
-                if (!error.message.includes('Refresh Token Not Found')) {
-                  console.error('Session refresh failed:', error.message);
-                } else {
-                  // Silently handle missing refresh token errors
-                  console.log('Session needs renewal, redirecting to login when needed');
-                }
-              } else if (data?.session) {
-                // Update session information
-                await AsyncStorage.setItem(
-                  'userSession',
-                  JSON.stringify({
-                    isLoggedIn: true,
-                    isAnonymous: false,
-                    email: data.session.user.email,
-                    isGuestMode: false,
-                    access_token: data.session.access_token,
-                    refresh_token: data.session.refresh_token,
-                    timestamp: new Date().toISOString(),
-                    user_id: data.session.user.id,
-                  })
-                );
-
-                // Get fresh user data to check for profile image updates
-                const { data: userData, error: userError } = await supabase.auth.getUser();
-                if (!userError && userData?.user) {
-                  // Check if the user profile data has been updated (especially profile image)
-                  const currentProfileImage = await AsyncStorage.getItem('@profile_image_url');
-                  const newProfileImage = userData.user.user_metadata?.profile_image_url;
-
-                  // If profile image has changed, update local storage
-                  if (newProfileImage && newProfileImage !== currentProfileImage) {
-                    console.log('Profile image updated from web, syncing to mobile...');
-                    await AsyncStorage.setItem('@profile_image_url', newProfileImage);
-
-                    // Cache timestamp for profile image to force reload
-                    await AsyncStorage.setItem('@profile_image_timestamp', Date.now().toString());
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error checking session:', error);
-        }
-      }
-    };
-
-    // Add AppState listener
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+  // We've removed the old AppState listener and replaced it with NetworkAwareSessionHandler component
 
   useEffect(() => {
     if (isLoginRequested && segments.length > 0 && segments[0] === '(auth)') {
@@ -416,47 +346,49 @@ function RootLayoutNav() {
         backgroundColor="transparent"
         barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
       />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: {
-            backgroundColor: 'transparent',
-          },
-          animation: 'fade',
-          animationDuration: 200, // Slightly slower animations for better stability
-        }}
-      >
-        <Stack.Screen
-          name="(auth)"
-          options={{
+      <NetworkAwareSessionHandler>
+        <Stack
+          screenOptions={{
             headerShown: false,
-            // For first load, disable animations to avoid race conditions
-            animation: 'none',
+            contentStyle: {
+              backgroundColor: 'transparent',
+            },
+            animation: 'fade',
+            animationDuration: 200, // Slightly slower animations for better stability
           }}
-        />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="auth-callback"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(modal)"
-          options={{
-            headerShown: false,
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
-          }}
-        />
-      </Stack>
-      {isDrawerVisible && (
-        <CustomDrawer
-          isVisible={isDrawerVisible}
-          onClose={() => setIsDrawerVisible(false)}
-          onOpen={() => setIsDrawerVisible(true)}
-        />
-      )}
+        >
+          <Stack.Screen
+            name="(auth)"
+            options={{
+              headerShown: false,
+              // For first load, disable animations to avoid race conditions
+              animation: 'none',
+            }}
+          />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="auth-callback"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(modal)"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+        </Stack>
+        {isDrawerVisible && (
+          <CustomDrawer
+            isVisible={isDrawerVisible}
+            onClose={() => setIsDrawerVisible(false)}
+            onOpen={() => setIsDrawerVisible(true)}
+          />
+        )}
+      </NetworkAwareSessionHandler>
     </>
   );
 }
@@ -480,8 +412,8 @@ export default function RootLayout() {
     'Inter-Bold': Inter_700Bold,
   });
 
+  // Verify default theme exists in AsyncStorage
   useEffect(() => {
-    // Verify default theme exists in AsyncStorage
     async function verifyThemeSettings() {
       try {
         const themeMode = await AsyncStorage.getItem('@theme_mode');
@@ -509,27 +441,6 @@ export default function RootLayout() {
 
     verifyThemeSettings();
   }, []); // This useEffect only works once, for theme validation
-  // We manage the timeout logic with a separate useEffect
-  useEffect(() => {
-    // Safety timeout - Force continue if theme initialization is not completed within 100ms
-    const safetyTimeout = setTimeout(() => {
-      if (!themeInitialized) {
-        console.log('Theme initialization timeout - proceeding anyway');
-        setThemeInitialized(true);
-      }
-    }, 100); // 100ms timeout
-
-    return () => clearTimeout(safetyTimeout);
-  }, [themeInitialized]); // Added as themeInitialized dependency
-
-  // Show a minimal loading state until the theme is initialized
-  if (!themeInitialized || !fontsLoaded) {
-    return (
-      <GestureHandlerRootView style={styles.container}>
-        <View style={[styles.container, styles.whiteBackground]} />
-      </GestureHandlerRootView>
-    );
-  }
 
   // Modify default themes to remove header border
   const customDarkTheme = {
@@ -552,28 +463,56 @@ export default function RootLayout() {
     },
   };
 
+  // We manage the timeout logic with a separate useEffect
+  useEffect(() => {
+    // Safety timeout - Force continue if theme initialization is not completed within 100ms
+    const safetyTimeout = setTimeout(() => {
+      if (!themeInitialized) {
+        console.log('Theme initialization timeout - proceeding anyway');
+        setThemeInitialized(true);
+      }
+    }, 100); // 100ms timeout
+
+    return () => clearTimeout(safetyTimeout);
+  }, [themeInitialized]);
+
+  // Show a minimal loading state until the theme is initialized
+  if (!themeInitialized || !fontsLoaded) {
+    return (
+      <GestureHandlerRootView style={styles.container}>
+        <View style={[styles.container, styles.whiteBackground]} />
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.gestureContainer}>
-      <NavigationThemeProvider value={colorScheme === 'dark' ? customDarkTheme : customLightTheme}>
-        <ThemeProvider>
-          <LanguageProvider>
-            <SearchProvider>
-              <OnboardingProvider>
-                <AuthProvider>
-                  <View
-                    style={[
-                      styles.container,
-                      colorScheme === 'dark' ? styles.darkBackground : styles.whiteBackground,
-                    ]}
-                  >
-                    <RootLayoutNav />
-                  </View>
-                </AuthProvider>
-              </OnboardingProvider>
-            </SearchProvider>
-          </LanguageProvider>
-        </ThemeProvider>
-      </NavigationThemeProvider>
+      <ErrorBoundary>
+        <NavigationThemeProvider
+          value={colorScheme === 'dark' ? customDarkTheme : customLightTheme}
+        >
+          <ThemeProvider>
+            <LanguageProvider>
+              <SearchProvider>
+                <OnboardingProvider>
+                  <AuthProvider>
+                    <OfflineProvider>
+                      <View
+                        style={[
+                          styles.container,
+                          colorScheme === 'dark' ? styles.darkBackground : styles.whiteBackground,
+                        ]}
+                      >
+                        <RootLayoutNav />
+                      </View>
+                    </OfflineProvider>
+                  </AuthProvider>
+                </OnboardingProvider>
+              </SearchProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </NavigationThemeProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
