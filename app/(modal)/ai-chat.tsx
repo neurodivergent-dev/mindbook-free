@@ -1,7 +1,7 @@
 // This file is part of the "AI Assistant" module of the app.
 // It provides a chat interface for users to interact with an AI assistant.
 // The AI assistant can respond in different styles: poem, brief, or default.
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,16 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import useQwenAI from '../hooks/useQwenAI';
+import { TapGestureHandler, State } from 'react-native-gesture-handler';
+import * as Clipboard from 'expo-clipboard';
+import Markdown from 'react-native-markdown-display';
+import * as FileSystem from 'expo-file-system';
 
 // Message type definition
 interface Message {
@@ -50,6 +54,8 @@ export default function AIChatScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { theme, themeColors, accentColor } = useTheme();
   const flatListRef = useRef<FlatList>(null);
+  const navigation = useNavigation();
+  const stopRequested = useRef(false);
 
   // Initialize Qwen AI
   const { askQuestion, analyzeImage, error } = useQwenAI();
@@ -61,15 +67,28 @@ export default function AIChatScreen() {
     }
   }, [error]);
 
+  const getCachedImageUri = async (originalUri: string): Promise<string> => {
+    try {
+      if (!originalUri.startsWith('file://')) return originalUri; // Zaten uzaktan bir resimse
+      const fileExtension = originalUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+      const fileName = `chatimg_${Date.now()}.${fileExtension}`;
+      const destUri = cacheDir + fileName;
+      await FileSystem.copyAsync({ from: originalUri, to: destUri });
+      return destUri;
+    } catch (e) {
+      console.error('Resim cache kopyalama hatası:', e);
+      return originalUri;
+    }
+  };
+
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
       if (status !== 'granted') {
         Alert.alert(t('common.error'), t('aiAssistant.cameraPermissionDenied'));
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -79,13 +98,10 @@ export default function AIChatScreen() {
         exif: false,
         allowsMultipleSelection: false,
       });
-
       if (!result.canceled && result.assets && result.assets[0]) {
         const selectedAsset = result.assets[0];
         const uri = selectedAsset.uri;
-
         console.log(`Selected image: ${uri}`);
-
         if (selectedAsset.fileSize && selectedAsset.fileSize > 10 * 1024 * 1024) {
           Alert.alert(
             t('common.error'),
@@ -93,14 +109,12 @@ export default function AIChatScreen() {
           );
           return;
         }
-
         const fileExtension = uri.split('.').pop()?.toLowerCase();
-
         if (fileExtension === 'png' || fileExtension === 'jpg' || fileExtension === 'jpeg') {
           console.log(`Selected image format: ${fileExtension}`);
-
-          setSelectedImage(uri);
-
+          // Resmi cache dizinine kopyala
+          const cachedUri = await getCachedImageUri(uri);
+          setSelectedImage(cachedUri);
           Alert.alert(
             t('aiAssistant.imageUploaded'),
             'The image has been uploaded successfully. Now you can ask a question or press the submit button to analyze the image.',
@@ -127,100 +141,80 @@ export default function AIChatScreen() {
     setSelectedImage(null);
   };
 
+  const copyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    Alert.alert('Copied', 'The answer has been copied to the clipboard.');
+  };
+
   const sendMessage = async () => {
-    // Check for empty message
-    if (!inputText.trim() && !selectedImage) {
+    const userText = inputText.trim();
+    const imageUri = selectedImage;
+    if (!userText && !imageUri) {
       return;
     }
-
+    // 1. Add user message to state BEFORE clearing selectedImage
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: userText || t('aiAssistant.imageAnalysis'),
+      isUser: true,
+      timestamp: new Date(),
+      imageUrl: imageUri || undefined, // imageUri artık cache URI
+    };
+    setMessages(prev => [...prev, userMessage]);
+    setInputText('');
+    setSelectedImage(null);
     setIsLoading(true);
+    stopRequested.current = false;
+
+    // 2. Create an empty placeholder for the AI's response
+    const aiMessageId = (Date.now() + 1).toString();
+    const aiMessagePlaceholder: Message = {
+      id: aiMessageId,
+      text: '...', // Placeholder text
+      isUser: false,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, aiMessagePlaceholder]);
 
     try {
-      // Let's save the image temporarily
-      const currentImage = selectedImage;
+      // 3. Get the response stream
+      const response = imageUri
+        ? await analyzeImage(imageUri, userText || 'Bu resimde ne var?')
+        : await askQuestion(userText, getSystemPrompt());
 
-      // Add user message
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        text: inputText || t('aiAssistant.imageUploaded'),
-        isUser: true,
-        timestamp: new Date(),
-        imageUrl: currentImage || undefined,
-      };
-
-      setMessages(prev => [...prev, userMessage]);
-      setInputText('');
-
-      // Scroll message list to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-
-      // Set system message
-      const systemPrompt = getSystemPrompt();
-
-      let response;
-
-      // Image analysis or regular Q&A
-      if (currentImage) {
-        console.log('Sending image for analysis');
-        response = await analyzeImage(currentImage, inputText || 'What is in this image?');
-        // Clear the image from the input field but leave it in the message
-        setSelectedImage(null);
-      } else {
-        console.log('Asking text question');
-        response = await askQuestion(inputText, systemPrompt);
+      if (response.error || !response.stream) {
+        throw new Error(response.error || 'Stream not available');
       }
 
-      // Error checking
-      if (response.error) {
-        console.error('AI response error:', response.error);
-
-        // Show error message to user
-        const errorMessage: Message = {
-          id: Date.now().toString(),
-          text:
-            response.error === 'OpenRouter service is not initialized'
-              ? t('aiAssistant.qwenAiError')
-              : `${t('aiAssistant.error')}: ${response.error}`,
-          isUser: false,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, errorMessage]);
-      } else {
-        // Add successful response
-        const aiMessage: Message = {
-          id: Date.now().toString(),
-          text: response.content || t('aiAssistant.error'),
-          isUser: false,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, aiMessage]);
+      // 4. Process the stream
+      let fullResponse = '';
+      for await (const chunk of response.stream) {
+        if (stopRequested.current) break;
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullResponse += content;
+          // Update the specific AI message placeholder with the new content
+          setMessages(prev =>
+            prev.map(msg => (msg.id === aiMessageId ? { ...msg, text: fullResponse } : msg))
+          );
+        }
       }
-
-      // Scroll message list to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     } catch (error) {
-      console.error('Error sending message:', error);
-
-      // Show error message to user
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        text: `${t('aiAssistant.error')}: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, errorMessage]);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      // Update the placeholder with the error message
+      setMessages(prev =>
+        prev.map(msg => (msg.id === aiMessageId ? { ...msg, text: `Hata: ${errorMessage}` } : msg))
+      );
     } finally {
       setIsLoading(false);
+      // Scroll to the end after the stream is complete
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  };
+
+  const handleStopAI = () => {
+    stopRequested.current = true;
+    setIsLoading(false);
   };
 
   // Function that determines the system message according to the response style
@@ -232,19 +226,19 @@ export default function AIChatScreen() {
         return 'Keep your answers short and concise. Use 2-3 sentences maximum.';
       case 'default':
       default:
-        return 'You are a helpful AI assistant. Give detailed and accurate answers to questions.';
+        return 'You are a helpful AI assistant. Format your answers using Markdown. Use headings, lists, bold text, and code blocks where appropriate to improve readability. Give detailed and accurate answers to questions.';
     }
   };
 
   // AI style toggle function
-  const toggleResponseStyle = () => {
+  const toggleResponseStyle = useCallback(() => {
     // Cycle: Poem -> Brief -> Default -> Poem...
     setResponseStyle(prevStyle => {
       if (prevStyle === 'poem') return 'brief';
       if (prevStyle === 'brief') return 'default';
       return 'poem';
     });
-  };
+  }, []);
 
   // Helper function to get style name
   const getStyleName = () => {
@@ -261,7 +255,7 @@ export default function AIChatScreen() {
   };
 
   // Helper function to determine style icon
-  const getStyleIcon = () => {
+  const getStyleIcon = useCallback(() => {
     switch (responseStyle) {
       case 'poem':
         return 'book-outline';
@@ -272,38 +266,41 @@ export default function AIChatScreen() {
       default:
         return 'book-outline';
     }
+  }, [responseStyle]);
+
+  const onHeaderButtonPress = useCallback(
+    ({ nativeEvent }) => {
+      if (nativeEvent.state === State.ACTIVE) {
+        toggleResponseStyle();
+      }
+    },
+    [toggleResponseStyle]
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TapGestureHandler onHandlerStateChange={onHeaderButtonPress}>
+          <View style={styles.styleToggle}>
+            <Ionicons name={getStyleIcon()} size={22} color="#fff" />
+          </View>
+        </TapGestureHandler>
+      ),
+    });
+  }, [navigation, onHeaderButtonPress, getStyleIcon]);
+
+  // Markdown styles for AI response (fixes dark mode text color)
+  const markdownStyles = {
+    body: {
+      color: theme.text,
+    },
+    paragraph: {
+      color: theme.text,
+    },
   };
 
   // Apply different styles based on message type (special format for poems)
   const renderMessage = ({ item }: { item: Message }) => {
-    // Poem detection - based on content
-    const isPoemStyle =
-      !item.isUser &&
-      responseStyle === 'poem' &&
-      // Poem format indicator: has line breaks
-      item.text.split('\n').length >= 3;
-
-    // Display poem text preserving line breaks
-    const formatPoemText = (text: string) => {
-      // Split text into lines
-      const lines = text.split('\n');
-
-      // Return each line in a separate Text component
-      return lines.map((line, index) => (
-        <Text
-          key={index}
-          style={[
-            styles.messageText,
-            { color: theme.text },
-            styles.poemText,
-            line.trim() === '' ? styles.poemLine : {},
-          ]}
-        >
-          {line.trim() === '' ? ' ' : line}
-        </Text>
-      ));
-    };
-
     return (
       <View
         style={[
@@ -314,14 +311,10 @@ export default function AIChatScreen() {
         ]}
       >
         {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.messageImage} />}
-        {isPoemStyle ? (
-          formatPoemText(item.text)
+        {item.isUser ? (
+          <Text style={[styles.messageText, { color: themeColors.white }]}>{item.text}</Text>
         ) : (
-          <Text
-            style={[styles.messageText, { color: item.isUser ? themeColors.white : theme.text }]}
-          >
-            {item.text}
-          </Text>
+          <Markdown style={markdownStyles}>{item.text}</Markdown>
         )}
         <Text
           style={[
@@ -331,6 +324,11 @@ export default function AIChatScreen() {
         >
           {item.timestamp.toLocaleTimeString()}
         </Text>
+        {!item.isUser && item.text && (
+          <TouchableOpacity style={styles.copyButton} onPress={() => copyToClipboard(item.text)}>
+            <Ionicons name="copy-outline" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -345,11 +343,6 @@ export default function AIChatScreen() {
           headerTitle: t('aiAssistant.title'),
           presentation: 'modal',
           headerBackVisible: true,
-          headerRight: () => (
-            <TouchableOpacity onPress={toggleResponseStyle} style={styles.styleToggle}>
-              <Ionicons name={getStyleIcon()} size={22} color="#fff" style={styles.headerIcon} />
-            </TouchableOpacity>
-          ),
         }}
       />
 
@@ -419,19 +412,28 @@ export default function AIChatScreen() {
             multiline
           />
 
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor:
-                  inputText.trim() || selectedImage ? themeColors[accentColor] : theme.border,
-              },
-            ]}
-            onPress={sendMessage}
-            disabled={(!inputText.trim() && !selectedImage) || isLoading}
-          >
-            <Ionicons name="send" size={20} color={themeColors.white} />
-          </TouchableOpacity>
+          {isLoading ? (
+            <TouchableOpacity
+              style={[styles.sendButton, { backgroundColor: themeColors.red }]}
+              onPress={handleStopAI}
+            >
+              <Ionicons name="close" size={20} color={themeColors.white} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor:
+                    inputText.trim() || selectedImage ? themeColors[accentColor] : theme.border,
+                },
+              ]}
+              onPress={sendMessage}
+              disabled={(!inputText.trim() && !selectedImage) || isLoading}
+            >
+              <Ionicons name="send" size={20} color={themeColors.white} />
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -454,8 +456,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerIcon: {
-    marginTop: -36,
+  copyButton: {
+    bottom: 10,
+    position: 'absolute',
+    right: 10,
   },
   imageButton: {
     borderRadius: 20,
@@ -516,12 +520,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  poemLine: {
-    marginVertical: 8,
-  },
-  poemText: {
-    textAlign: 'center',
-  },
   sendButton: {
     borderRadius: 20,
     padding: 12,
@@ -540,13 +538,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   styleToggle: {
-    alignItems: 'center',
-    borderRadius: 20,
-    flexDirection: 'row',
-    padding: 8,
-    position: 'absolute',
-    right: 16,
-    top: 16,
+    marginRight: 15, // Proper spacing from the edge
+    padding: 5, // Increase the touchable area for reliability
   },
   timestamp: {
     fontSize: 12,

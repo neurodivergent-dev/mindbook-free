@@ -1,7 +1,7 @@
 // This file is create a new task list in the app. It is used in the modal route of the app.
 // It is a screen that allows the user to create a new task list by entering a name for the list.
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +14,13 @@ export default function NewTaskListScreen() {
   const { t } = useTranslation();
 
   const createList = async () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      // Show alert for empty task list name
+      Alert.alert(t('common.error'), t('notes.emptyTaskListError'), [
+        { text: t('common.ok'), style: 'default' },
+      ]);
+      return;
+    }
 
     try {
       const storedLists = await AsyncStorage.getItem('taskLists');

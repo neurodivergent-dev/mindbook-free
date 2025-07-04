@@ -1,6 +1,6 @@
 // This file is Vault screen component for a note-taking app, allowing users to securely store and manage their notes with encryption and biometric authentication.
 // It includes features like password protection, biometric authentication, and auto-lock functionality.
-// The component uses React hooks for state management and side effects, and it integrates with AsyncStorage for persistent storage of notes and passwords.
+// The component uses React hooks for state management and side effects, and it integrates with SecureStore for persistent storage of notes and passwords.
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -17,13 +17,23 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
 import NoteCard from '../components/NoteCard';
 import { NOTES_KEY, getAllNotes } from '../utils/storage';
-import { encryptNotes, decryptNotes } from '../utils/encryption';
+import {
+  encryptVaultNotes,
+  decryptVaultNotes,
+  checkVaultDataIntegrity,
+  emergencyVaultDataRecovery,
+} from '../utils/vaultEncryption';
 import EmptyState from '../components/EmptyState';
 import { useTranslation } from 'react-i18next';
+
+// Secure storage keys - session independent
+const VAULT_PASSWORD_KEY = 'mindbook_vault_password';
+const VAULT_NOTES_KEY = 'vault_notes';
 
 const hashPassword = async text => {
   const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text);
@@ -40,6 +50,7 @@ export default function VaultScreen() {
   const [vaultNotes, setVaultNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [dataRecoveryInfo, setDataRecoveryInfo] = useState(null);
   const AUTO_LOCK_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
@@ -108,16 +119,28 @@ export default function VaultScreen() {
     });
   };
 
+  // Session-independent vault status check
   const checkVaultStatus = async () => {
     try {
-      const storedPassword = await AsyncStorage.getItem('vault_password');
+      // Check for password in SecureStore first (preferred)
+      let storedPassword = null;
+      try {
+        storedPassword = await SecureStore.getItemAsync(VAULT_PASSWORD_KEY);
+      } catch (secureError) {
+        console.log('SecureStore not available, checking AsyncStorage...');
+        // Fallback to AsyncStorage for older versions
+        storedPassword = await AsyncStorage.getItem('vault_password');
+      }
+
       setHasPassword(!!storedPassword);
 
       if (!storedPassword) {
-        setIsUnlocked(true);
+        setIsUnlocked(true); // If no password set, automatically unlock
       }
     } catch (error) {
-      console.error('Error while checking case status:', error);
+      console.error('Error while checking vault status:', error);
+      setHasPassword(false);
+      setIsUnlocked(true);
     }
   };
 
@@ -209,7 +232,20 @@ export default function VaultScreen() {
 
   const handleUnlock = async () => {
     try {
-      const storedPassword = await AsyncStorage.getItem('vault_password');
+      // Try SecureStore first, fallback to AsyncStorage
+      let storedPassword = null;
+      try {
+        storedPassword = await SecureStore.getItemAsync(VAULT_PASSWORD_KEY);
+      } catch (secureError) {
+        console.log('SecureStore not available, trying AsyncStorage...');
+        storedPassword = await AsyncStorage.getItem('vault_password');
+      }
+
+      if (!storedPassword) {
+        Alert.alert(t('common.error'), t('settings.noPasswordSet'));
+        return;
+      }
+
       const hashedPassword = await hashPassword(password);
 
       if (hashedPassword === storedPassword) {
@@ -219,7 +255,8 @@ export default function VaultScreen() {
         Alert.alert(t('common.error'), t('notes.wrongPassword'));
       }
     } catch (error) {
-      console.error('Error while opening the case:', error);
+      console.error('Error while opening the vault:', error);
+      Alert.alert(t('common.error'), t('notes.vaultUnlockError'));
     }
   };
 
@@ -287,7 +324,7 @@ export default function VaultScreen() {
               AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)),
               AsyncStorage.setItem(
                 'vault_notes',
-                remainingVaultNotes.length > 0 ? await encryptNotes(remainingVaultNotes) : ''
+                remainingVaultNotes.length > 0 ? await encryptVaultNotes(remainingVaultNotes) : ''
               ),
             ]);
 
@@ -344,7 +381,7 @@ export default function VaultScreen() {
               AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)),
               AsyncStorage.setItem(
                 'vault_notes',
-                remainingVaultNotes.length > 0 ? await encryptNotes(remainingVaultNotes) : ''
+                remainingVaultNotes.length > 0 ? await encryptVaultNotes(remainingVaultNotes) : ''
               ),
             ]);
 
@@ -468,7 +505,7 @@ export default function VaultScreen() {
             const remainingNotes = vaultNotes.filter(note => !selectedNotes.includes(note.id));
 
             // Encrypt and save
-            const encryptedNotes = await encryptNotes(remainingNotes);
+            const encryptedNotes = await encryptVaultNotes(remainingNotes);
             await AsyncStorage.setItem('vault_notes', encryptedNotes);
 
             // Update State
@@ -494,25 +531,100 @@ export default function VaultScreen() {
 
   const loadVaultNotes = async () => {
     try {
+      console.log('🔍 Loading vault notes with integrity check...');
+
+      // Check data integrity and attempt recovery if needed
+      const integrityResult = await checkVaultDataIntegrity();
+
+      if (!integrityResult.success) {
+        console.error('❌ Vault data integrity check failed completely');
+        setVaultNotes([]);
+        return;
+      }
+
+      if (integrityResult.recovered) {
+        console.log('🔄 Vault data was recovered during integrity check');
+        setDataRecoveryInfo({
+          recovered: true,
+          count: integrityResult.count,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Show user notification about recovery
+        setTimeout(() => {
+          Alert.alert(
+            t('notes.dataRecoveryTitle', { fallback: 'Data Recovery' }),
+            t('notes.dataRecoveryMessage', {
+              fallback: `Successfully recovered ${integrityResult.count} encrypted notes from vault. Your data is safe.`,
+              count: integrityResult.count,
+            }),
+            [{ text: t('common.ok', { fallback: 'OK' }) }]
+          );
+        }, 1000);
+      }
+
+      console.log(`📊 Found ${integrityResult.count} notes in vault`);
+
+      // Load the verified/recovered notes
       const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
       if (!vaultNotesStr) {
         setVaultNotes([]);
         return;
       }
 
-      const decryptedNotes = await decryptNotes(vaultNotesStr);
-      console.log('Status of notes in the safe:');
-      decryptedNotes.forEach(note => {
-        console.log(`Not: ${note.title}`);
-        console.log(`- ID: ${note.id}`);
-        console.log(`- isArchived: ${note.isArchived}`);
-        console.log(`- isTrash: ${note.isTrash}`);
-        console.log(`- isVaulted: ${note.isVaulted}`);
-        console.log('---');
-      });
+      let decryptedNotes;
+      try {
+        decryptedNotes = await decryptVaultNotes(vaultNotesStr);
+      } catch (error) {
+        console.warn('⚠️ Normal decryption failed, trying emergency recovery...');
+        decryptedNotes = await emergencyVaultDataRecovery(vaultNotesStr);
 
-      setVaultNotes(decryptedNotes);
+        if (decryptedNotes && Array.isArray(decryptedNotes) && decryptedNotes.length > 0) {
+          // Re-encrypt recovered data
+          const reEncrypted = await encryptVaultNotes(decryptedNotes);
+          if (reEncrypted) {
+            await AsyncStorage.setItem('vault_notes', reEncrypted);
+            console.log('✅ Emergency recovery successful, data re-encrypted');
+
+            // Notify user about emergency recovery
+            setDataRecoveryInfo({
+              recovered: true,
+              count: decryptedNotes.length,
+              timestamp: new Date().toISOString(),
+              emergency: true,
+            });
+
+            setTimeout(() => {
+              Alert.alert(
+                t('notes.emergencyRecoveryTitle', { fallback: 'Emergency Data Recovery' }),
+                t('notes.emergencyRecoveryMessage', {
+                  fallback: `Emergency recovery successful! Recovered ${decryptedNotes.length} notes from corrupted vault data. Your notes have been re-encrypted with the latest security standards.`,
+                  count: decryptedNotes.length,
+                }),
+                [{ text: t('common.ok', { fallback: 'OK' }) }]
+              );
+            }, 1500);
+          }
+        }
+      }
+
+      if (Array.isArray(decryptedNotes)) {
+        console.log('✅ Vault notes loaded successfully:');
+        decryptedNotes.forEach(note => {
+          console.log(`📝 Note: ${note.title}`);
+          console.log(`   - ID: ${note.id}`);
+          console.log(`   - isArchived: ${note.isArchived}`);
+          console.log(`   - isTrash: ${note.isTrash}`);
+          console.log(`   - isVaulted: ${note.isVaulted}`);
+          console.log('   ---');
+        });
+        setVaultNotes(decryptedNotes);
+      } else {
+        console.warn('⚠️ Invalid vault notes format, setting empty array');
+        setVaultNotes([]);
+      }
     } catch (error) {
+      console.error('❌ Error loading vault notes:', error);
       setVaultNotes([]);
     }
   };
@@ -548,7 +660,7 @@ export default function VaultScreen() {
 
       try {
         if (vaultNotesStr) {
-          const decryptedNotes = await decryptNotes(vaultNotesStr);
+          const decryptedNotes = await decryptVaultNotes(vaultNotesStr);
           vaultNotes = Array.isArray(decryptedNotes) ? decryptedNotes : [];
         }
       } catch (e) {
@@ -575,7 +687,7 @@ export default function VaultScreen() {
       const newVaultNotes = [...vaultNotes, ...notesToMove];
 
       // 5. Encrypt and save notes
-      const encryptedNotes = await encryptNotes(newVaultNotes);
+      const encryptedNotes = await encryptVaultNotes(newVaultNotes);
       await AsyncStorage.setItem('vault_notes', encryptedNotes);
 
       return true;

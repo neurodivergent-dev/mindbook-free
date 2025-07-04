@@ -98,7 +98,7 @@ function RootLayoutNav() {
           console.error('App init unknown error:', error);
         }
 
-        // fallback olarak yine de devam ettir
+        // continue as fallback
         setAppInitialized(true);
       }
     };

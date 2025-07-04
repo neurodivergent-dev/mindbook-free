@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Image,
+  Keyboard,
 } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
@@ -389,6 +390,7 @@ export default function EditNoteModal() {
             }
             await deleteCategory(categoryToDelete);
             loadCategories();
+            await triggerAutoBackup(null);
           } catch (error) {
             Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
           }
@@ -511,6 +513,7 @@ export default function EditNoteModal() {
     try {
       await addCategory(categoryText);
       await loadCategories();
+      await triggerAutoBackup(null);
       setSelectedCategory(categoryText);
       setShowCategoryModal(false);
     } catch (error) {
@@ -583,6 +586,11 @@ export default function EditNoteModal() {
     borderColor: themeMode === 'dark' ? '#292e42' : '#e1e1e1',
   };
 
+  const handleOpenAIAnalyzer = () => {
+    Keyboard.dismiss();
+    setShowAIAnalyzer(true);
+  };
+
   if (!note) {
     return null;
   }
@@ -626,20 +634,25 @@ export default function EditNoteModal() {
           ),
           headerRight: () => (
             <View style={styles.headerRightContainer}>
-              +
-              <View onTouchStart={() => setShowAIAnalyzer(true)} style={styles.headerIconContainer}>
-                <Ionicons name="analytics-outline" size={24} color="#fff" />
-              </View>
-              <View onTouchStart={handleReadingMode} style={styles.readingModeIconContainer}>
+              {/* AI Analyzer Button */}
+              {__DEV__ && (
+                <View onTouchStart={handleOpenAIAnalyzer} style={styles.headerIconContainer}>
+                  <Ionicons name="sparkles-outline" size={24} color="#fff" />
+                </View>
+              )}
+              {/* Reading Mode Button */}
+              <View onTouchStart={handleReadingMode} style={styles.headerIconContainer}>
                 <Ionicons
                   name={isReadingMode ? 'create-outline' : 'eye-outline'}
                   size={24}
                   color="#fff"
                 />
               </View>
+              {/* Save Button */}
               <View onTouchStart={handleSave} style={styles.headerIconContainer}>
                 <Ionicons name="save-outline" size={24} color="#fff" />
               </View>
+              {/* Delete Button */}
               <View onTouchStart={handleDelete} style={styles.headerIconContainer}>
                 <Ionicons name="trash-outline" size={24} color="#fff" />
               </View>
@@ -1214,10 +1227,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     padding: 16,
-  },
-  readingModeIconContainer: {
-    marginRight: 10,
-    padding: 10,
   },
   scrollView: {
     flex: 1,
