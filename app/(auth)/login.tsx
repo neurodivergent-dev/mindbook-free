@@ -9,6 +9,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
@@ -27,6 +30,7 @@ export default function LoginScreen() {
   // State variables for email, password, loading state, and internet connection status
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { theme, accentColor, themeColors } = useTheme();
   const { login, continueAsGuest, loginWithGoogle } = useAuth();
@@ -44,7 +48,7 @@ export default function LoginScreen() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
+  const handleLogin = async (): Promise<void> => {
     if (!isConnected) {
       Alert.alert(t('common.error'), t('auth.noInternetConnection'));
       return;
@@ -67,7 +71,11 @@ export default function LoginScreen() {
         router.replace('/(tabs)/');
       }, 500);
     } catch (error: unknown) {
-      Alert.alert(t('common.error'), error instanceof Error ? error.message : t('auth.loginError'));
+      if (error instanceof Error) {
+        Alert.alert(t('common.error'), error.message);
+      } else {
+        Alert.alert(t('common.error'), t('auth.loginError'));
+      }
       setLoading(false);
     }
   };
@@ -128,130 +136,152 @@ export default function LoginScreen() {
   // It includes a logo, title, subtitle, email and password input fields, login button, links to register and recover password, and a Google sign-in button
   // The screen is styled based on the current theme and accent color
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <View
-          style={[
-            styles.logoContainer,
-            {
-              backgroundColor: themeColors[accentColor] + '15',
-              borderColor: themeColors[accentColor] + '30',
-            },
-          ]}
-        >
-          <Text>
-            <Logo size={80} color={themeColors[accentColor]} style={{}} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.flex1}
+    >
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.logoContainer,
+              {
+                backgroundColor: themeColors[accentColor] + '15',
+                borderColor: themeColors[accentColor] + '30',
+              },
+            ]}
+          >
+            <Text>
+              <Logo size={80} color={themeColors[accentColor]} style={{}} />
+            </Text>
+          </View>
+          <Text style={[styles.title, { color: theme.text }]}>Mindbook Pro</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {t('common.appDescription')}
           </Text>
         </View>
-        <Text style={[styles.title, { color: theme.text }]}>Mindbook Pro</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {t('common.appDescription')}
-        </Text>
-      </View>
 
-      <View style={styles.form}>
-        <TextInput
-          style={[
-            styles.input,
-            styles.inputBorder,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.email')}
-          placeholderTextColor={theme.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={[
-            styles.input,
-            styles.inputBorder,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.password')}
-          placeholderTextColor={theme.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.form}>
+          <TextInput
+            style={[
+              styles.input,
+              styles.inputBorder,
+              {
+                backgroundColor: theme.card,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
+            placeholder={t('auth.email')}
+            placeholderTextColor={theme.textSecondary}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.inputBorder,
+                styles.passwordInput,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder={t('auth.password')}
+              placeholderTextColor={theme.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+            />
+            <TouchableOpacity
+              style={styles.passwordVisibilityButton}
+              onPress={() => setPasswordVisible(!passwordVisible)}
+            >
+              <Ionicons
+                name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: themeColors[accentColor],
+                opacity: opacityValue,
+              },
+            ]}
+            onPress={handleLogin}
+            disabled={loading || !isConnected}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.buttonText}>{t('auth.login')}</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.links}>
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/reset-password')}
+              style={styles.forgotPasswordLink}
+            >
+              <Text style={[styles.forgotPasswordText, { color: theme.textSecondary }]}>
+                {t('auth.forgotPassword') || 'Forgot Password'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/register')} style={styles.registerLink}>
+              <Text style={[styles.link, { color: themeColors[accentColor] }]}>
+                {t('auth.register') || 'Register'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleContinueWithoutAccount}
+            disabled={loading}
+          >
+            <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>
+              {t('auth.continueWithoutAccount')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.divider}>
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+          <Text style={[styles.dividerText, { color: theme.textSecondary }]}>{t('auth.or')}</Text>
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+        </View>
 
         <TouchableOpacity
           style={[
-            styles.button,
+            styles.googleButton,
             {
-              backgroundColor: themeColors[accentColor],
+              backgroundColor: theme.card,
               opacity: opacityValue,
             },
           ]}
-          onPress={handleLogin}
+          onPress={handleGoogleSignIn}
           disabled={loading || !isConnected}
         >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.buttonText}>{t('auth.login')}</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.links}>
-          <TouchableOpacity
-            onPress={() => router.push('/(auth)/reset-password')}
-            style={styles.forgotPasswordLink}
-          >
-            <Text style={[styles.forgotPasswordText, { color: theme.textSecondary }]}>
-              {t('auth.forgotPassword') || 'Forgot Password'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/register')} style={styles.registerLink}>
-            <Text style={[styles.link, { color: themeColors[accentColor] }]}>
-              {t('auth.register') || 'Register'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleContinueWithoutAccount}
-          disabled={loading}
-        >
-          <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>
-            {t('auth.continueWithoutAccount')}
+          <Ionicons name="logo-google" size={24} color={theme.text} />
+          <Text style={[styles.googleButtonText, { color: theme.text }]}>
+            {t('auth.continueWithGoogle')}
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.divider}>
-        <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-        <Text style={[styles.dividerText, { color: theme.textSecondary }]}>{t('auth.or')}</Text>
-        <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.googleButton,
-          {
-            backgroundColor: theme.card,
-            opacity: opacityValue,
-          },
-        ]}
-        onPress={handleGoogleSignIn}
-        disabled={loading || !isConnected}
-      >
-        <Ionicons name="logo-google" size={24} color={theme.text} />
-        <Text style={[styles.googleButtonText, { color: theme.text }]}>
-          {t('auth.continueWithGoogle')}
-        </Text>
-      </TouchableOpacity>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -285,6 +315,9 @@ const styles = StyleSheet.create({
   dividerText: {
     fontSize: 14,
     marginHorizontal: 10,
+  },
+  flex1: {
+    flex: 1,
   },
   forgotPasswordLink: {
     alignItems: 'center',
@@ -342,10 +375,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 4,
   },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  passwordInput: {
+    paddingRight: 50,
+  },
+  passwordVisibilityButton: {
+    padding: 5,
+    position: 'absolute',
+    right: 12,
+    top: 13,
+  },
   registerLink: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 50,
   },
   skipButton: {
     alignItems: 'center',

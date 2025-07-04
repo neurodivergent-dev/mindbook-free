@@ -10,6 +10,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
@@ -25,6 +28,8 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { theme, accentColor, themeColors } = useTheme();
   const { register, registerWithGoogle } = useAuth();
@@ -116,124 +121,159 @@ export default function RegisterScreen() {
   const opacityValue = isConnected ? 1 : 0.5;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Ionicons name="person-add" size={64} color={themeColors[accentColor]} />
-        <Text style={[styles.title, { color: theme.text }]}>{t('auth.register')}</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {t('auth.createAccountDesc')}
-        </Text>
-      </View>
-
-      <View style={styles.form}>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderWidth: 1 as number,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.displayName')}
-          placeholderTextColor={theme.textSecondary}
-          value={displayName}
-          onChangeText={setDisplayName}
-        />
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderWidth: 1 as number,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.email')}
-          placeholderTextColor={theme.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderWidth: 1 as number,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.password')}
-          placeholderTextColor={theme.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.card,
-              color: theme.text,
-              borderWidth: 1 as number,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder={t('auth.confirmPassword')}
-          placeholderTextColor={theme.textSecondary}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            {
-              backgroundColor: themeColors[accentColor],
-              opacity: opacityValue,
-            },
-          ]}
-          onPress={handleRegister}
-          disabled={loading || !isConnected}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{t('auth.register')}</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.googleButton,
-            {
-              backgroundColor: theme.card,
-              opacity: opacityValue,
-            },
-          ]}
-          onPress={handleGoogleRegister}
-          disabled={loading || !isConnected}
-        >
-          <Ionicons name="logo-google" size={24} color={theme.text} />
-          <Text style={[styles.googleButtonText, { color: theme.text }]}>
-            {t('auth.registerWithGoogle')}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.flex1}
+    >
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Ionicons name="person-add" size={64} color={themeColors[accentColor]} />
+          <Text style={[styles.title, { color: theme.text }]}>{t('auth.register')}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {t('auth.createAccountDesc')}
           </Text>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity style={styles.loginLink} onPress={() => router.back()}>
-          <Text style={[styles.loginLinkText, { color: theme.textSecondary }]}>
-            {t('auth.alreadyHaveAccount')}{' '}
-            <Text style={{ color: themeColors[accentColor] }}>{t('auth.login')}</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.form}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.card,
+                color: theme.text,
+                borderWidth: 1 as number,
+                borderColor: theme.border,
+              },
+            ]}
+            placeholder={t('auth.displayName')}
+            placeholderTextColor={theme.textSecondary}
+            value={displayName}
+            onChangeText={setDisplayName}
+          />
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.card,
+                color: theme.text,
+                borderWidth: 1 as number,
+                borderColor: theme.border,
+              },
+            ]}
+            placeholder={t('auth.email')}
+            placeholderTextColor={theme.textSecondary}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.passwordInput,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderWidth: 1 as number,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder={t('auth.password')}
+              placeholderTextColor={theme.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+            />
+            <TouchableOpacity
+              style={styles.passwordVisibilityButton}
+              onPress={() => setPasswordVisible(!passwordVisible)}
+            >
+              <Ionicons
+                name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.passwordInput,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderWidth: 1 as number,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder={t('auth.confirmPassword')}
+              placeholderTextColor={theme.textSecondary}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!confirmPasswordVisible}
+            />
+            <TouchableOpacity
+              style={styles.passwordVisibilityButton}
+              onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+            >
+              <Ionicons
+                name={confirmPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: themeColors[accentColor],
+                opacity: opacityValue,
+              },
+            ]}
+            onPress={handleRegister}
+            disabled={loading || !isConnected}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{t('auth.register')}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.googleButton,
+              {
+                backgroundColor: theme.card,
+                opacity: opacityValue,
+              },
+            ]}
+            onPress={handleGoogleRegister}
+            disabled={loading || !isConnected}
+          >
+            <Ionicons name="logo-google" size={24} color={theme.text} />
+            <Text style={[styles.googleButtonText, { color: theme.text }]}>
+              {t('auth.registerWithGoogle')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.loginLink} onPress={() => router.back()}>
+            <Text style={[styles.loginLinkText, { color: theme.textSecondary }]}>
+              {t('auth.alreadyHaveAccount')}{' '}
+              <Text style={{ color: themeColors[accentColor] }}>{t('auth.login')}</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -254,6 +294,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  flex1: {
+    flex: 1,
   },
   form: {
     gap: 16,
@@ -287,6 +330,24 @@ const styles = StyleSheet.create({
   },
   loginLinkText: {
     fontSize: 14,
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  passwordInput: {
+    paddingRight: 50,
+  },
+  passwordVisibilityButton: {
+    padding: 5,
+    position: 'absolute',
+    right: 12,
+    top: 13,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 70,
   },
   subtitle: {
     fontSize: 16,
