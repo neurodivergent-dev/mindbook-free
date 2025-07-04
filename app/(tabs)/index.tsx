@@ -11,7 +11,6 @@ import {
   Share,
   ActivityIndicator,
   Dimensions,
-  ScrollView,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -28,10 +27,13 @@ import NoteCard from '../components/NoteCard';
 import EmptyState from '../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { encryptNotes, decryptNotes } from '../utils/encryption';
+import { encryptNotes, decryptNotes, testEncryption } from '../utils/encryption';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../models/Note';
 import NoteAIAnalyzer from '../components/NoteAIAnalyzer';
+import { backupToCloud } from '../utils/backup';
+import { useAuth } from '../context/AuthContext';
+import * as SecureStore from 'expo-secure-store';
 
 // Color constants
 const COLORS = {
@@ -43,6 +45,7 @@ const COLORS = {
   TEXT_WHITE: '#fff',
   TRANSPARENT: 'transparent',
   BADGE_BG: 'rgba(0,0,0,0.05)',
+  BORDER_COLOR: 'rgba(0,0,0,0.1)',
 };
 
 // Define page size for pagination
@@ -66,6 +69,7 @@ export default function NotesScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const { t } = useTranslation();
   const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
+  const { user } = useAuth();
 
   const sortOptions = [
     { id: 'dateNewest', label: t('common.dateNewest'), icon: 'time' as const },
@@ -138,6 +142,11 @@ export default function NotesScreen() {
     }
   }, []);
 
+  const checkForUpdatesAndLoadNotes = useCallback(async () => {
+    // Instead of relying on flag system, load notes directly on focus
+    await loadNotes();
+  }, [loadNotes]);
+
   const filterNotes = useCallback(
     (currentNotes: Note[] = notes) => {
       const filtered = [...currentNotes].filter(note => {
@@ -190,9 +199,9 @@ export default function NotesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadNotes();
+      checkForUpdatesAndLoadNotes();
       return () => {};
-    }, [loadNotes])
+    }, [checkForUpdatesAndLoadNotes])
   );
 
   // reorder notes when sortBy changes
@@ -224,10 +233,10 @@ export default function NotesScreen() {
           setIsSelectionMode(newSelectedNotes.size > 0);
         }, 0);
 
-        return newSelectedNotes; // Her zaman yeni bir Set referansı döndürür
+        return newSelectedNotes; // Always return a new Set reference
       });
     },
-    [] // boş bağımlılık listesi çünkü setState fonksiyonlarını kullanıyoruz
+    [] // empty dependency list because we are using setState functions
   );
 
   const handleSelectAll = () => {
@@ -312,6 +321,19 @@ export default function NotesScreen() {
         setSelectedNotes(new Set());
         setIsSelectionMode(false);
 
+        // Auto backup check and cloud update
+        try {
+          const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+          if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+            const result = await backupToCloud(user.uid);
+            if (result.success) {
+              await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+            }
+          }
+        } catch (error) {
+          console.error('Auto backup after archive failed:', error);
+        }
+
         // Notify the user
         Alert.alert(t('common.success'), t('notes.notesArchived', { count: selectedNotes.size }));
       } else {
@@ -348,6 +370,19 @@ export default function NotesScreen() {
               setSelectedNotes(new Set());
               setIsSelectionMode(false);
 
+              // Auto backup check and cloud update
+              try {
+                const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+                if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+                  const result = await backupToCloud(user.uid);
+                  if (result.success) {
+                    await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+                  }
+                }
+              } catch (error) {
+                console.error('Auto backup after trash failed:', error);
+              }
+
               // Notify the user
               Alert.alert(
                 t('common.success'),
@@ -370,8 +405,12 @@ export default function NotesScreen() {
       return;
     }
 
-    // Check if vault password exists
-    const storedPassword = await AsyncStorage.getItem('vault_password');
+    let storedPassword: string | null = null;
+    try {
+      storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
+    } catch (secureError) {
+      storedPassword = await AsyncStorage.getItem('vault_password');
+    }
     if (!storedPassword) {
       Alert.alert(t('common.warning'), t('notes.vaultPasswordRequired'), [
         { text: t('common.cancel'), style: 'cancel' },
@@ -383,52 +422,156 @@ export default function NotesScreen() {
       return;
     }
 
+    // Test encryption capability before proceeding
+    console.log('🔐 Testing encryption capability before vault operation...');
+    const encryptionWorks = await testEncryption();
+
+    if (!encryptionWorks) {
+      Alert.alert(
+        t('common.error'),
+        t('notes.encryptionNotAvailable') ||
+          'Şifreleme servisi kullanılamıyor. Lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.',
+        [{ text: t('common.ok'), style: 'default' }]
+      );
+      return;
+    }
+
     Alert.alert(t('common.warning'), t('notes.moveToVaultConfirmation'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.confirm'),
         onPress: async () => {
-          try {
-            // 1. Get all notes
-            const allNotes = await getAllNotes();
-            const selectedNotesList = Array.from(selectedNotes);
+          // Create backup for rollback capability
+          let originalNotes = null;
+          let originalVaultNotes = null;
 
-            // 2. Separate the notes to be moved to the safe and the notes to remain
+          try {
+            console.log('🔄 Starting secure vault operation...');
+
+            // 1. Create backup of current state
+            const allNotes = await getAllNotes();
+            originalNotes = [...allNotes]; // Deep copy for rollback
+
+            const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
+            originalVaultNotes = vaultNotesStr; // Keep original encrypted string
+
+            console.log(
+              `📋 Backup created - Normal notes: ${
+                originalNotes.length
+              }, Vault data exists: ${!!originalVaultNotes}`
+            );
+
+            // 2. Prepare data for vault operation
+            const selectedNotesList = Array.from(selectedNotes);
             const notesToMove = allNotes
               .filter(note => selectedNotesList.includes(note.id))
               .map(note => ({ ...note, isVaulted: true }));
             const remainingNotes = allNotes.filter(note => !selectedNotesList.includes(note.id));
 
-            // 3. Get the current notes in the vault
-            const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
+            console.log(
+              `🔀 Prepared to move ${notesToMove.length} notes to vault, ${remainingNotes.length} will remain`
+            );
+
+            // 3. Get current vault notes and prepare new vault state
             let vaultNotes = [];
             if (vaultNotesStr) {
               const decryptedNotes = await decryptNotes(vaultNotesStr);
               vaultNotes = Array.isArray(decryptedNotes) ? decryptedNotes : [];
             }
 
-            // 4. Add notes to vault
+            // 4. Test encryption with actual data before proceeding
             const newVaultNotes = [...vaultNotes, ...notesToMove];
+            console.log(`🔐 Testing encryption with ${newVaultNotes.length} total vault notes...`);
+
             const encryptedNotes = await encryptNotes(newVaultNotes);
 
-            // 5. Update both places
+            // Critical check - if encryption failed, abort and rollback
+            if (!encryptedNotes) {
+              console.error('❌ Encryption failed - aborting operation');
+              throw new Error('Encryption failed - unable to secure notes');
+            }
+
+            console.log('✅ Encryption successful, proceeding with storage...');
+
+            // 5. Atomic update - both operations must succeed
             await Promise.all([
               AsyncStorage.setItem(NOTES_KEY, JSON.stringify(remainingNotes)),
               AsyncStorage.setItem('vault_notes', encryptedNotes),
             ]);
 
-            // 6. Update UI
+            console.log('💾 Storage operations completed successfully');
+
+            // 6. Update UI state
             setNotes(remainingNotes);
             filterNotes(remainingNotes);
             setSelectedNotes(new Set());
             setIsSelectionMode(false);
+
+            console.log('✅ Vault operation completed successfully');
 
             Alert.alert(
               t('common.success'),
               t('notes.notesMovedToVault', { count: selectedNotes.size })
             );
           } catch (error) {
-            Alert.alert(t('common.error'), t('notes.moveToVaultError'));
+            console.error('🚨 Vault operation failed:', error);
+
+            // Detailed error logging with proper type safety
+            const errorDetails = {
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              hasOriginalNotes: !!originalNotes,
+              hasOriginalVaultNotes: !!originalVaultNotes,
+            };
+            console.error('Error details:', errorDetails);
+
+            // CRITICAL: Attempt rollback to prevent data loss
+            if (originalNotes && originalVaultNotes !== null) {
+              try {
+                console.log('🔄 Attempting rollback to prevent data loss...');
+
+                await Promise.all([
+                  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(originalNotes)),
+                  AsyncStorage.setItem('vault_notes', originalVaultNotes || ''),
+                ]);
+
+                // Restore UI state
+                setNotes(originalNotes);
+                filterNotes(originalNotes);
+                setSelectedNotes(new Set());
+                setIsSelectionMode(false);
+
+                console.log('✅ Rollback completed successfully');
+
+                Alert.alert(
+                  t('common.error'),
+                  t('notes.moveToVaultErrorWithRollback') ||
+                    "Vault'a taşıma işlemi başarısız oldu. Notlarınız güvenliği için geri yüklendi.",
+                  [{ text: t('common.ok'), style: 'default' }]
+                );
+              } catch (rollbackError) {
+                console.error('🚨 CRITICAL: Rollback failed!', rollbackError);
+
+                Alert.alert(
+                  t('common.error'),
+                  t('notes.criticalError') ||
+                    'A critical error occurred. Please restart the application.',
+                  [
+                    { text: t('common.ok'), style: 'default' },
+                    {
+                      text: 'Uygulamayı Yenile',
+                      onPress: () => {
+                        // Force refresh app state
+                        loadNotes();
+                      },
+                    },
+                  ]
+                );
+              }
+            } else {
+              // No backup available - show basic error
+              Alert.alert(t('common.error'), t('notes.moveToVaultError'));
+            }
           }
         },
       },
@@ -437,7 +580,7 @@ export default function NotesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadNotes();
+    await checkForUpdatesAndLoadNotes();
     setRefreshing(false);
     // Reset pagination state
     setPage(0);
@@ -445,7 +588,7 @@ export default function NotesScreen() {
       setVisibleNotes(filteredNotes.slice(0, PAGE_SIZE));
       setHasMore(filteredNotes.length > PAGE_SIZE);
     }
-  }, [loadNotes, filteredNotes]);
+  }, [checkForUpdatesAndLoadNotes, filteredNotes]);
 
   const renderEmptyState = () => {
     if (selectedCategory) {
@@ -484,6 +627,7 @@ export default function NotesScreen() {
         ]}
       >
         <View style={styles.actionBarContainer}>
+          {/* Sol taraf - Tik butonu */}
           <TouchableOpacity
             style={[
               styles.selectAllButton,
@@ -503,26 +647,28 @@ export default function NotesScreen() {
             />
           </TouchableOpacity>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.actionButtonsContainer}
-          >
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                if (selectedNotes.size > 0) {
-                  setShowAIAnalyzer(true);
-                } else {
-                  Alert.alert(t('common.warning'), t('notes.selectionHint'));
-                }
-              }}
-            >
-              <Ionicons name="analytics" size={20} color={themeColors[accentColor]} />
-              <Text style={[styles.actionText, { color: theme.text }]}>
-                {t('aiAssistant.analyzeMultipleNotes')}
-              </Text>
-            </TouchableOpacity>
+          {/* Orta - Boş alan */}
+          <View style={styles.flex1} />
+
+          {/* Sağ taraf - Butonlar */}
+          <View style={styles.rowGap6}>
+            {__DEV__ && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  if (selectedNotes.size > 0) {
+                    setShowAIAnalyzer(true);
+                  } else {
+                    Alert.alert(t('common.warning'), t('notes.selectionHint'));
+                  }
+                }}
+              >
+                <Ionicons name="analytics" size={20} color={themeColors[accentColor]} />
+                <Text style={[styles.actionText, { color: theme.text }]}>
+                  {t('aiAssistant.analyzeMultipleNotes')}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
@@ -588,7 +734,7 @@ export default function NotesScreen() {
             >
               <Ionicons name="trash-outline" size={20} color={COLORS.DANGER} />
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </View>
       </View>
     );
@@ -855,7 +1001,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: 'center',
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderColor: COLORS.BORDER_COLOR,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -863,12 +1009,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-  },
-  actionButtonsContainer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 8,
   },
   actionIconButton: {
     alignItems: 'center',
@@ -952,6 +1092,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
   },
+  flex1: {
+    flex: 1,
+  },
   header: {
     alignItems: 'center',
     borderBottomColor: COLORS.TRANSPARENT_LIGHT,
@@ -1000,6 +1143,10 @@ const styles = StyleSheet.create({
   notesCountText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  rowGap6: {
+    flexDirection: 'row',
+    gap: 6,
   },
   selectAllButton: {
     alignItems: 'center',
