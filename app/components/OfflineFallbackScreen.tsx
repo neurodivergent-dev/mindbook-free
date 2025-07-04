@@ -9,8 +9,17 @@ interface OfflineFallbackScreenProps {
   isBanner?: boolean;
 }
 
+const COLORS = {
+  primary: '#2196f3',
+  white: '#fff',
+  bannerBackground: 'rgba(0,0,0,0.8)',
+  screenBackground: '#f5f5f5',
+  message: '#666',
+  title: '#333',
+};
+
 /**
- * Ağ bağlantısı olmadığında gösterilen fallback ekranı
+ * Fallback screen displayed when there is no network connection
  */
 const OfflineFallbackScreen: React.FC<OfflineFallbackScreenProps> = ({
   onRetry,
@@ -19,11 +28,11 @@ const OfflineFallbackScreen: React.FC<OfflineFallbackScreenProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Banner modu için daha kompakt bir tasarım
+  // Banner mode with a more compact design
   if (isBanner) {
     return (
       <View style={styles.bannerContainer}>
-        <Ionicons name="cloud-offline" size={20} color="#fff" style={styles.bannerIcon} />
+        <Ionicons name="cloud-offline" size={20} color={COLORS.white} style={styles.bannerIcon} />
         <Text style={styles.bannerText}>{t('common.offlineTitle')}</Text>
         <TouchableOpacity style={styles.bannerButton} onPress={onRetry}>
           <Text style={styles.bannerButtonText}>{t('common.retryConnection')}</Text>
@@ -32,17 +41,17 @@ const OfflineFallbackScreen: React.FC<OfflineFallbackScreenProps> = ({
     );
   }
 
-  // Tam ekran modu
+  // Full screen mode
   return (
     <View style={styles.container}>
-      <Ionicons name="cloud-offline" size={64} color="#666" style={styles.icon} />
+      <Ionicons name="cloud-offline" size={64} color={COLORS.message} style={styles.icon} />
 
       <Text style={styles.title}>{t('common.offlineTitle')}</Text>
 
       <Text style={styles.message}>{message || t('common.offlineMessage')}</Text>
 
       <TouchableOpacity style={styles.button} onPress={onRetry}>
-        <Ionicons name="refresh" size={20} color="#fff" style={styles.buttonIcon} />
+        <Ionicons name="refresh" size={20} color={COLORS.white} style={styles.buttonIcon} />
         <Text style={styles.buttonText}>{t('common.retryConnection')}</Text>
       </TouchableOpacity>
     </View>
@@ -50,21 +59,21 @@ const OfflineFallbackScreen: React.FC<OfflineFallbackScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  // Banner stilleri
+  // Banner styles
   bannerButton: {
-    backgroundColor: '#2196f3',
+    backgroundColor: COLORS.primary,
     borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   bannerButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 12,
     fontWeight: '500',
   },
   bannerContainer: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: COLORS.bannerBackground,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 15,
@@ -74,13 +83,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   bannerText: {
-    color: '#fff',
+    color: COLORS.white,
     flex: 1,
     fontSize: 14,
   },
   button: {
     alignItems: 'center',
-    backgroundColor: '#2196f3',
+    backgroundColor: COLORS.primary,
     borderRadius: 25,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -91,13 +100,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '500',
   },
   container: {
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.screenBackground,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -106,14 +115,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   message: {
-    color: '#666',
+    color: COLORS.message,
     fontSize: 16,
     lineHeight: 22,
     marginBottom: 30,
     textAlign: 'center',
   },
   title: {
-    color: '#333',
+    color: COLORS.title,
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,

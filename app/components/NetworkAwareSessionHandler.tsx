@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { AppState } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { safeSupabase } from '../utils/safeSupabase';
 
@@ -15,7 +15,6 @@ interface Props {
  */
 const NetworkAwareSessionHandler: React.FC<Props> = ({ onSessionRefreshed, children }) => {
   const appState = useRef(AppState.currentState);
-  const [appStateVisible, setAppStateVisible] = useState(appState.current);
   const lastRefreshAttempt = useRef<number>(Date.now());
   const refreshInProgress = useRef(false);
   const pendingRefresh = useRef(false);
@@ -27,55 +26,7 @@ const NetworkAwareSessionHandler: React.FC<Props> = ({ onSessionRefreshed, child
   const [isConnected, setIsConnected] = useState(true);
 
   // Handle network state changes
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      const newConnected = !!(state.isConnected && state.isInternetReachable);
-
-      // If we're transitioning from offline to online
-      if (!isConnected && newConnected) {
-        console.log('Network reconnected, checking session state');
-        refreshSessionIfNeeded();
-      }
-
-      setIsConnected(newConnected);
-    });
-
-    // Initial network check
-    NetInfo.fetch().then(state => {
-      setIsConnected(!!(state.isConnected && state.isInternetReachable));
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [isConnected]);
-
-  // Handle AppState changes
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      // When the app comes to the foreground
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('App has come to the foreground');
-        refreshSessionIfNeeded();
-      }
-
-      appState.current = nextAppState;
-      setAppStateVisible(appState.current);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  /**
-   * Safe function to refresh session
-   * - Checks network connectivity first
-   * - Debounces frequent calls
-   * - Prevents overlapping refreshes
-   * - Handles failure gracefully
-   */
-  const refreshSessionIfNeeded = async () => {
+  const refreshSessionIfNeeded = useCallback(async () => {
     // Skip if not connected
     if (!isConnected) {
       console.log('Skipping session refresh - device offline');
@@ -178,7 +129,46 @@ const NetworkAwareSessionHandler: React.FC<Props> = ({ onSessionRefreshed, child
         }, 1000);
       }
     }
-  };
+  }, [isConnected, onSessionRefreshed]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const newConnected = !!(state.isConnected && state.isInternetReachable);
+
+      // If we're transitioning from offline to online
+      if (!isConnected && newConnected) {
+        console.log('Network reconnected, checking session state');
+        refreshSessionIfNeeded();
+      }
+
+      setIsConnected(newConnected);
+    });
+
+    // Initial network check
+    NetInfo.fetch().then(state => {
+      setIsConnected(!!(state.isConnected && state.isInternetReachable));
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isConnected, refreshSessionIfNeeded]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // When the app comes to the foreground
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('App has come to the foreground');
+        refreshSessionIfNeeded();
+      }
+
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [refreshSessionIfNeeded]);
 
   // Component doesn't render anything additional
   return <>{children}</>;

@@ -11,6 +11,10 @@ interface OfflineNoticeProps {
   onDismiss?: () => void;
 }
 
+const COLORS = {
+  white: '#fff',
+};
+
 /**
  * OfflineNotice component
  * - Listens to network state via useNetworkState()
@@ -76,11 +80,11 @@ const OfflineNotice: React.FC<OfflineNoticeProps> = ({ onDismiss }) => {
         <Ionicons
           name={connectionType === 'cellular' ? 'cellular-outline' : 'wifi-outline'}
           size={20}
-          color="white"
+          color={COLORS.white}
         />
         <Text style={styles.text}>{t('common.networkFailedMessage')}</Text>
         <TouchableOpacity onPress={handleDismiss} style={styles.closeButton}>
-          <Ionicons name="close" size={20} color="white" />
+          <Ionicons name="close" size={20} color={COLORS.white} />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -108,7 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   text: {
-    color: 'white',
+    color: COLORS.white,
     flex: 1,
     fontSize: 14,
     marginHorizontal: 8,
