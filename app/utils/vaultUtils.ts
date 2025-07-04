@@ -2,7 +2,11 @@
  * Helper functions to manage vault operations
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { encryptNotes, decryptNotes } from './encryption';
+import {
+  encryptVaultNotes,
+  decryptVaultNotes,
+  emergencyVaultDataRecovery,
+} from './vaultEncryption';
 import { Note } from '../models/Note';
 import { getAllNotes } from './storage';
 
@@ -30,18 +34,29 @@ export const handleVaultMove = async (noteIds: string[]): Promise<boolean> => {
 
     const remainingNotes = allNotes.filter(note => !noteIds.includes(note.id));
 
-    // 3. Get existing notes in the vault
+    // 3. Get existing notes in the vault with proper vault encryption
     const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
     let vaultNotes: Note[] = [];
 
     if (vaultNotesStr) {
-      const decryptedNotes = await decryptNotes(vaultNotesStr);
-      vaultNotes = Array.isArray(decryptedNotes) ? decryptedNotes : [];
+      try {
+        const decryptedNotes = await decryptVaultNotes(vaultNotesStr);
+        vaultNotes = Array.isArray(decryptedNotes) ? decryptedNotes : [];
+      } catch (error) {
+        console.warn('Failed to decrypt existing vault notes, attempting recovery...');
+        const recoveredNotes = await emergencyVaultDataRecovery(vaultNotesStr);
+        vaultNotes = Array.isArray(recoveredNotes) ? recoveredNotes : [];
+      }
     }
 
     // 4. Add notes to vault
     const newVaultNotes = [...vaultNotes, ...notesToMove];
-    const encryptedNotes = await encryptNotes(newVaultNotes);
+    const encryptedNotes = await encryptVaultNotes(newVaultNotes);
+
+    if (!encryptedNotes) {
+      console.error('Failed to encrypt vault notes');
+      return false;
+    }
 
     // 5. Update both places
     await Promise.all([
@@ -49,6 +64,7 @@ export const handleVaultMove = async (noteIds: string[]): Promise<boolean> => {
       AsyncStorage.setItem('vault_notes', encryptedNotes),
     ]);
 
+    console.log(`✅ Successfully moved ${notesToMove.length} notes to vault`);
     return true;
   } catch (error) {
     console.error('Vault move error:', error);
@@ -63,12 +79,25 @@ export const handleVaultMove = async (noteIds: string[]): Promise<boolean> => {
  */
 export const removeFromVault = async (noteIds: string[]): Promise<boolean> => {
   try {
-    // 1. Take notes from the safe
+    // 1. Take notes from the safe with proper vault encryption
     const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
     if (!vaultNotesStr) return false;
 
-    const decryptedNotes = await decryptNotes(vaultNotesStr);
-    const vaultNotes: Note[] = Array.isArray(decryptedNotes) ? decryptedNotes : [];
+    let vaultNotes: Note[] = [];
+
+    try {
+      const decryptedNotes = await decryptVaultNotes(vaultNotesStr);
+      vaultNotes = Array.isArray(decryptedNotes) ? decryptedNotes : [];
+    } catch (error) {
+      console.warn('Failed to decrypt vault notes, attempting recovery...');
+      const recoveredNotes = await emergencyVaultDataRecovery(vaultNotesStr);
+      vaultNotes = Array.isArray(recoveredNotes) ? recoveredNotes : [];
+
+      if (vaultNotes.length === 0) {
+        console.error('Could not recover vault notes for removal');
+        return false;
+      }
+    }
 
     // 2. Separate notes to be removed and notes to be retained
     const notesToMove = vaultNotes
@@ -83,14 +112,20 @@ export const removeFromVault = async (noteIds: string[]): Promise<boolean> => {
     // 4. Add notes to normal field
     const updatedNotes = [...allNotes, ...notesToMove];
 
-    // 5. Update both vault and normal area
-    const encryptedVaultNotes = await encryptNotes(remainingVaultNotes);
+    // 5. Update both vault and normal area with proper vault encryption
+    const encryptedVaultNotes = await encryptVaultNotes(remainingVaultNotes);
+
+    if (!encryptedVaultNotes) {
+      console.error('Failed to encrypt remaining vault notes');
+      return false;
+    }
 
     await Promise.all([
       AsyncStorage.setItem('notes', JSON.stringify(updatedNotes)),
       AsyncStorage.setItem('vault_notes', encryptedVaultNotes),
     ]);
 
+    console.log(`✅ Successfully removed ${notesToMove.length} notes from vault`);
     return true;
   } catch (error) {
     console.error('Unboxing error:', error);

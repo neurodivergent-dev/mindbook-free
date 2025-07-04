@@ -1,6 +1,9 @@
 import { OpenAI } from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import Constants from 'expo-constants';
+import { fetch } from 'expo/fetch';
+import * as FileSystem from 'expo-file-system';
+import { getOpenRouterApiKey } from './secureKeyService';
 
 // Define types for our requests and responses
 export type ImageContent = {
@@ -31,7 +34,7 @@ export type AIResponse = {
         content?: string | null;
       };
     }[];
-  }>;
+  }> | null;
 };
 
 // Helper function to safely access environment variables
@@ -39,8 +42,39 @@ const getEnvVariable = (key: string): string => {
   // Access Constants.expoConfig which is the recommended approach
   if (Constants.expoConfig?.extra && typeof Constants.expoConfig.extra === 'object') {
     const extra = Constants.expoConfig.extra as Record<string, any>;
+
+    // Obfuscated key mapping
+    const keyMap: Record<string, string> = {
+      OPENROUTER_API_KEY: '_o',
+      OPENROUTER_MODEL: '_om',
+      SUPABASE_URL: '_s',
+      SUPABASE_ANON_KEY: '_a',
+      ENCRYPTION_KEY: '_e',
+      VAULT_ENCRYPTION_KEY: '_v',
+      GOOGLE_WEB_CLIENT_ID: '_g',
+      GOOGLE_ANDROID_CLIENT_ID: '_ga',
+      AI_GENERATE_ENDPOINT_PROD: '_ai',
+      AI_GENERATE_ENDPOINT_DEV: '_ai',
+      EXPO_DEV_HOST: '_ed',
+      EXPO_DEV_PORT: '_ep',
+    };
+
+    // Try obfuscated key first
+    const obfuscatedKey = keyMap[key];
+    if (obfuscatedKey && obfuscatedKey in extra) {
+      return extra[obfuscatedKey] as string;
+    }
+
+    // Try original key as fallback
     if (key in extra) {
       return extra[key] as string;
+    }
+
+    // Convert to camelCase for compatibility
+    const camelKey =
+      key.charAt(0).toLowerCase() + key.slice(1).replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    if (camelKey in extra) {
+      return extra[camelKey] as string;
     }
   }
 
@@ -49,11 +83,7 @@ const getEnvVariable = (key: string): string => {
     return process.env[key] || '';
   }
 
-  // Hardcoded fallback for critical values
-  if (key === 'OPENROUTER_API_KEY') {
-    throw new Error('OPENROUTER_API_KEY environment variable is required');
-  }
-
+  // Fallback for model if not found
   if (key === 'OPENROUTER_MODEL') {
     return 'qwen/qwen2.5-vl-72b-instruct:free';
   }
@@ -65,48 +95,142 @@ const getEnvVariable = (key: string): string => {
  * Service to interact with AI models through OpenRouter
  */
 export class OpenRouterService {
-  private client: OpenAI;
+  private client: OpenAI | null = null;
   private defaultModel: string;
-  private apiKey: string;
+  private isInitialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
 
   /**
    * Initialize the OpenRouter service
-   * @param apiKey - OpenRouter API key
+   * @param apiKey - OpenRouter API key (will be fetched from Edge Function if not provided)
    * @param siteName - Your site name for analytics on OpenRouter
    * @param siteUrl - Your site URL for analytics on OpenRouter
    * @param model - The model to use (defaults to Qwen2.5-VL)
    */
   constructor(
-    apiKey: string = getEnvVariable('OPENROUTER_API_KEY'),
-    siteName: string = 'Mindbook Pro',
-    siteUrl: string = 'https://mindbookpro.netlify.app',
+    apiKey?: string,
+    private siteName: string = 'Mindbook Pro',
+    private siteUrl: string = 'https://mindbookpro.shop',
     model: string = getEnvVariable('OPENROUTER_MODEL') || 'qwen/qwen2.5-vl-72b-instruct:free'
   ) {
-    if (!apiKey) {
-      throw new Error('OpenRouter API key is missing');
-    }
-
-    this.apiKey = apiKey;
     this.defaultModel = model;
 
-    console.log(`OpenRouter Service initialized with model: ${model}`);
+    // If API key is provided directly, initialize immediately
+    if (apiKey) {
+      this.initializeClient(apiKey);
+    } else {
+      // Otherwise defer initialization until first use
+      this.initializationPromise = this.lazyInitialize();
+    }
+  }
 
-    // Initialize the OpenAI client with OpenRouter base URL
-    this.client = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: apiKey,
-      defaultHeaders: {
-        'HTTP-Referer': siteUrl,
-        'X-Title': siteName,
-      },
-      dangerouslyAllowBrowser: true,
-    });
+  /**
+   * Lazily initialize client with API key from Edge Function
+   */
+  private async lazyInitialize(): Promise<void> {
+    try {
+      console.log('🔄 OpenRouterService: Initializing with API key from secure storage...');
+
+      // Fetch API key from Edge Function
+      const apiKey = await getOpenRouterApiKey();
+
+      if (!apiKey) {
+        console.error('❌ OpenRouterService: API key is null or empty from secure storage');
+        throw new Error('Failed to fetch OpenRouter API key from secure storage');
+      }
+
+      console.log(
+        `✅ OpenRouterService: Successfully retrieved API key (${apiKey.substring(
+          0,
+          3
+        )}...${apiKey.substring(apiKey.length - 3)})`
+      );
+      this.initializeClient(apiKey);
+    } catch (error) {
+      console.error(
+        '❌ OpenRouterService initialization failed:',
+        error instanceof Error ? error.message : error
+      );
+
+      // Fall back to environment variable as last resort
+      const fallbackKey = getEnvVariable('OPENROUTER_API_KEY');
+
+      if (fallbackKey) {
+        console.warn(
+          '⚠️ OpenRouterService: Using fallback API key from environment - this is less secure'
+        );
+        this.initializeClient(fallbackKey);
+      } else {
+        console.error('❌ OpenRouterService: No fallback API key available');
+      }
+    }
+  }
+
+  /**
+   * Initialize OpenAI client with the provided API key
+   */
+  private initializeClient(apiKey: string): void {
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
+    }
+
+    // Log key format for debugging (hiding most of the key)
+    const keyFormat = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 5);
+    console.log(`🔑 Initializing OpenRouter client with key format: ${keyFormat}`);
+    console.log(`🔑 Key length: ${apiKey.length}, contains hyphens: ${apiKey.includes('-')}`);
+
+    // Create a fetch wrapper that is compatible with the OpenAI library's type definition.
+    const customFetch: typeof global.fetch = (input, init) => {
+      // expo/fetch expects a string URL, so we need to handle Request objects.
+      const url = typeof input === 'string' ? input : input.url;
+      const options = init || (typeof input !== 'string' ? input : undefined);
+      return fetch(url, options) as any;
+    };
+
+    try {
+      // Initialize the OpenAI client with OpenRouter base URL
+      this.client = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: apiKey,
+        defaultHeaders: {
+          'HTTP-Referer': this.siteUrl,
+          'X-Title': this.siteName,
+        },
+        fetch: customFetch, // Use the stream-supporting fetch from expo/fetch
+        dangerouslyAllowBrowser: true,
+      });
+
+      this.isInitialized = true;
+      console.log(`✅ OpenRouter Service initialized with model: ${this.defaultModel}`);
+    } catch (error) {
+      console.error('❌ Failed to initialize OpenAI client:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure the client is initialized before use
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) return;
+
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    } else {
+      this.initializationPromise = this.lazyInitialize();
+      await this.initializationPromise;
+    }
+
+    if (!this.isInitialized) {
+      throw new Error('OpenRouter client initialization failed');
+    }
   }
 
   /**
    * Send a general query to the Qwen2.5-VL model (supports both text and vision)
    * @param messages - Array of chat messages
    * @param stream - Whether to stream the response
+   * @param options - Optional parameters for the model
    * @returns The model's response
    */
   async queryQwenModel(
@@ -114,169 +238,59 @@ export class OpenRouterService {
     stream: boolean = false
   ): Promise<AIResponse> {
     try {
-      // Giriş kontrolü
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        throw new Error('Geçersiz mesaj formatı: Mesajlar boş olamaz');
-      }
+      await this.ensureInitialized();
 
-      console.log(`Sending request to OpenRouter API with model: ${this.defaultModel}`);
-      console.log(`Messages count: ${messages.length}`);
-
-      // Görüntü içeren mesajlar için özel işleme
-      const hasImage = messages.some(msg => {
-        if (msg && typeof msg.content === 'object' && Array.isArray(msg.content)) {
-          return msg.content.some(
-            content => typeof content === 'object' && content !== null && 'image_url' in content
-          );
-        }
-        return false;
-      });
-
-      if (hasImage) {
-        console.log('Request contains image content');
-
-        // Görüntü içeren mesajları kontrol et (tip güvenli bir şekilde)
-        // Not: messages'ı doğrudan değiştirmek yerine kopyasını oluşturup işleyelim
-        const processedMessages = [...messages];
-
-        for (let i = 0; i < processedMessages.length; i++) {
-          const msg = processedMessages[i];
-
-          if (!msg || !msg.content) {
-            console.warn('Invalid message found, skipping:', msg);
-            continue;
-          }
-
-          if (typeof msg.content === 'object' && Array.isArray(msg.content)) {
-            // TypeScript'e bu içeriğin bir dizi olduğunu bildiriyoruz
-            const contentArray = msg.content as Array<any>;
-
-            for (let j = 0; j < contentArray.length; j++) {
-              const content = contentArray[j];
-
-              if (!content) {
-                console.warn('Invalid content item found, skipping');
-                continue;
-              }
-
-              if (typeof content === 'object' && content !== null && 'image_url' in content) {
-                const imageUrl = content.image_url?.url;
-
-                if (!imageUrl) {
-                  console.warn('Image URL is missing');
-                  continue;
-                }
-
-                // Base64 formatını kontrol et
-                if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')) {
-                  console.log('Processing base64 image URL');
-
-                  // URL'nin doğru formatını kontrol et
-                  if (!imageUrl.includes('base64,')) {
-                    console.warn('Invalid base64 image format');
-                  }
-                }
-              }
-            }
-          }
-        }
+      if (!this.client) {
+        throw new Error('OpenRouter client is not initialized');
       }
 
       if (stream) {
         // For streaming responses
-        const streamCompletion = await this.client.chat.completions.create({
+        const params: any = {
           model: this.defaultModel,
-          messages: messages,
+          messages,
           stream: true,
-          max_tokens: 1000,
-        });
+          max_tokens: 1500,
+          frequency_penalty: 0.6,
+          presence_penalty: 0.6,
+          temperature: 0.6,
+          top_p: 0.95,
+        };
+        const streamCompletion = await this.client.chat.completions.create(params);
+
+        // AsyncIterable olup olmadığını kontrol et
+        const isAsyncIterable =
+          typeof (streamCompletion as any)?.[Symbol.asyncIterator] === 'function';
 
         return {
           content: '',
-          stream: streamCompletion,
+          stream: isAsyncIterable
+            ? (streamCompletion as unknown as AsyncIterable<{
+                choices: { delta: { content?: string | null } }[];
+              }>)
+            : null,
         };
       } else {
         // For non-streaming responses
-        console.log('Sending request to OpenRouter API...');
-        const completion = await this.client.chat.completions.create({
+        const params: any = {
           model: this.defaultModel,
-          messages: messages,
+          messages,
           max_tokens: 1000,
-        });
-
-        console.log(
-          `Response received: ${completion.choices[0]?.message?.content?.substring(0, 50)}...`
-        );
+          frequency_penalty: 0.5,
+          presence_penalty: 0.5,
+          temperature: 0.7,
+          top_p: 0.95,
+        };
+        const completion = await this.client.chat.completions.create(params);
         return {
           content: completion.choices[0]?.message?.content || 'No response received',
         };
       }
     } catch (error) {
       console.error('Error calling OpenRouter API:', error);
-
-      // Try with direct fetch as fallback
-      try {
-        console.log('Attempting fallback with direct fetch API call');
-
-        // Mesajları kontrol et ve temizle
-        const safeMessages = messages
-          .map(msg => {
-            if (!msg) return null;
-
-            // İçerik bir dizi ise her öğeyi kontrol et
-            if (msg.content && Array.isArray(msg.content)) {
-              return {
-                ...msg,
-                content: msg.content.filter(item => item != null),
-              };
-            }
-
-            return msg;
-          })
-          .filter(msg => msg !== null);
-
-        const requestBody = {
-          model: this.defaultModel,
-          messages: safeMessages,
-          max_tokens: 1000,
-        };
-
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.apiKey}`,
-            'HTTP-Referer': 'https://mindbook.app',
-            'X-Title': 'Mindbook',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`OpenRouter API error: ${response.status} - ${errorText}`);
-
-          // Görüntü formatı hatası için özel mesaj
-          if (errorText.includes('InvalidParameter.DataInspection')) {
-            throw new Error(
-              'Görüntü formatı desteklenmiyor. Lütfen PNG veya JPEG formatında bir görüntü kullanın.'
-            );
-          }
-
-          throw new Error(`${response.status} ${errorText}`);
-        }
-
-        const data = await response.json();
-        return {
-          content: data.choices[0]?.message?.content || 'No response received',
-        };
-      } catch (fallbackError) {
-        console.error('Fallback API call also failed:', fallbackError);
-        return {
-          content: '',
-          error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error occurred',
-        };
-      }
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error calling OpenRouter';
+      return { content: '', error: errorMessage };
     }
   }
 
@@ -325,7 +339,7 @@ export class OpenRouterService {
       console.log(`Analyzing image: ${imageUrl?.substring(0, 30)}...`);
 
       if (!imageUrl) {
-        throw new Error("Görüntü URL'si belirtilmedi");
+        throw new Error('No image URL specified');
       }
 
       // Ensure the image URL is properly formatted for API consumption
@@ -338,66 +352,29 @@ export class OpenRouterService {
       // Check if format is supported
       if (fileExtension && !['jpg', 'jpeg', 'png'].includes(fileExtension)) {
         console.warn(`Unsupported image format: ${fileExtension}`);
-        throw new Error(
-          `Desteklenmeyen görüntü formatı: ${fileExtension}. Lütfen JPG veya PNG kullanın.`
-        );
+        throw new Error(`Unsupported image format: ${fileExtension}. Please use JPG or PNG.`);
       }
 
       // If it's a local file URI, convert to base64 data URL if needed
       if (imageUrl.startsWith('file://')) {
         console.log('Local image detected, converting to base64 URL');
-
-        // For OpenRouter, we need to ensure the image is accessible via URL
-        // We'll use a data URL format which is widely supported
         try {
-          // Fetch the image as blob and convert to base64
-          const response = await fetch(imageUrl);
-
-          if (!response.ok) {
-            throw new Error(`Görüntü yüklenemedi: ${response.status} ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-
-          if (blob.size === 0) {
-            throw new Error('Görüntü verisi boş');
-          }
-
-          if (blob.size > 10 * 1024 * 1024) {
-            // 10MB limit
-            throw new Error('Görüntü boyutu çok büyük (maksimum 10MB)');
-          }
-
-          // Determine MIME type based on file extension
-          let mimeType = 'image/jpeg'; // Default
-          if (imageUrl.toLowerCase().endsWith('.png')) {
-            mimeType = 'image/png';
-          } else if (
-            imageUrl.toLowerCase().endsWith('.jpg') ||
-            imageUrl.toLowerCase().endsWith('.jpeg')
-          ) {
-            mimeType = 'image/jpeg';
-          }
-
-          // Convert to base64
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64data = reader.result as string;
-              resolve(base64data);
-            };
-            reader.onerror = () => {
-              reject(new Error('Görüntü base64 formatına dönüştürülemedi'));
-            };
-            reader.readAsDataURL(blob);
+          let mimeType = 'image/jpeg';
+          if (fileExtension === 'png') mimeType = 'image/png';
+          // Read file as base64 using FileSystem
+          const base64 = await FileSystem.readAsStringAsync(imageUrl, {
+            encoding: FileSystem.EncodingType.Base64,
           });
-
-          formattedImageUrl = base64;
-          console.log(`Converted to base64 URL: ${base64.substring(0, 30)}...`);
+          formattedImageUrl = `data:${mimeType};base64,${base64}`;
+          console.log(`Converted to base64 URL: ${formattedImageUrl.substring(0, 30)}...`);
           console.log(`Base64 length: ${base64.length}`);
         } catch (error) {
           console.error('Error converting image to base64:', error);
-          throw new Error('Görüntü işlenemedi. Lütfen başka bir görüntü deneyin.');
+          throw new Error(
+            error instanceof Error && error.message
+              ? error.message
+              : 'The image could not be processed. Please try another image.'
+          );
         }
       }
 
@@ -422,9 +399,9 @@ export class OpenRouterService {
         });
       }
 
-      // Mesaj içeriği kontrol et
+      // Check message content
       if (content.length === 0) {
-        throw new Error('Geçersiz mesaj içeriği: Metin veya görüntü gerekli');
+        throw new Error('Invalid message content: Text or image required');
       }
 
       const messages: ChatCompletionMessageParam[] = [
@@ -439,7 +416,7 @@ export class OpenRouterService {
       console.error('Error in analyzeImage:', error);
       return {
         content: '',
-        error: error instanceof Error ? error.message : 'Görüntü analiz edilemedi',
+        error: error instanceof Error ? error.message : 'Image could not be analyzed',
       };
     }
   }

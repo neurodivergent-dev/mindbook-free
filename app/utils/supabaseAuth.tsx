@@ -28,8 +28,8 @@ export const getRedirectUrl = (path: string) => {
   try {
     // Try to work at Expo Go
     // @ts-ignore - We ignore the Constants typing issues
-    let hostName = Constants.expoConfig?.extra?.expoDevHost;
-    let port = Constants.expoConfig?.extra?.expoDevPort;
+    let hostName = Constants.expoConfig?.extra?._ed || Constants.expoConfig?.extra?.expoDevHost;
+    let port = Constants.expoConfig?.extra?._ep || Constants.expoConfig?.extra?.expoDevPort;
 
     // Different builds for different Expo SDK versions
     if (Constants.expoConfig) {
@@ -120,8 +120,8 @@ export const signUp = async (email, password) => {
     try {
       // Try to work at Expo Go
       // @ts-ignore - We ignore the Constants typing issues
-      let hostName = Constants.expoConfig?.extra?.expoDevHost;
-      let port = Constants.expoConfig?.extra?.expoDevPort;
+      let hostName = Constants.expoConfig?.extra?._ed || Constants.expoConfig?.extra?.expoDevHost;
+      let port = Constants.expoConfig?.extra?._ep || Constants.expoConfig?.extra?.expoDevPort;
 
       // Different builds for different Expo SDK versions
       if (Constants.expoConfig) {
@@ -170,8 +170,10 @@ export const signIn = async (email, password) => {
  */
 export const useGoogleAuth = () => {
   // Google OAuth configuration - ID'leri env'den al
-  const googleWebClientId = Constants.expoConfig?.extra?.googleWebClientId;
-  const googleAndroidClientId = Constants.expoConfig?.extra?.googleAndroidClientId;
+  const googleWebClientId =
+    Constants.expoConfig?.extra?._g || Constants.expoConfig?.extra?.googleWebClientId;
+  const googleAndroidClientId =
+    Constants.expoConfig?.extra?._ga || Constants.expoConfig?.extra?.googleAndroidClientId;
 
   // Env değerleri yoksa uyarı logla
   if (!googleWebClientId || !googleAndroidClientId) {

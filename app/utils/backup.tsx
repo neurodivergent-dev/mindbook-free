@@ -5,7 +5,7 @@
 // It uses AsyncStorage for local storage and Expo's Crypto for hashing
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import supabase from './supabase';
-import { NOTES_KEY, CATEGORIES_KEY } from './storage';
+import { NOTES_KEY, CATEGORIES_KEY, buildNoteIndices } from './storage';
 import { encryptNotes, decryptNotes } from './encryption';
 import Constants from 'expo-constants';
 import i18n from 'i18next';
@@ -49,6 +49,24 @@ export const mergeByUniqueId = (cloudNotes, localNotes) => {
 };
 
 /**
+ * Merges categories arrays (simple string arrays)
+ * @param {Array} cloudCategories - Categories from cloud
+ * @param {Array} localCategories - Categories from local storage
+ * @returns {Array} - Merged categories (unique values only)
+ */
+export const mergeCategories = (cloudCategories, localCategories) => {
+  // Ensure both inputs are arrays
+  const safeCloudCategories = Array.isArray(cloudCategories) ? cloudCategories : [];
+  const safeLocalCategories = Array.isArray(localCategories) ? localCategories : [];
+
+  // Combine both arrays and remove duplicates
+  const allCategories = [...safeCloudCategories, ...safeLocalCategories];
+  const uniqueCategories = [...new Set(allCategories)];
+
+  return uniqueCategories;
+};
+
+/**
  * Backup notes and categories on Supabase
  * @param {string} userId - User ID
  * @returns {Promise<Object>} - Backup result
@@ -84,7 +102,7 @@ export const backupToCloud = async (userId: string) => {
     const categories = categoriesJson ? JSON.parse(categoriesJson) : [];
 
     // 4. Change control
-    const hasChanged = await hasChangedSinceLastBackup(userId, notes);
+    const hasChanged = await hasChangedSinceLastBackup(userId, notes, categories);
 
     if (!hasChanged) {
       return { success: true, message: 'No changes, skipping backup' };
@@ -103,17 +121,17 @@ export const backupToCloud = async (userId: string) => {
 
     if (!fetchError && existingBackup && existingBackup.length > 0) {
       const backupData = existingBackup[0].data;
-      cloudNotes = decryptNotes(backupData.notes) || [];
-      cloudCategories = decryptNotes(backupData.categories) || [];
+      cloudNotes = (await decryptNotes(backupData.notes)) || [];
+      cloudCategories = (await decryptNotes(backupData.categories)) || [];
     }
 
     // 6. Merge notes and categories
     const mergedNotes = mergeByUniqueId(cloudNotes, notes);
-    const mergedCategories = mergeByUniqueId(cloudCategories, categories);
+    const mergedCategories = mergeCategories(cloudCategories, categories);
 
     // 7. Encrypt data
-    const encryptedNotes = encryptNotes(mergedNotes);
-    const encryptedCategories = encryptNotes(mergedCategories);
+    const encryptedNotes = await encryptNotes(mergedNotes);
+    const encryptedCategories = await encryptNotes(mergedCategories);
 
     if (!encryptedNotes || !encryptedCategories) {
       throw new Error('Data could not be encrypted');
@@ -166,6 +184,16 @@ export const backupToCloud = async (userId: string) => {
       console.log('Error occurred while cleaning old backups');
     });
 
+    // Set update flags for UI refresh after successful backup
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('@categories_updated', 'true');
+      await AsyncStorage.setItem('@notes_updated', 'true');
+    } catch (flagError) {
+      // Flag setting failure shouldn't affect backup success
+      console.log('Failed to set update flags:', flagError);
+    }
+
     return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };
@@ -208,12 +236,9 @@ export const restoreFromCloud = async userId => {
     }
 
     const backupData = data[0].data;
-    const cloudNotes = decryptNotes(backupData.notes);
-    const cloudCategories = decryptNotes(backupData.categories);
 
-    if (!Array.isArray(cloudNotes) || !Array.isArray(cloudCategories)) {
-      throw new Error('Invalid data format');
-    }
+    const cloudNotes = await decryptNotes(backupData.notes);
+    const cloudCategories = await decryptNotes(backupData.categories);
 
     // Get local notes and categories
     const notesJson = await AsyncStorage.getItem(NOTES_KEY);
@@ -230,11 +255,18 @@ export const restoreFromCloud = async userId => {
 
       // Merge notes and categories
       const mergedNotes = mergeByUniqueId(cloudNotes, localNotes);
-      const mergedCategories = mergeByUniqueId(cloudCategories, localCategories);
+      const mergedCategories = mergeCategories(cloudCategories, localCategories);
 
       // Save merged data
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(mergedNotes));
       await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(mergedCategories));
+
+      // CRITICAL: Rebuild note indices after restore
+      await buildNoteIndices();
+
+      // Set update flags for UI refresh
+      await AsyncStorage.setItem('@categories_updated', 'true');
+      await AsyncStorage.setItem('@notes_updated', 'true');
 
       return {
         success: true,
@@ -257,6 +289,13 @@ export const restoreFromCloud = async userId => {
       // If no local notes, just restore from cloud
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(cloudNotes));
       await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(cloudCategories));
+
+      // CRITICAL: Rebuild note indices after restore
+      await buildNoteIndices();
+
+      // Set update flags for UI refresh
+      await AsyncStorage.setItem('@categories_updated', 'true');
+      await AsyncStorage.setItem('@notes_updated', 'true');
 
       return {
         success: true,
@@ -518,17 +557,58 @@ export const restoreFromDate = async (userId, backupDate) => {
 
     const backupData = data.data;
 
-    // Extract encrypted data (no longer async)
-    const notes = decryptNotes(backupData.notes);
-    const categories = decryptNotes(backupData.categories);
+    // Extract encrypted data
+    console.log('🔓 Starting decryption process...');
+    console.log('📦 Backup data structure:', Object.keys(backupData));
+
+    const notes = await decryptNotes(backupData.notes);
+    const categories = await decryptNotes(backupData.categories);
+
+    console.log('🔓 Decryption completed:', {
+      notesDecrypted: Array.isArray(notes),
+      notesCount: Array.isArray(notes) ? notes.length : 'ERROR',
+      categoriesDecrypted: Array.isArray(categories),
+      categoriesCount: Array.isArray(categories) ? categories.length : 'ERROR',
+      categoriesSample: Array.isArray(categories) ? categories.slice(0, 3) : 'ERROR',
+    });
 
     // Verify and restore data
     if (!Array.isArray(notes) || !Array.isArray(categories)) {
+      console.error('❌ Decryption failed - invalid data format:', {
+        notesType: typeof notes,
+        categoriesType: typeof categories,
+      });
       throw new Error('Invalid data format');
     }
 
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
     await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+
+    // CRITICAL: Rebuild note indices after restore
+    await buildNoteIndices();
+    console.log('🔄 Note indices rebuilt after specific date restore');
+
+    // DEBUG: Verify storage write immediately after restore
+    const verifyCategories = await AsyncStorage.getItem(CATEGORIES_KEY);
+    const verifyNotes = await AsyncStorage.getItem(NOTES_KEY);
+    console.log('🔍 POST-RESTORE VERIFICATION:', {
+      categoriesWritten: !!verifyCategories,
+      categoriesLength: verifyCategories ? JSON.parse(verifyCategories).length : 0,
+      categoriesSample: verifyCategories ? JSON.parse(verifyCategories).slice(0, 3) : [],
+      notesWritten: !!verifyNotes,
+      notesLength: verifyNotes ? JSON.parse(verifyNotes).length : 0,
+    });
+
+    // Set update flags for UI refresh
+    await AsyncStorage.setItem('@categories_updated', 'true');
+    await AsyncStorage.setItem('@notes_updated', 'true');
+    console.log(
+      '✅ Backup restore completed - Categories:',
+      categories.length,
+      'Notes:',
+      notes.length
+    );
+    console.log('🚩 Update flags set: @categories_updated = true, @notes_updated = true');
 
     return {
       success: true,
@@ -580,33 +660,38 @@ export const getLastBackupData = async userId => {
  * Checks if there are any changes since the last backup
  * @param {string} userId - User ID
  * @param {Array} notes - List of notes
+ * @param {Array} categories - List of categories
  * @returns {Promise<boolean>} - True if there is a change, false otherwise
  */
-export const hasChangedSinceLastBackup = async (userId, notes) => {
+export const hasChangedSinceLastBackup = async (userId, notes, categories = []) => {
   try {
     // Get last backup data
     const lastBackupData = await getLastBackupData(userId);
-    console.log(
-      'hasChangedSinceLastBackup: Has the latest backup data been found?',
-      lastBackupData ? 'YES' : 'NO'
-    );
 
     // If there is no backup, there is a change
     if (!lastBackupData) {
       return true;
     }
 
-    // Decrypt the encrypted data
-    const decryptedNotes = decryptNotes(lastBackupData.data.notes);
+    // Decrypt both notes and categories from backup
+    const decryptedNotes = await decryptNotes(lastBackupData.data.notes);
+    const decryptedCategories = await decryptNotes(lastBackupData.data.categories);
 
-    if (!decryptedNotes) {
+    if (!decryptedNotes || !Array.isArray(decryptedCategories)) {
       return true;
     }
 
-    /* Calculate hash values of notes
-    IMPORTANT: To exclude timestamp and updatedAt values in notes and decryptedNotes from comparison
-    Let's create an object that contains only the important fields and hash it
-    */
+    // Check categories first (simpler comparison)
+    const currentCategories = Array.isArray(categories) ? [...categories].sort() : [];
+    const lastCategories = Array.isArray(decryptedCategories)
+      ? [...decryptedCategories].sort()
+      : [];
+
+    if (JSON.stringify(currentCategories) !== JSON.stringify(lastCategories)) {
+      return true; // Categories changed
+    }
+
+    // Check notes
     const prepareNotesForHash = notesList => {
       return notesList
         .map(note => ({
@@ -632,7 +717,7 @@ export const hasChangedSinceLastBackup = async (userId, notes) => {
       return true;
     }
 
-    // Calculate hash values
+    // Calculate hash values for notes
     const currentHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       JSON.stringify(currentNotesReduced)
@@ -641,11 +726,6 @@ export const hasChangedSinceLastBackup = async (userId, notes) => {
     const lastHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       JSON.stringify(lastNotesReduced)
-    );
-
-    console.log(
-      'hasChangedSinceLastBackup: Are the hashes equal?',
-      currentHash === lastHash ? 'Yes' : 'No'
     );
 
     // If the hash values are the same there is no change
