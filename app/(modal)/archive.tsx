@@ -11,6 +11,8 @@ import EmptyState from '../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
+import { backupToCloud } from '../utils/backup';
+import { useAuth } from '../context/AuthContext';
 
 export default function ArchiveScreen() {
   const [notes, setNotes] = useState([]);
@@ -19,6 +21,7 @@ export default function ArchiveScreen() {
   const { theme, themeColors, accentColor } = useTheme();
   const router = useRouter();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const loadArchivedNotes = useCallback(async () => {
     try {
@@ -82,6 +85,19 @@ export default function ArchiveScreen() {
       // Perform bulk update
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
+      // Auto backup kontrolü ve bulut güncellemesi
+      try {
+        const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+        if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+          const result = await backupToCloud(user.uid);
+          if (result.success) {
+            await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+          }
+        }
+      } catch (error) {
+        console.error('Auto backup after unarchive failed:', error);
+      }
+
       // Update UI
       const archivedNotes = updatedNotes.filter(note => note.isArchived && !note.isTrash);
       setNotes(archivedNotes);
@@ -122,6 +138,19 @@ export default function ArchiveScreen() {
 
             // Perform bulk update
             await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+
+            // Auto backup kontrolü ve bulut güncellemesi
+            try {
+              const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+              if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+                const result = await backupToCloud(user.uid);
+                if (result.success) {
+                  await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+                }
+              }
+            } catch (error) {
+              console.error('Auto backup after archive trash failed:', error);
+            }
 
             // Update UI
             const archivedNotes = updatedNotes.filter(note => note.isArchived && !note.isTrash);

@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import NoteCard from '../components/NoteCard';
 import EmptyState from '../components/EmptyState';
+import { backupToCloud } from '../utils/backup';
+import { useAuth } from '../context/AuthContext';
 
 export default function TrashScreen() {
   const [notes, setNotes] = useState([]);
@@ -25,6 +27,7 @@ export default function TrashScreen() {
     accentColor: 'blue',
     themeColors: {},
   };
+  const { user } = useAuth();
 
   const loadTrashNotes = async () => {
     try {
@@ -96,22 +99,24 @@ export default function TrashScreen() {
       // Perform bulk update
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
+      // Auto backup kontrolü ve bulut güncellemesi
+      try {
+        const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+        if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+          const result = await backupToCloud(user.uid);
+          if (result.success) {
+            await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+          }
+        }
+      } catch (error) {
+        console.error('Auto backup after restore failed:', error);
+      }
+
       // Notify the user
       Alert.alert(
         t('common.success'),
         t('notes.notesRestored', { count: selectedNotesList.length })
       );
-
-      // Backup notes to Supabase after updating
-      try {
-        const { backupToCloud, getCurrentUserId } = require('../utils/backup');
-        const userId = await getCurrentUserId();
-        if (userId) {
-          await backupToCloud(userId);
-        }
-      } catch (syncError) {
-        console.log('Backup error:', syncError);
-      }
     } catch (error) {
       // If there is an error, let's reload the notes
       loadTrashNotes();
@@ -146,6 +151,19 @@ export default function TrashScreen() {
             const remainingNotes = allNotes.filter(note => !selectedNotesList.includes(note.id));
             await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(remainingNotes));
 
+            // Auto backup kontrolü ve bulut güncellemesi
+            try {
+              const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+              if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+                const result = await backupToCloud(user.uid);
+                if (result.success) {
+                  await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+                }
+              }
+            } catch (error) {
+              console.error('Auto backup after delete failed:', error);
+            }
+
             // Let's show notification
             Alert.alert(
               t('common.success'),
@@ -153,20 +171,6 @@ export default function TrashScreen() {
                 count: selectedNotesList.length,
               })
             );
-
-            // Backup notes to Supabase after updating
-            try {
-              const { backupToCloud, getCurrentUserId } = require('../utils/backup');
-
-              // Get the user id with getCurrentUserId
-              const userId = await getCurrentUserId();
-
-              if (userId) {
-                await backupToCloud(userId);
-              }
-            } catch (syncError) {
-              console.log('Backup error:', syncError);
-            }
           } catch (error) {
             // Let's reload notes in case of error
             loadTrashNotes();

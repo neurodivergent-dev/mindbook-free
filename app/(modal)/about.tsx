@@ -201,7 +201,7 @@ export default function AboutScreen() {
             <SocialButton
               icon="globe-outline"
               title={t('about.website')}
-              url="https://mindbookpro.netlify.app"
+              url="https://mindbookpro.shop"
               color={themeColors[accentColor]}
               theme={theme}
             />
@@ -217,7 +217,7 @@ export default function AboutScreen() {
               title={t('about.rate')}
               url={
                 Platform.OS === 'ios'
-                  ? 'https://apps.apple.com/app/idYOUR_APP_ID'
+                  ? 'https://apps.apple.com/app/1234567890'
                   : 'https://play.google.com/store/apps/details?id=com.melihcandemir.mindbook&hl=en'
               }
               color="#FFD700"
