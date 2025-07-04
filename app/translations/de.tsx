@@ -13,6 +13,7 @@ export default {
     warning: 'Warnung',
     error: 'Fehler',
     success: 'Erfolg',
+    info: 'Info',
     search: 'Suchen',
     filter: 'Filtern',
     reset: 'Zurücksetzen',
@@ -71,6 +72,8 @@ export default {
     tryAgain: 'Erneut versuchen',
     offline: 'Offline',
     connectionType: 'Verbindungstyp',
+    copy: 'Kopieren',
+    copied: 'Kopiert!',
   },
   auth: {
     login: 'Anmelden',
@@ -142,15 +145,17 @@ export default {
     newNote: 'Neue Notiz',
     categories: 'Kategorien',
     categoryName: 'Kategoriename',
+    categoryPlaceholder: 'Kategoriename eingeben...',
     addCategory: 'Kategorie hinzufügen',
+    addCategoryDescription: 'Erstelle eine neue Kategorie, um deine Notizen zu organisieren',
     editCategory: 'Kategorie bearbeiten',
     deleteCategory: 'Kategorie löschen',
     createFirstNote: 'Erstelle deine erste Notiz',
     emptyNotes: 'Noch keine Notizen',
     emptyCategory: 'Keine Notizen in dieser Kategorie',
     notFound: 'Notiz nicht gefunden',
-    noteTitle: 'Notiztitel',
-    noteContent: 'Notizinhalt',
+    noteTitle: 'Fügen Sie Ihrer Notiz einen Titel hinzu',
+    noteContent: 'Schreiben Sie hier den Notizinhalt',
     save: 'Speichern',
     delete: 'Löschen',
     edit: 'Bearbeiten',
@@ -202,6 +207,10 @@ export default {
       'Möchtest du diese Kategorie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden und entfernt die Kategorieinformationen aus allen Notizen dieser Kategorie.',
     deleteCategoryError: 'Beim Löschen der Kategorie ist ein Fehler aufgetreten.',
     addCategoryError: 'Beim Hinzufügen der Kategorie ist ein Fehler aufgetreten.',
+    emptyCategoryError:
+      'Kategoriename darf nicht leer sein. Bitte geben Sie einen gültigen Namen ein.',
+    emptyTaskListError:
+      'Aufgabenlisten-Name darf nicht leer sein. Bitte geben Sie einen gültigen Namen ein.',
     willBeRemoved: 'wird aus dieser Kategorie entfernt',
     color: 'Farbe',
     emptyNotesMessage: 'Du hast noch keine Notizen erstellt.',
@@ -315,8 +324,15 @@ export default {
     notesNotFound: 'Keine Notizen gefunden',
     categoryNotFound: 'Kategorie hat keine Notizen',
     emptyCategoryMessage: 'Du hast noch keine Notizen in dieser Kategorie erstellt.',
+    emptyCategoryNotes: 'Keine Notizen in der Kategorie {{category}} gefunden.',
     lastEdit: 'Letzte Bearbeitung',
+    lastUpdate: 'Letzte Aktualisierung',
     restoreNotes: 'Notizen wiederherstellen',
+    encryptionNotAvailable:
+      'Verschlüsselungsdienst ist nicht verfügbar. Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es später erneut.',
+    moveToVaultErrorWithRollback:
+      'Verschieben von Notizen in den Tresor fehlgeschlagen. Ihre Notizen wurden zur Sicherheit wiederhergestellt.',
+    criticalError: 'Ein kritischer Fehler ist aufgetreten. Bitte starten Sie die Anwendung neu.',
   },
   settings: {
     title: 'Einstellungen',
@@ -407,8 +423,13 @@ export default {
     passwordNumbers: 'Muss mindestens eine Zahl enthalten',
     passwordSpecialChar: 'Muss mindestens ein Sonderzeichen enthalten (!@#$%^&*(),.?":{}|<>)',
     passwordRemoved: 'Passwort erfolgreich entfernt',
-    passwordRemoveError: 'Beim Entfernen des Passworts ist ein Fehler aufgetreten',
+    passwordRemoveError: 'Beim Entfernen des Passworts ist ein Fehler aufgetreten.',
+    cannotRemovePasswordWithNotes:
+      'Passwort kann nicht entfernt werden - verschieben oder löschen Sie zuerst alle Notizen aus dem Tresor',
+    cannotVerifyVault:
+      'Tresorinhalt kann nicht überprüft werden. Passwort kann aus Sicherheitsgründen nicht entfernt werden',
     clearAllData: 'Alle Daten löschen',
+    removePhoto: 'Foto entfernen',
     confirmClearAllData:
       'Diese Aktion wird alle deine Notizen permanent aus der Datenbank löschen. Diese Aktion kann nicht rückgängig gemacht werden. Bist du sicher, dass du fortfahren möchtest?',
     confirmCloudDataDelete:
@@ -624,6 +645,7 @@ export default {
     listKeywords: 'Schlüsselwörter auflisten',
     compareNotesDefault: 'Vergleiche diese Notizen und finde Verbindungen zwischen ihnen.',
     customPrompt: 'Benutzerdefinierte Eingabe',
+    copiedToClipboard: 'In die Zwischenablage kopiert!',
   },
   onboarding: {
     welcome: 'Willkommen bei Mindbook Pro',
