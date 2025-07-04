@@ -15,6 +15,15 @@ interface State {
   isOffline: boolean;
 }
 
+const COLORS = {
+  primary: '#2196f3',
+  white: '#fff',
+  background: '#f8f9fa',
+  errorBackground: '#ffebee',
+  errorText: '#d32f2f',
+  subtitle: '#555',
+};
+
 /**
  * Error Boundary component that catches JavaScript errors in its child component tree,
  * logs those errors, and displays a fallback UI instead of the component tree that crashed.
@@ -131,28 +140,28 @@ class ErrorBoundary extends Component<Props, State> {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#2196f3',
+    backgroundColor: COLORS.primary,
     borderRadius: 5,
     marginTop: 20,
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
   buttonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
   container: {
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.background,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
   },
   errorMessage: {
-    backgroundColor: '#ffebee',
+    backgroundColor: COLORS.errorBackground,
     borderRadius: 5,
-    color: '#d32f2f',
+    color: COLORS.errorText,
     fontSize: 14,
     marginVertical: 10,
     maxWidth: '100%',
@@ -161,7 +170,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    color: '#555',
+    color: COLORS.subtitle,
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
