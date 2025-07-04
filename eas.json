@@ -7,8 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "buildType": "apk"
       },
       "env": {
         "APP_ENV": "development"
@@ -17,8 +16,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       },
       "env": {
         "APP_ENV": "production",
@@ -32,8 +30,7 @@
     "production": {
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "buildType": "app-bundle"
       },
       "env": {
         "APP_ENV": "production",
