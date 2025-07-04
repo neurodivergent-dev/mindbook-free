@@ -407,7 +407,113 @@ export const restoreFromTrash = async noteId => {
 // Get categories
 export const getCategories = async () => {
   const categoriesJson = await AsyncStorage.getItem(CATEGORIES_KEY);
-  return categoriesJson ? JSON.parse(categoriesJson) : [];
+  const categories = categoriesJson ? JSON.parse(categoriesJson) : [];
+  return categories;
+};
+
+// DEBUG: Manual storage inspection function with Alert
+export const debugStorage = async () => {
+  try {
+    // Check all storage keys
+    const notes = await AsyncStorage.getItem(NOTES_KEY);
+    const categories = await AsyncStorage.getItem(CATEGORIES_KEY);
+    const categoriesFlag = await AsyncStorage.getItem('@categories_updated');
+    const notesFlag = await AsyncStorage.getItem('@notes_updated');
+
+    const result = {
+      hasNotes: !!notes,
+      hasCategories: !!categories,
+      categoriesCount: categories ? JSON.parse(categories).length : 0,
+      notesCount: notes ? JSON.parse(notes).length : 0,
+      categoriesFlag,
+      notesFlag,
+    };
+
+    // Show alert with debug info
+    const { Alert } = require('react-native');
+    Alert.alert(
+      '🔍 STORAGE DEBUG',
+      `Categories: ${result.categoriesCount}\nNotes: ${result.notesCount}\nFlags: C=${categoriesFlag} N=${notesFlag}`,
+      [{ text: 'OK' }]
+    );
+
+    return result;
+  } catch (error) {
+    return null;
+  }
+};
+
+// DEBUG: Backup inspection function
+export const debugBackupContent = async () => {
+  try {
+    const { getCurrentUserId } = require('../utils/backup');
+    const supabase = require('../utils/supabase').default;
+    const { decryptNotes } = require('../utils/encryption');
+
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      const { Alert } = require('react-native');
+      Alert.alert('Debug Error', 'No user ID found');
+      return;
+    }
+
+    // Get raw backup data
+    const { data, error } = await supabase
+      .from('backups')
+      .select('data')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      const { Alert } = require('react-native');
+      Alert.alert('Debug Error', 'No backup found in cloud');
+      return;
+    }
+
+    const backupData = data[0].data;
+
+    // Try to decrypt categories
+    const categoriesRaw = backupData.categories;
+    const categoriesDecrypted = await decryptNotes(categoriesRaw);
+
+    // Try to decrypt notes
+    const notesRaw = backupData.notes;
+    const notesDecrypted = await decryptNotes(notesRaw);
+
+    const { Alert } = require('react-native');
+    Alert.alert(
+      '☁️ BACKUP DEBUG',
+      `Backup Date: ${backupData.backup_date || 'Unknown'}\n` +
+        `Categories Encrypted: ${!!categoriesRaw}\n` +
+        `Categories Decrypted: ${Array.isArray(categoriesDecrypted)}\n` +
+        `Categories Count: ${
+          Array.isArray(categoriesDecrypted) ? categoriesDecrypted.length : 'ERROR'
+        }\n` +
+        `Categories Sample: ${
+          Array.isArray(categoriesDecrypted) ? categoriesDecrypted.slice(0, 2).join(', ') : 'ERROR'
+        }\n\n` +
+        `Notes Encrypted: ${!!notesRaw}\n` +
+        `Notes Decrypted: ${Array.isArray(notesDecrypted)}\n` +
+        `Notes Count: ${Array.isArray(notesDecrypted) ? notesDecrypted.length : 'ERROR'}`,
+      [{ text: 'OK' }]
+    );
+
+    return {
+      categoriesRaw: !!categoriesRaw,
+      categoriesDecrypted: Array.isArray(categoriesDecrypted),
+      categoriesCount: Array.isArray(categoriesDecrypted) ? categoriesDecrypted.length : 0,
+      notesDecrypted: Array.isArray(notesDecrypted),
+      notesCount: Array.isArray(notesDecrypted) ? notesDecrypted.length : 0,
+    };
+  } catch (error) {
+    const { Alert } = require('react-native');
+    Alert.alert(
+      'Debug Error',
+      'Backup debug failed: ' + (error instanceof Error ? error.message : String(error))
+    );
+    return null;
+  }
 };
 
 // Add category
@@ -427,7 +533,95 @@ export const addCategory = async category => {
 
   await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(updatedCategories));
 
+  // Set lastChangeTimestamp for backup detection
+  await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+  // Check if auto-backup is enabled and trigger immediate backup
+  try {
+    const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+    if (autoBackupEnabled === 'true') {
+      const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+      const userId = await getCurrentUserId();
+      if (userId) {
+        // Force immediate backup to include the new category
+        await triggerAutoBackup(userId, true);
+      }
+    }
+  } catch (error) {
+    // Continue anyway since the main category add operation succeeded
+  }
+
   return true;
+};
+
+// Update category name
+export const updateCategory = async (oldCategoryName: string, newCategoryName: string) => {
+  try {
+    const trimmedNewName = newCategoryName.trim();
+
+    // Validation
+    if (!trimmedNewName) {
+      throw new Error('Category name cannot be empty');
+    }
+
+    if (trimmedNewName.length > 30) {
+      throw new Error('Category name too long');
+    }
+
+    // Check if new category name already exists (case-insensitive)
+    const categories = await getCategories();
+    const normalizedNewName = trimmedNewName.toLowerCase();
+    const existingCategory = categories.find(cat => cat.toLowerCase() === normalizedNewName);
+
+    if (existingCategory && existingCategory !== oldCategoryName) {
+      throw new Error('Category already exists');
+    }
+
+    // Update categories list
+    const updatedCategories = categories.map(category =>
+      category === oldCategoryName ? trimmedNewName : category
+    );
+
+    await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(updatedCategories));
+
+    // Update all notes that have this category
+    const allNotes = await getAllNotes();
+    const updatedNotes = allNotes.map(note => {
+      if (note.category === oldCategoryName) {
+        return {
+          ...note,
+          category: trimmedNewName,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return note;
+    });
+
+    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+
+    // Set lastChangeTimestamp for backup detection
+    await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+    // Check if auto-backup is enabled and trigger immediate backup
+    try {
+      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+      if (autoBackupEnabled === 'true') {
+        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+        const userId = await getCurrentUserId();
+        if (userId) {
+          // Force immediate backup to include the category update
+          await triggerAutoBackup(userId, true);
+        }
+      }
+    } catch (error) {
+      // Continue anyway since the main category update operation succeeded
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating category:', error);
+    throw error;
+  }
 };
 
 // Delete category
@@ -452,6 +646,21 @@ export const deleteCategory = async category => {
 
   // Set lastChangeTimestamp for backup detection
   await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+  // Check if auto-backup is enabled and trigger immediate backup
+  try {
+    const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+    if (autoBackupEnabled === 'true') {
+      const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+      const userId = await getCurrentUserId();
+      if (userId) {
+        // Force immediate backup to include the category deletion
+        await triggerAutoBackup(userId, true);
+      }
+    }
+  } catch (error) {
+    // Continue anyway since the main category delete operation succeeded
+  }
 
   return true;
 };
@@ -819,6 +1028,7 @@ export default {
   toggleArchive,
   getCategories,
   addCategory,
+  updateCategory,
   deleteCategory,
   getArchivedNotes,
   getTrashNotes,
@@ -827,6 +1037,7 @@ export default {
   getFavoriteNotesIndexed,
   getNotesByDateRange,
   buildNoteIndices,
+  debugStorage,
   NOTES_KEY,
   CATEGORIES_KEY,
   // New batch functions
@@ -838,4 +1049,9 @@ export default {
   batchMoveToTrash,
   batchRestoreFromTrash,
   batchUpdateCategory,
+  debugBackupContent,
 };
+
+/**
+ * Check if file is using encryption module
+ */

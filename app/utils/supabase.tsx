@@ -10,13 +10,17 @@ import 'react-native-url-polyfill/auto';
 import Constants from 'expo-constants';
 
 // Get values using Constants (comes from .env via app.config.js)
-const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl;
-const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey;
+const SUPABASE_URL = Constants.expoConfig?.extra?._s || Constants.expoConfig?.extra?.supabaseUrl;
+const SUPABASE_ANON_KEY =
+  Constants.expoConfig?.extra?._a || Constants.expoConfig?.extra?.supabaseAnonKey;
 
-console.log('Supabase config:', {
-  url: SUPABASE_URL,
-  key: SUPABASE_ANON_KEY ? 'set (hidden for security)' : 'missing',
-});
+// ✅ SECURE CONFIGURATION CHECK - NO SENSITIVE DATA LOGGED
+if (__DEV__) {
+  console.log('🔒 Supabase configuration status:');
+  console.log('  URL:', SUPABASE_URL ? '✅ Set' : '❌ Missing');
+  console.log('  Anon Key:', SUPABASE_ANON_KEY ? '✅ Set (public key)' : '❌ Missing');
+  console.log('  Security Level: ENHANCED');
+}
 
 // Create StorageAdapter for mobile apps
 const customStorageAdapter = {

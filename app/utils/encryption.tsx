@@ -1,39 +1,52 @@
 // This utility file provides functions for encrypting and decrypting data using AES encryption.
 // It uses the CryptoJS library for encryption and decryption.
-// The encryption key is retrieved from environment variables using Expo Constants.
-// If the encryption key is not found, an error is logged to the console.
-// The utility includes functions for encrypting and decrypting general data as well as notes specifically.
+// The encryption key is retrieved from local environment only - no session checks
 import CryptoJS from 'crypto-js';
 import Constants from 'expo-constants';
 
-// Get encryption key from .env file, otherwise throw error
-const ENV_ENCRYPTION_KEY = Constants.expoConfig?.extra?.encryptionKey;
-if (!ENV_ENCRYPTION_KEY) {
+// Get encryption key from local environment only
+const ENV_ENCRYPTION_KEY =
+  Constants.expoConfig?.extra?.encryptionKey ||
+  Constants.expoConfig?.extra?._e ||
+  process.env.ENCRYPTION_KEY;
+
+if (!ENV_ENCRYPTION_KEY && __DEV__) {
   console.error('ENCRYPTION_KEY not found in environment variables');
-  // Show additional information in development mode
-  if (__DEV__) {
-    console.error('Make sure your .env file contains ENCRYPTION_KEY and app is restarted');
-  }
+  console.error('Make sure your .env file contains ENCRYPTION_KEY for development');
 }
 
-const ENCRYPTION_KEY = CryptoJS.enc.Utf8.parse(ENV_ENCRYPTION_KEY || '');
-
-// Generate IV value from encryption key
-const derivedIV = ENV_ENCRYPTION_KEY ? ENV_ENCRYPTION_KEY.substring(0, 16) : '';
-const ENCRYPTION_IV = CryptoJS.enc.Utf8.parse(derivedIV);
-
 /**
- * Encrypts data
- * @param {any} data - Data to be encrypted
- * @returns {string|null} Encrypted data or null on error
+ * Gets the encryption key from local environment only
+ * No session checks or Edge Function calls
+ * @returns {string|null} The encryption key or null on error
  */
-export const encryptData = data => {
-  if (!ENV_ENCRYPTION_KEY) {
-    console.error('Cannot encrypt: ENCRYPTION_KEY is missing');
+const getLocalKey = (): string | null => {
+  try {
+    if (ENV_ENCRYPTION_KEY) {
+      return ENV_ENCRYPTION_KEY;
+    }
+    throw new Error('No encryption key available in local environment');
+  } catch (error) {
+    console.error('Error getting encryption key:', error);
     return null;
   }
+};
 
+/**
+ * Encrypts data using local encryption key
+ * @param {any} data - Data to be encrypted
+ * @returns {Promise<string|null>} Encrypted data or null on error
+ */
+export const encryptData = async data => {
   try {
+    const key = getLocalKey();
+    if (!key) {
+      console.error('Cannot encrypt: No encryption key available');
+      return null;
+    }
+
+    const ENCRYPTION_KEY = CryptoJS.enc.Utf8.parse(key);
+
     // Convert data to JSON string
     const jsonStr = JSON.stringify(data || []);
 
@@ -47,18 +60,22 @@ export const encryptData = data => {
 };
 
 /**
- * Decrypts encrypted data
+ * Decrypts encrypted data using local encryption key
  * @param {string} encryptedData - Encrypted data
- * @returns {any|null} Decrypted data or null on error
+ * @returns {Promise<any>} Decrypted data or empty array on error
  */
-export const decryptData = encryptedData => {
+export const decryptData = async encryptedData => {
   if (!encryptedData) return [];
-  if (!ENV_ENCRYPTION_KEY) {
-    console.error('Cannot decrypt: ENCRYPTION_KEY is missing');
-    return [];
-  }
 
   try {
+    const key = getLocalKey();
+    if (!key) {
+      console.error('Cannot decrypt: No encryption key available');
+      return [];
+    }
+
+    const ENCRYPTION_KEY = CryptoJS.enc.Utf8.parse(key);
+
     // Decrypt with CryptoJS
     const decrypted = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY);
     const jsonStr = decrypted.toString(CryptoJS.enc.Utf8);
@@ -72,14 +89,25 @@ export const decryptData = encryptedData => {
   }
 };
 
-// Note encryption functions
-export const encryptNotes = notes => {
-  if (!ENV_ENCRYPTION_KEY) {
-    console.error('Cannot encrypt notes: ENCRYPTION_KEY is missing');
-    return null;
-  }
-
+/**
+ * Encrypts notes specifically using local encryption key
+ * @param {any} notes - Notes to encrypt
+ * @returns {Promise<string|null>} Encrypted notes or null on error
+ */
+export const encryptNotes = async notes => {
   try {
+    const key = getLocalKey();
+    if (!key) {
+      console.error('Cannot encrypt notes: No encryption key available');
+      return null;
+    }
+
+    const ENCRYPTION_KEY = CryptoJS.enc.Utf8.parse(key);
+
+    // Generate IV from the key
+    const derivedIV = key.substring(0, 16);
+    const ENCRYPTION_IV = CryptoJS.enc.Utf8.parse(derivedIV);
+
     // Convert data to JSON string
     const jsonStr = JSON.stringify(notes || []);
 
@@ -100,13 +128,26 @@ export const encryptNotes = notes => {
   }
 };
 
-export const decryptNotes = encryptedData => {
+/**
+ * Decrypts encrypted notes using local encryption key
+ * @param {string} encryptedData - Encrypted notes
+ * @returns {Promise<any>} Decrypted notes or empty array on error
+ */
+export const decryptNotes = async encryptedData => {
   try {
     if (!encryptedData) return [];
-    if (!ENV_ENCRYPTION_KEY) {
-      console.error('Cannot decrypt notes: ENCRYPTION_KEY is missing');
+
+    const key = getLocalKey();
+    if (!key) {
+      console.error('Cannot decrypt notes: No encryption key available');
       return [];
     }
+
+    const ENCRYPTION_KEY = CryptoJS.enc.Utf8.parse(key);
+
+    // Generate IV from the key
+    const derivedIV = key.substring(0, 16);
+    const ENCRYPTION_IV = CryptoJS.enc.Utf8.parse(derivedIV);
 
     // Decrypt
     const decrypted = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY, {
@@ -127,17 +168,25 @@ export const decryptNotes = encryptedData => {
   }
 };
 
-// Test function
-export const testEncryption = () => {
-  const testData = [{ id: 1, title: 'Test Note', content: 'Test Content' }];
+/**
+ * Tests the encryption functionality using local key
+ * @returns {Promise<boolean>} True if encryption/decryption works
+ */
+export const testEncryption = async () => {
+  try {
+    const testData = [{ id: 1, title: 'Test Note', content: 'Test Content' }];
 
-  const encrypted = encryptNotes(testData);
+    const encrypted = await encryptNotes(testData);
+    if (!encrypted) return false;
 
-  const decrypted = decryptNotes(encrypted);
+    const decrypted = await decryptNotes(encrypted);
 
-  const success = JSON.stringify(testData) === JSON.stringify(decrypted);
-
-  return success;
+    const success = JSON.stringify(testData) === JSON.stringify(decrypted);
+    return success;
+  } catch (error) {
+    console.error('Encryption test failed:', error);
+    return false;
+  }
 };
 
 export default {
