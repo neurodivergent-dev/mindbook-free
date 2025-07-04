@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Stack-React%20Native%20%7C%20Expo-blue" alt="Stack"/>
   <img src="https://img.shields.io/badge/Database-Supabase-green" alt="Database"/>
   <img src="https://img.shields.io/badge/Languages-12-orange" alt="Languages"/>
-  <img src="https://img.shields.io/badge/Version-4.0.2-purple" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-4.1.4-purple" alt="Version"/>
 </p>
 
 <p align="center">
