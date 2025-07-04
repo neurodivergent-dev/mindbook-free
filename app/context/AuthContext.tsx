@@ -347,6 +347,15 @@ export function AuthProvider({ children }) {
   // Log out
   const logout = async () => {
     try {
+      // Clear secure keys cache
+      try {
+        const { clearKeysCache } = require('../utils/secureKeyService');
+        clearKeysCache();
+        console.log('Secure keys cache cleared on logout');
+      } catch (cacheError) {
+        console.log('Error clearing secure keys cache:', cacheError);
+      }
+
       // Let's clear the userSession for exiting guest mode
       if (isGuestModeActive) {
         await AsyncStorage.removeItem('userSession');
@@ -432,7 +441,7 @@ export function AuthProvider({ children }) {
       }
 
       // Redirect to landing page (without spaces)
-      const redirectTo = 'https://mindbookpro.netlify.app/auth-action';
+      const redirectTo = 'https://mindbookpro.shop/auth-action';
 
       // Send password reset email via Supabase
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
