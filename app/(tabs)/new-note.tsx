@@ -211,6 +211,7 @@ const NewNote = () => {
       try {
         await addCategory(categoryName.trim());
         await loadCategories();
+        await triggerAutoBackup(null);
         setShowCategoryModal(false);
         setSelectedCategory(categoryName.trim());
       } catch (error) {
@@ -303,6 +304,7 @@ const NewNote = () => {
             }
             await deleteCategory(categoryToDelete);
             loadCategories();
+            await triggerAutoBackup(null);
           } catch (error) {
             console.error('Error deleting category:', error);
             Alert.alert(t('common.error'), t('notes.deleteCategoryError'));

@@ -26,6 +26,7 @@ import {
 import { NOTES_KEY } from '../utils/storage';
 import { useAuth } from '../context/AuthContext';
 import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
@@ -33,6 +34,7 @@ import NetInfo from '@react-native-community/netinfo';
 import supabase from '../utils/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { cloudinaryService } from '../utils/cloudinaryService';
+import profileImageCache from '../utils/profileImageCache';
 
 const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
 const TRANSPARENT = 'transparent';
@@ -80,6 +82,11 @@ const Settings = () => {
   const [userDisplayName, setUserDisplayName] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Password visibility states
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const loadAutoBackupSetting = useCallback(async () => {
     try {
@@ -143,12 +150,21 @@ const Settings = () => {
 
   const checkPasswordStatus = useCallback(async () => {
     try {
-      const storedPassword = await AsyncStorage.getItem('vault_password');
+      // Check for password in SecureStore first (preferred), fallback to AsyncStorage
+      let storedPassword = null;
+      try {
+        storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
+      } catch (secureError) {
+        console.log('SecureStore not available, checking AsyncStorage...');
+        // Fallback to old format for backward compatibility
+        storedPassword = await AsyncStorage.getItem('vault_password');
+      }
       setHasPassword(!!storedPassword);
     } catch (error) {
       console.error('Error checking password status:', error);
+      setHasPassword(false);
     }
-  }, []);
+  }, []); // Removed user dependency
 
   useEffect(() => {
     loadAutoBackupSetting();
@@ -321,7 +337,20 @@ const Settings = () => {
 
     try {
       if (hasPassword) {
-        const storedPassword = await AsyncStorage.getItem('vault_password');
+        // Verify current password - try SecureStore first, fallback to AsyncStorage
+        let storedPassword = null;
+        try {
+          storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
+        } catch (secureError) {
+          console.log('SecureStore not available, checking AsyncStorage...');
+          storedPassword = await AsyncStorage.getItem('vault_password');
+        }
+
+        if (!storedPassword) {
+          Alert.alert(t('common.error'), t('settings.noPasswordFound'));
+          return;
+        }
+
         const hashedCurrentPassword = await hashPassword(currentPassword);
 
         if (hashedCurrentPassword !== storedPassword) {
@@ -331,14 +360,27 @@ const Settings = () => {
       }
 
       const hashedPassword = await hashPassword(newPassword);
-      await AsyncStorage.setItem('vault_password', hashedPassword);
 
+      // Store in SecureStore with fallback to AsyncStorage
+      try {
+        await SecureStore.setItemAsync('mindbook_vault_password', hashedPassword);
+        console.log('✅ Vault password stored in SecureStore');
+      } catch (secureError) {
+        console.log('⚠️ SecureStore not available, using AsyncStorage...');
+        await AsyncStorage.setItem('vault_password', hashedPassword);
+      }
+
+      // Store password update timestamp
       await AsyncStorage.setItem('vault_password_updated', new Date().toISOString());
 
       setShowPasswordModal(false);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      // Reset password visibility states
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
       setHasPassword(true);
 
       Alert.alert(t('common.success'), t('settings.passwordUpdated'));
@@ -360,7 +402,20 @@ const Settings = () => {
     }
 
     try {
-      const storedPassword = await AsyncStorage.getItem('vault_password');
+      // Get stored password - try SecureStore first, fallback to AsyncStorage
+      let storedPassword = null;
+      try {
+        storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
+      } catch (secureError) {
+        console.log('SecureStore not available, checking AsyncStorage...');
+        storedPassword = await AsyncStorage.getItem('vault_password');
+      }
+
+      if (!storedPassword) {
+        Alert.alert(t('common.error'), t('settings.noPasswordFound'));
+        return;
+      }
+
       const hashedCurrentPassword = await hashPassword(currentPassword);
 
       if (hashedCurrentPassword !== storedPassword) {
@@ -368,12 +423,57 @@ const Settings = () => {
         return;
       }
 
+      // Check if there are any notes in the vault before removing password
+      const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
+      if (vaultNotesStr && vaultNotesStr.length > 0) {
+        try {
+          // Use vault encryption to check notes
+          const { decryptVaultNotes } = require('../utils/vaultEncryption');
+          const vaultNotes = await decryptVaultNotes(vaultNotesStr);
+
+          if (vaultNotes && vaultNotes.length > 0) {
+            Alert.alert(
+              t('common.error'),
+              t('settings.cannotRemovePasswordWithNotes', {
+                fallback:
+                  'The password cannot be removed - move or delete the notes in the vault first.',
+              })
+            );
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking vault notes:', error);
+          Alert.alert(
+            t('common.error'),
+            t('settings.cannotVerifyVault', {
+              fallback:
+                'Vault contents could not be checked. Password cannot be removed for security reasons.',
+            })
+          );
+          return;
+        }
+      }
+
+      // Remove password from both storage locations
+      try {
+        await SecureStore.deleteItemAsync('mindbook_vault_password');
+        console.log('✅ Vault password removed from SecureStore');
+      } catch (secureError) {
+        console.log('⚠️ SecureStore not available, removing from AsyncStorage...');
+      }
+
+      // Also remove from AsyncStorage for backward compatibility
       await AsyncStorage.removeItem('vault_password');
+      await AsyncStorage.removeItem('vault_password_updated');
 
       setShowPasswordModal(false);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      // Reset password visibility states
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
       setHasPassword(false);
 
       Alert.alert(t('common.success'), t('settings.passwordRemoved'));
@@ -443,6 +543,14 @@ const Settings = () => {
                   return;
                 }
 
+                // Clear profile image cache as well
+                try {
+                  await profileImageCache.clearAllCache();
+                  console.log('🗑️ Profile image cache cleared with cloud data');
+                } catch (cacheError) {
+                  console.error('⚠️ Error clearing profile image cache:', cacheError);
+                }
+
                 // Successful deletion message
                 Alert.alert(
                   t('common.success'),
@@ -477,7 +585,6 @@ const Settings = () => {
     { id: 'pink', color: themeColors.pink },
     { id: 'red', color: themeColors.red },
     { id: 'orange', color: themeColors.orange },
-    { id: 'yellow', color: themeColors.yellow },
     { id: 'green', color: themeColors.green },
     { id: 'teal', color: themeColors.teal },
     { id: 'cyan', color: themeColors.cyan },
@@ -509,9 +616,6 @@ const Settings = () => {
     { id: 'pastelYellow', color: themeColors.pastelYellow },
     { id: 'pastelOrange', color: themeColors.pastelOrange },
     // Metallic colors
-    { id: 'silver', color: themeColors.silver },
-    { id: 'bronze', color: themeColors.bronze },
-    { id: 'platinum', color: themeColors.platinum },
     { id: 'copper', color: themeColors.copper },
     // Nature colors
     { id: 'leafGreen', color: themeColors.leafGreen },
@@ -552,7 +656,6 @@ const Settings = () => {
     { id: 'terracotta', color: themeColors.terracotta },
     // Cool colors
     { id: 'mint', color: themeColors.mint },
-    { id: 'aqua', color: themeColors.aqua },
     { id: 'iceBlue', color: themeColors.iceBlue },
     { id: 'periwinkle', color: themeColors.periwinkle },
     // Exotic colors
@@ -560,6 +663,45 @@ const Settings = () => {
     { id: 'mango', color: themeColors.mango },
     { id: 'pistachio', color: themeColors.pistachio },
     { id: 'acai', color: themeColors.acai },
+    // Essential colors (dark & distinctive)
+    { id: 'charcoal', color: themeColors.charcoal },
+    { id: 'deepCharcoal', color: themeColors.deepCharcoal },
+    { id: 'steel', color: themeColors.steel },
+    { id: 'gunmetal', color: themeColors.gunmetal },
+    { id: 'pewter', color: themeColors.pewter },
+    { id: 'bronze', color: themeColors.bronze },
+    { id: 'darkBronze', color: themeColors.darkBronze },
+    { id: 'darkSteel', color: themeColors.darkSteel },
+    { id: 'darkSlate', color: themeColors.darkSlate },
+    { id: 'richBrown', color: themeColors.richBrown },
+    { id: 'dustyRose', color: themeColors.dustyRose },
+    // Professional/Business colors (header-friendly)
+    { id: 'slate', color: themeColors.slate },
+    { id: 'darkSlate2', color: themeColors.darkSlate2 },
+    { id: 'graphite', color: themeColors.graphite },
+    { id: 'darkGraphite', color: themeColors.darkGraphite },
+    { id: 'businessBlue', color: themeColors.businessBlue },
+    { id: 'corporateGray', color: themeColors.corporateGray },
+    { id: 'executiveNavy', color: themeColors.executiveNavy },
+    { id: 'professionalTeal', color: themeColors.professionalTeal },
+    { id: 'darkOlive', color: themeColors.darkOlive },
+    // Additional distinctive dark colors
+    { id: 'deepWine', color: themeColors.deepWine },
+    { id: 'darkEmerald', color: themeColors.darkEmerald },
+    { id: 'midnightPurple', color: themeColors.midnightPurple },
+    { id: 'darkCrimson', color: themeColors.darkCrimson },
+    // Creative & Mystical colors (storytelling themes)
+    { id: 'stormySea', color: themeColors.stormySea },
+    { id: 'ancientGold', color: themeColors.ancientGold },
+    { id: 'shadowForest', color: themeColors.shadowForest },
+    { id: 'velvetNight', color: themeColors.velvetNight },
+    { id: 'mysticAmber', color: themeColors.mysticAmber },
+    { id: 'dragonScale', color: themeColors.dragonScale },
+    // Light but readable colors (header-friendly)
+    { id: 'softCoral', color: themeColors.softCoral },
+    { id: 'dustyLavender', color: themeColors.dustyLavender },
+    { id: 'paleGold', color: themeColors.paleGold },
+    { id: 'mistySage', color: themeColors.mistySage },
   ];
 
   const SectionHeader = ({ title }) => (
@@ -728,12 +870,24 @@ const Settings = () => {
       visible={showPasswordModal}
       transparent
       animationType="slide"
-      onRequestClose={() => setShowPasswordModal(false)}
+      onRequestClose={() => {
+        setShowPasswordModal(false);
+        // Reset password visibility states when closing modal
+        setShowCurrentPassword(false);
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+      }}
     >
       <TouchableOpacity
         style={[styles.modalOverlay, styles.modalOverlayBackground]}
         activeOpacity={1}
-        onPress={() => setShowPasswordModal(false)}
+        onPress={() => {
+          setShowPasswordModal(false);
+          // Reset password visibility states when closing modal
+          setShowCurrentPassword(false);
+          setShowNewPassword(false);
+          setShowConfirmPassword(false);
+        }}
       >
         <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
           <View style={styles.modalHeader}>
@@ -742,7 +896,13 @@ const Settings = () => {
             </Text>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setShowPasswordModal(false)}
+              onPress={() => {
+                setShowPasswordModal(false);
+                // Reset password visibility states when closing modal
+                setShowCurrentPassword(false);
+                setShowNewPassword(false);
+                setShowConfirmPassword(false);
+              }}
             >
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -751,68 +911,130 @@ const Settings = () => {
           {hasPassword ? (
             <>
               <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>{t('auth.password')}</Text>
-                <TextInput
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholderTextColor={theme.textSecondary}
-                  secureTextEntry
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder={t('auth.password')}
-                />
+                <Text style={[styles.inputLabel, { color: theme.text }]}>
+                  {t('settings.currentPassword')}
+                </Text>
+                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: theme.text }]}
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry={!showCurrentPassword}
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    placeholder={t('settings.currentPassword')}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    <Ionicons
+                      name={showCurrentPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>
+                  {t('settings.newPassword')}
+                </Text>
+                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: theme.text }]}
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry={!showNewPassword}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder={t('settings.newPassword')}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    <Ionicons
+                      name={showNewPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text }]}>
                   {t('auth.confirmPassword')}
                 </Text>
-                <TextInput
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholderTextColor={theme.textSecondary}
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder={t('settings.newPassword')}
-                />
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {t('auth.confirmPassword')}
-                </Text>
-                <TextInput
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholderTextColor={theme.textSecondary}
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder={t('auth.confirmPassword')}
-                />
+                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: theme.text }]}
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry={!showConfirmPassword}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder={t('auth.confirmPassword')}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           ) : (
             <>
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text }]}>{t('auth.password')}</Text>
-                <TextInput
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholderTextColor={theme.textSecondary}
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder={t('auth.password')}
-                />
+                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: theme.text }]}
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry={!showNewPassword}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder={t('auth.password')}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    <Ionicons
+                      name={showNewPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.text }]}>
                   {t('auth.confirmPassword')}
                 </Text>
-                <TextInput
-                  style={[styles.modalInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholderTextColor={theme.textSecondary}
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder={t('auth.confirmPassword')}
-                />
+                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
+                  <TextInput
+                    style={[styles.passwordInput, { color: theme.text }]}
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry={!showConfirmPassword}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder={t('auth.confirmPassword')}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color={theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           )}
@@ -868,42 +1090,109 @@ const Settings = () => {
     if (hasPassword) {
       checkPasswordExpiration();
     }
-  }, [hasPassword, t]);
+  }, [hasPassword, t]); // Removed user dependency
 
-  // Get user profile image
+  // Background function to update cache if needed
+  const updateProfileImageCacheInBackground = useCallback(
+    async (userId: string) => {
+      try {
+        const publicId = user?.user_metadata?.avatar_public_id;
+        let currentImageUrl = null;
+
+        if (publicId) {
+          currentImageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
+        } else if (user?.user_metadata?.profile_image_url) {
+          const url = user.user_metadata.profile_image_url;
+          const timestamp = Date.now();
+          currentImageUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+        }
+
+        if (currentImageUrl) {
+          const isCached = await profileImageCache.isCached(userId, currentImageUrl);
+          if (!isCached) {
+            console.log('🔄 Updating profile image cache in background');
+            await profileImageCache.cacheProfileImage(userId, currentImageUrl, publicId);
+          }
+        }
+      } catch (error) {
+        console.error('⚠️ Error updating profile image cache:', error);
+      }
+    },
+    [user]
+  );
+
+  // Background function to cache profile image
+  const cacheProfileImageInBackground = useCallback(
+    async (userId: string, imageUrl: string, publicId?: string) => {
+      try {
+        console.log('💾 Caching profile image in background');
+        await profileImageCache.cacheProfileImage(userId, imageUrl, publicId);
+      } catch (error) {
+        console.error('⚠️ Error caching profile image:', error);
+      }
+    },
+    []
+  );
+
+  // Get user profile image with offline caching
   const getUserProfileImage = useCallback(async () => {
     if (!user || user.isAnonymous) return;
 
     try {
+      const userId = user.id;
+      console.log('🖼️ Loading profile image for user:', userId);
+
+      // First, try to get cached image (works offline)
+      const cachedImagePath = await profileImageCache.getCachedProfileImage(userId);
+      if (cachedImagePath) {
+        console.log('✅ Using cached profile image');
+        setProfileImage(cachedImagePath);
+
+        // In background, check if we need to update the cache
+        if (isConnected) {
+          updateProfileImageCacheInBackground(userId);
+        }
+        return;
+      }
+
+      // If no cache and offline, show nothing
+      if (!isConnected) {
+        console.log('🔌 Offline: No cached image available');
+        setProfileImage(null);
+        return;
+      }
+
+      // Online: Get image URL and cache it
+      let imageUrl = null;
+
       // Check for Cloudinary image first (new method)
       const publicId = user.user_metadata?.avatar_public_id;
       if (publicId) {
-        // Use Cloudinary service to get URL with proper transformations and cache busting
-        const imageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
+        imageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
         if (imageUrl) {
-          console.log('Using Cloudinary image URL:', imageUrl);
-          setProfileImage(imageUrl);
-          return;
+          console.log('🌤️ Using Cloudinary image URL:', imageUrl);
         }
       }
 
       // Fallback to legacy method (direct URL from metadata)
-      if (user.user_metadata?.profile_image_url) {
-        console.log('Using legacy profile image URL from metadata');
-
-        // Add timestamp for cache busting
+      if (!imageUrl && user.user_metadata?.profile_image_url) {
+        console.log('📷 Using legacy profile image URL from metadata');
         const url = user.user_metadata.profile_image_url;
         const timestamp = Date.now();
-        const urlWithCacheBuster = url.includes('?')
-          ? `${url}&t=${timestamp}`
-          : `${url}?t=${timestamp}`;
+        imageUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
+      }
 
-        setProfileImage(urlWithCacheBuster);
+      if (imageUrl) {
+        // Set image immediately for responsive UX
+        setProfileImage(imageUrl);
+
+        // Cache image in background for offline access
+        cacheProfileImageInBackground(userId, imageUrl, publicId);
       }
     } catch (error) {
-      console.error('Error loading profile image:', error);
+      console.error('❌ Error loading profile image:', error);
     }
-  }, [user]);
+  }, [user, isConnected, updateProfileImageCacheInBackground, cacheProfileImageInBackground]);
 
   useEffect(() => {
     loadAutoBackupSetting();
@@ -978,6 +1267,15 @@ const Settings = () => {
 
       // Update UI with new image URL
       setProfileImage(uploadResult.url);
+
+      // Cache the new image for offline access
+      try {
+        await profileImageCache.cacheProfileImage(user.id, uploadResult.url, uploadResult.publicId);
+        console.log('✅ New profile image cached successfully');
+      } catch (cacheError) {
+        console.error('⚠️ Error caching new profile image:', cacheError);
+      }
+
       Alert.alert(t('common.success'), t('settings.profileImageUpdated'));
 
       // Also refresh the user data to ensure we have the latest metadata
@@ -1024,6 +1322,14 @@ const Settings = () => {
                 console.error('Error removing profile image:', result.error);
                 Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
                 return;
+              }
+
+              // Clear cached image
+              try {
+                await profileImageCache.removeCachedProfileImage(user.id);
+                console.log('🗑️ Profile image cache cleared');
+              } catch (cacheError) {
+                console.error('⚠️ Error clearing profile image cache:', cacheError);
               }
 
               // Update UI
@@ -1788,6 +2094,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  eyeButton: {
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+    marginLeft: 8,
+    width: 40,
+  },
   fontSizeButton: {
     borderRadius: 12,
     borderWidth: BORDER_WIDTH,
@@ -1886,13 +2199,14 @@ const styles = StyleSheet.create({
   modalContent: {
     borderRadius: 16,
     elevation: 5,
-    maxWidth: 400,
+    maxHeight: '80%',
+    maxWidth: 350,
     padding: 20,
     shadowColor: SHADOW_COLOR,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    width: '100%',
+    width: '90%',
   },
   modalHeader: {
     alignItems: 'center',
@@ -1900,13 +2214,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
     width: '100%',
-  },
-  modalInput: {
-    borderRadius: 12,
-    borderWidth: BORDER_WIDTH,
-    fontSize: 16,
-    height: 48,
-    paddingHorizontal: 16,
   },
   modalItem: {
     alignItems: 'center',
@@ -1946,6 +2253,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     width: '90%',
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+  },
+  passwordInputContainer: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: BORDER_WIDTH,
+    flexDirection: 'row',
+    height: 48,
+    paddingHorizontal: 16,
   },
   profileCard: {
     borderRadius: 12,

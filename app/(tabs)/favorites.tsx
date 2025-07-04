@@ -21,6 +21,8 @@ import EmptyState from '../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
+import { backupToCloud } from '../utils/backup';
+import { useAuth } from '../context/AuthContext';
 
 // Color constants
 const COLORS = {
@@ -29,6 +31,8 @@ const COLORS = {
   transparent: 'transparent',
   shadowColor: '#000',
   borderTopColor: 'rgba(0,0,0,0.1)',
+  borderBottomColor: 'rgba(0,0,0,0.1)',
+  statsBadgeBg: 'rgba(0,0,0,0.05)',
 };
 
 export default function FavoritesScreen() {
@@ -40,6 +44,7 @@ export default function FavoritesScreen() {
   const [selectedNotes, setSelectedNotes] = useState(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   // Filter function
   const filterNotes = useCallback(
@@ -244,6 +249,19 @@ export default function FavoritesScreen() {
       // Perform bulk update
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
+      // Auto backup kontrolü ve bulut güncellemesi
+      try {
+        const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
+        if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
+          const result = await backupToCloud(user.uid);
+          if (result.success) {
+            await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
+          }
+        }
+      } catch (error) {
+        console.error('Auto backup after unfavorite failed:', error);
+      }
+
       // Update UI
       const favoriteNotes = updatedNotes.filter(
         note => note.isFavorite && !note.isTrash && !note.isArchived
@@ -368,75 +386,62 @@ export default function FavoritesScreen() {
     );
   };
 
-  // Define CSS variables
-  const borderColor = themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-
-  // Pre-calculated colors
-  const WHITE_COLOR = '#FFFFFF';
-  const textColor = isSelectionMode ? WHITE_COLOR : themeColors[accentColor];
-  const badgeBackgroundColor = isSelectionMode
-    ? themeColors[accentColor]
-    : themeColors[accentColor] + '15';
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme.card,
-            borderBottomColor: borderColor,
-          },
-        ]}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <View style={styles.titleContainer}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>
-                {t('notes.favorites')}
-              </Text>
-              {isSelectionMode && (
-                <View style={[styles.notesCountBadge, { backgroundColor: badgeBackgroundColor }]}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={16}
-                    color={WHITE_COLOR}
-                    style={styles.notesCountIcon}
-                  />
-                  <Text style={[styles.notesCountText, { color: textColor }]}>
-                    {`${selectedNotes.size} ${t('common.selected')}`}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {!isSelectionMode && (
-              <>
-                <View style={styles.headerStats}>
-                  <Ionicons
-                    name="star"
-                    size={16}
-                    color={themeColors[accentColor]}
-                    style={styles.headerIcon}
-                  />
-                  <Text style={[styles.statsText, { color: theme.text }]}>
-                    {filteredNotes.length} {t('notes.notesCount')}
-                  </Text>
-                </View>
-
-                {filteredNotes.length > 0 && (
-                  <Text style={[styles.lastSyncText, { color: theme.textSecondary }]}>
-                    {t('notes.lastEdit')}:{' '}
-                    {new Date(
-                      Math.max(
-                        ...filteredNotes.map(n => new Date(n.updatedAt || n.createdAt).getTime())
-                      )
-                    ).toLocaleDateString()}
-                  </Text>
-                )}
-              </>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
+        <View style={styles.headerLeft}>
+          <View style={styles.titleContainer}>
+            <Text style={[styles.title, { color: theme.text }]}>{t('notes.favorites')}</Text>
+            {isSelectionMode && (
+              <View
+                style={[
+                  styles.selectionBadge,
+                  { backgroundColor: themeColors[accentColor] + '20' },
+                ]}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={themeColors[accentColor]}
+                  style={styles.badgeIcon}
+                />
+                <Text style={[styles.selectionBadgeText, { color: themeColors[accentColor] }]}>
+                  {`${selectedNotes.size} ${t('common.selected')}`}
+                </Text>
+              </View>
             )}
           </View>
+
+          <View style={styles.headerStats}>
+            <Ionicons
+              name="star"
+              size={18}
+              color={themeColors[accentColor]}
+              style={styles.headerIcon}
+            />
+            <Text style={[styles.statsText, { color: theme.text }]}>
+              {filteredNotes.length} {t('notes.notesCount')}
+            </Text>
+
+            {filteredNotes.length > 0 && (
+              <View style={styles.statsBadge}>
+                <Ionicons name="time-outline" size={14} color={themeColors[accentColor]} />
+                <Text style={[styles.badgeText, { color: theme.text }]}>
+                  {new Date(
+                    Math.max(
+                      ...filteredNotes.map(n => new Date(n.updatedAt || n.createdAt).getTime())
+                    )
+                  ).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={[styles.lastUpdateText, { color: theme.textSecondary }]}>
+            {filteredNotes.length > 0
+              ? `${t('notes.lastEdit')}: ${new Date().toLocaleDateString()}`
+              : t('notes.emptyFavorites')}
+          </Text>
         </View>
       </View>
 
@@ -555,18 +560,24 @@ const styles = StyleSheet.create({
     shadowRadius: 1.41,
     width: 40,
   },
+  badgeIcon: {
+    marginRight: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
   container: {
     flex: 1,
   },
   header: {
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerContent: {
     alignItems: 'center',
+    borderBottomColor: COLORS.borderBottomColor,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    padding: 16,
   },
   headerIcon: {
     marginRight: 6,
@@ -578,16 +589,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 6,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  lastSyncText: {
+  lastUpdateText: {
     fontSize: 12,
-    marginBottom: 4,
+    marginTop: 4,
   },
   listContent: {
     flexGrow: 1,
@@ -602,27 +607,39 @@ const styles = StyleSheet.create({
   noteItemMargin: {
     marginHorizontal: 4,
   },
-  notesCountBadge: {
+  selectionBadge: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
     borderRadius: 16,
     flexDirection: 'row',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  selectionBadgeText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  statsBadge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.statsBadgeBg,
+    borderRadius: 12,
+    flexDirection: 'row',
+    marginLeft: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  notesCountIcon: {
-    marginRight: 5,
-  },
-  notesCountText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   statsText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   titleContainer: {
-    marginBottom: 6,
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 8,
   },
 });

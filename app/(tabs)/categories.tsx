@@ -1,51 +1,64 @@
 // This file is Categories Screen component, which displays a list of categories and allows users to manage them.
 // It includes functionality to add, delete, and select categories, as well as view the number of notes in each category.
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import {
   getCategories,
   addCategory,
+  updateCategory,
   deleteCategory,
   getAllNotes,
   getNotesByCategory,
+  buildNoteIndices,
 } from '../utils/storage';
+import { triggerAutoBackup } from '../utils/backup';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
 import CategoryInputModal from '../components/CategoryInputModal';
 
 // Color constants
 const COLORS = {
+  black: '#000',
   white: '#fff',
   danger: '#dc2626',
+  borderBottom: 'rgba(0,0,0,0.1)',
+  statsBadgeBg: 'rgba(0,0,0,0.05)',
 };
 
 export default function CategoriesScreen() {
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categoryNotes, setCategoryNotes] = useState({});
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [editingCategory, setEditingCategory] = useState('');
+  const [categoryNotes, setCategoryNotes] = useState<Record<string, number>>({});
   const [totalNotes, setTotalNotes] = useState(0);
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { theme, themeMode, accentColor, themeColors } = useTheme();
   const { t } = useTranslation();
 
-  useFocusEffect(
-    useCallback(() => {
-      loadCategories();
-      loadNoteCounts();
-    }, [])
-  );
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     const loadedCategories = await getCategories();
     setCategories(loadedCategories);
-  };
 
-  const loadNoteCounts = async () => {
+    // Rebuild indices to ensure getNotesByCategory works correctly
+    await buildNoteIndices();
+  }, []);
+
+  const loadNoteCounts = useCallback(async () => {
     try {
       // Get all active notes count
       const notes = await getAllNotes();
@@ -71,14 +84,40 @@ export default function CategoriesScreen() {
     } catch (error) {
       console.error('Error loading note counts:', error);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Load categories and note counts when the screen is focused
+      loadCategories();
+      loadNoteCounts();
+    }, [loadCategories, loadNoteCounts])
+  );
 
   const handleAddCategory = async categoryName => {
     if (categoryName.trim()) {
       try {
         await addCategory(categoryName.trim());
+
+        // Update UI immediately
         await loadCategories();
+        await loadNoteCounts();
         setShowCategoryModal(false);
+        setModalMode('add');
+        setEditingCategory('');
+
+        // Backup in background (UI blocking)
+        triggerAutoBackup(null)
+          .then(result => {
+            if (result?.success) {
+              // Update UI silently when backup is successful
+              loadCategories();
+              loadNoteCounts();
+            }
+          })
+          .catch(error => {
+            console.error('Background backup failed:', error);
+          });
       } catch (error: unknown) {
         if (error instanceof Error && error.message === 'Category name too long') {
           Alert.alert(t('common.error'), t('notes.categoryTooLong'));
@@ -91,7 +130,57 @@ export default function CategoriesScreen() {
     }
   };
 
-  const handleDeleteCategory = category => {
+  const handleEditCategory = async (oldName: string, newName: string) => {
+    if (newName.trim()) {
+      try {
+        await updateCategory(oldName, newName.trim());
+
+        // Update UI immediately
+        await loadCategories();
+        await loadNoteCounts();
+        setShowCategoryModal(false);
+        setModalMode('add');
+        setEditingCategory('');
+
+        // Backup in background (UI blocking)
+        triggerAutoBackup(null)
+          .then(result => {
+            if (result?.success) {
+              // Update UI silently when backup is successful
+              loadCategories();
+              loadNoteCounts();
+            }
+          })
+          .catch(error => {
+            console.error('Background backup failed:', error);
+          });
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'Category name too long') {
+          Alert.alert(t('common.error'), t('notes.categoryTooLong'));
+        } else if (error instanceof Error && error.message === 'Category already exists') {
+          Alert.alert(t('common.error'), t('notes.addCategoryError'));
+        } else if (error instanceof Error && error.message === 'Category name cannot be empty') {
+          Alert.alert(t('common.error'), t('notes.emptyCategoryError'));
+        } else {
+          Alert.alert(t('common.error'), t('notes.editCategoryError'));
+        }
+      }
+    }
+  };
+
+  const openEditModal = (category: string) => {
+    setModalMode('edit');
+    setEditingCategory(category);
+    setShowCategoryModal(true);
+  };
+
+  const openAddModal = () => {
+    setModalMode('add');
+    setEditingCategory('');
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategory = async category => {
     const noteCount = categoryNotes[category] || 0;
     const noteText =
       noteCount === 1 ? `1 ${t('notes.notesCount')}` : `${noteCount} ${t('notes.notesCount')}`;
@@ -107,8 +196,23 @@ export default function CategoriesScreen() {
           onPress: async () => {
             try {
               await deleteCategory(category);
+
+              // Update UI immediately
               await loadCategories();
               await loadNoteCounts();
+
+              // Backup in background (UI blocking)
+              triggerAutoBackup(null)
+                .then(result => {
+                  if (result?.success) {
+                    // Update UI silently when backup is successful
+                    loadCategories();
+                    loadNoteCounts();
+                  }
+                })
+                .catch(error => {
+                  console.error('Background backup failed:', error);
+                });
             } catch (error) {
               Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
             }
@@ -159,12 +263,25 @@ export default function CategoriesScreen() {
               for (const category of selectedCategories) {
                 await deleteCategory(category);
               }
-              // Clear selected categories
+
+              // Update UI immediately
               setSelectedCategories([]);
               setIsSelectionMode(false);
-              // Refresh category list and note counts
               await loadCategories();
               await loadNoteCounts();
+
+              // Backup in background (UI blocking)
+              triggerAutoBackup(null)
+                .then(result => {
+                  if (result?.success) {
+                    // Update UI silently when backup is successful
+                    loadCategories();
+                    loadNoteCounts();
+                  }
+                })
+                .catch(error => {
+                  console.error('Background backup failed:', error);
+                });
             } catch (error) {
               Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
             }
@@ -197,9 +314,71 @@ export default function CategoriesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: theme.text }]}>{t('notes.categories')}</Text>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
+        <View style={styles.headerLeft}>
+          <View style={styles.titleContainer}>
+            <Text style={[styles.title, { color: theme.text }]}>{t('notes.categories')}</Text>
+            {isSelectionMode && (
+              <View
+                style={[
+                  styles.selectionBadge,
+                  { backgroundColor: themeColors[accentColor] + '20' },
+                ]}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={themeColors[accentColor]}
+                  style={styles.badgeIcon}
+                />
+                <Text style={[styles.selectionBadgeText, { color: themeColors[accentColor] }]}>
+                  {`${selectedCategories.length} ${t('common.selected')}`}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.headerStats}>
+            <Ionicons
+              name="folder-outline"
+              size={18}
+              color={themeColors[accentColor]}
+              style={styles.headerIcon}
+            />
+            <Text style={[styles.statsText, { color: theme.text }]}>
+              {categories.length}{' '}
+              {categories.length === 1 ? t('notes.category') : t('notes.categories')}
+            </Text>
+
+            {totalNotes > 0 && (
+              <View style={styles.statsBadge}>
+                <Ionicons name="document-text-outline" size={14} color={themeColors[accentColor]} />
+                <Text style={[styles.badgeText, { color: theme.text }]}>{totalNotes}</Text>
+              </View>
+            )}
+
+            {Object.values(categoryNotes).filter(
+              (count): count is number => typeof count === 'number' && count > 0
+            ).length > 0 && (
+              <View style={styles.statsBadge}>
+                <Ionicons name="documents-outline" size={14} color={themeColors[accentColor]} />
+                <Text style={[styles.badgeText, { color: theme.text }]}>
+                  {
+                    Object.values(categoryNotes).filter(
+                      (count): count is number => typeof count === 'number' && count > 0
+                    ).length
+                  }{' '}
+                  {t('common.active')}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={[styles.lastUpdateText, { color: theme.textSecondary }]}>
+            {categories.length > 0
+              ? `${t('notes.lastUpdate')}: ${new Date().toLocaleDateString()}`
+              : t('notes.emptyCategories')}
+          </Text>
         </View>
 
         {isSelectionMode ? (
@@ -209,12 +388,7 @@ export default function CategoriesScreen() {
               onPress={handleDeleteSelected}
               disabled={selectedCategories.length === 0}
             >
-              <Ionicons name="trash-outline" size={20} color={COLORS.white} />
-              <Text style={styles.selectionButtonText}>
-                {selectedCategories.length > 0
-                  ? `${t('common.delete')} (${selectedCategories.length})`
-                  : t('common.delete')}
-              </Text>
+              <Ionicons name="trash-outline" size={18} color={COLORS.white} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -225,23 +399,36 @@ export default function CategoriesScreen() {
               ]}
               onPress={exitSelectionMode}
             >
-              <Ionicons name="close" size={20} color={theme.text} />
-              <Text style={[styles.selectionButtonText, { color: theme.text }]}>
-                {t('common.cancel')}
-              </Text>
+              <Ionicons name="close" size={18} color={theme.text} />
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: themeColors[accentColor] }]}
-            onPress={() => setShowCategoryModal(true)}
+            onPress={openAddModal}
           >
-            <Ionicons name="add" size={24} color={COLORS.white} />
+            <Ionicons name="add" size={20} color={COLORS.white} />
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView style={styles.categoriesList}>
+      <ScrollView
+        style={styles.categoriesList}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await loadCategories();
+              await loadNoteCounts();
+              setRefreshing(false);
+            }}
+            tintColor={themeColors[accentColor]}
+            colors={[themeColors[accentColor]]}
+          />
+        }
+      >
         <TouchableOpacity
           style={[
             styles.categoryItem,
@@ -303,12 +490,20 @@ export default function CategoriesScreen() {
                 </View>
               </View>
               {!isSelectionMode && (
-                <TouchableOpacity
-                  onPress={() => handleDeleteCategory(category)}
-                  style={styles.deleteButton}
-                >
-                  <Ionicons name="trash-outline" size={24} color={COLORS.danger} />
-                </TouchableOpacity>
+                <View style={styles.categoryActions}>
+                  <TouchableOpacity
+                    onPress={() => openEditModal(category)}
+                    style={styles.editButton}
+                  >
+                    <Ionicons name="pencil-outline" size={20} color={themeColors[accentColor]} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteCategory(category)}
+                    style={styles.deleteButton}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+                  </TouchableOpacity>
+                </View>
               )}
             </TouchableOpacity>
           ))
@@ -320,7 +515,7 @@ export default function CategoriesScreen() {
               message={t('notes.emptyCategoryMessage')}
               action={{
                 label: t('notes.createCategory'),
-                onPress: () => setShowCategoryModal(true),
+                onPress: openAddModal,
               }}
             />
           </View>
@@ -329,11 +524,18 @@ export default function CategoriesScreen() {
 
       <CategoryInputModal
         visible={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
+        onClose={() => {
+          setShowCategoryModal(false);
+          setModalMode('add');
+          setEditingCategory('');
+        }}
         onAdd={handleAddCategory}
+        onEdit={handleEditCategory}
         theme={theme}
         themeColors={themeColors}
         accentColor={accentColor}
+        mode={modalMode}
+        editingCategory={editingCategory}
       />
     </View>
   );
@@ -342,14 +544,36 @@ export default function CategoriesScreen() {
 // Styles for the component
 const styles = StyleSheet.create({
   addButton: {
+    alignItems: 'center',
     borderRadius: 8,
+    height: 36,
+    justifyContent: 'center',
     padding: 8,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    width: 36,
+  },
+  badgeIcon: {
+    marginRight: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   cancelButton: {
     borderWidth: 1,
   },
   categoriesList: {
     flex: 1,
+    padding: 16,
+  },
+  categoryActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   categoryInfo: {
     alignItems: 'center',
@@ -374,10 +598,12 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
   },
   deleteButton: {
-    padding: 4,
+    padding: 8,
+  },
+  editButton: {
+    padding: 8,
   },
   emptyStateContainer: {
     flex: 1,
@@ -385,9 +611,26 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
+    borderBottomColor: COLORS.borderBottom,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    padding: 16,
+  },
+  headerIcon: {
+    marginRight: 6,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerStats: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  lastUpdateText: {
+    fontSize: 12,
+    marginTop: 4,
   },
   noteCount: {
     borderRadius: 12,
@@ -399,21 +642,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   selectionActions: {
     flexDirection: 'row',
     gap: 8,
   },
+  selectionBadge: {
+    alignItems: 'center',
+    borderRadius: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  selectionBadgeText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   selectionButton: {
     alignItems: 'center',
     borderRadius: 8,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
-  selectionButtonText: {
-    color: COLORS.white,
-    fontSize: 14,
+  statsBadge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.statsBadgeBg,
+    borderRadius: 12,
+    flexDirection: 'row',
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statsText: {
+    fontSize: 15,
     fontWeight: '500',
   },
   title: {
@@ -421,7 +687,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   titleContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     flexDirection: 'row',
+    marginBottom: 8,
   },
 });
