@@ -1,0 +1,3375 @@
+
+❌ KEYS USED IN CODE BUT MISSING FROM ENGLISH TRANSLATION:
+  - common.error'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx, (auth)\reset-password.tsx, (modal)\ai-chat.tsx, (modal)\archive.tsx, (modal)\edit-note.tsx, (modal)\new-task-list.tsx, (modal)\trash.tsx, (modal)\vault.tsx, (tabs)\categories.tsx, (tabs)\favorites.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx, components\NoteCard.tsx
+  - auth.noInternetConnection'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx
+  - auth.fillAllFields'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx
+  - auth.loginError'
+    📁 Used in: (auth)\login.tsx
+  - auth.guestLoginError'
+    📁 Used in: (auth)\login.tsx
+  - auth.googleLoginError'
+    📁 Used in: (auth)\login.tsx
+  - common.appDescription'
+    📁 Used in: (auth)\login.tsx
+  - auth.email'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx, (auth)\reset-password.tsx
+  - auth.password'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx, (tabs)\settings.tsx
+  - auth.login'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx
+  - auth.forgotPassword'
+    📁 Used in: (auth)\login.tsx
+  - auth.register'
+    📁 Used in: (auth)\login.tsx, (auth)\register.tsx
+  - auth.continueWithoutAccount'
+    📁 Used in: (auth)\login.tsx
+  - auth.or'
+    📁 Used in: (auth)\login.tsx
+  - auth.continueWithGoogle'
+    📁 Used in: (auth)\login.tsx
+  - auth.contactInfo'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.contactEmailMessage'
+    📁 Used in: (auth)\password-recovery.tsx
+  - common.ok'
+    📁 Used in: (auth)\password-recovery.tsx, (auth)\register.tsx, (auth)\reset-password.tsx, (modal)\new-task-list.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx
+  - auth.passwordRecoveryTitle'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.passwordRecoverySubtitle'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.passwordRecoveryMessage'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.passwordRecoveryEmail'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.passwordRecoveryInstructions'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.backToLoginButton'
+    📁 Used in: (auth)\password-recovery.tsx
+  - auth.passwordsMustMatch'
+    📁 Used in: (auth)\register.tsx
+  - auth.emailVerification'
+    📁 Used in: (auth)\register.tsx
+  - auth.emailVerificationMsg'
+    📁 Used in: (auth)\register.tsx
+  - auth.registerError'
+    📁 Used in: (auth)\register.tsx
+  - auth.googleRegisterError'
+    📁 Used in: (auth)\register.tsx
+  - auth.createAccountDesc'
+    📁 Used in: (auth)\register.tsx
+  - auth.displayName'
+    📁 Used in: (auth)\register.tsx
+  - auth.confirmPassword'
+    📁 Used in: (auth)\register.tsx, (tabs)\settings.tsx
+  - auth.registerWithGoogle'
+    📁 Used in: (auth)\register.tsx
+  - auth.alreadyHaveAccount'
+    📁 Used in: (auth)\register.tsx
+  - auth.enterEmail'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.resetPasswordError'
+    📁 Used in: (auth)\reset-password.tsx
+  - common.success'
+    📁 Used in: (auth)\reset-password.tsx, (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx, (tabs)\favorites.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx
+  - auth.resetPasswordLinkSent'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.resetPassword'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.resetPasswordDesc'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.linkSent'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.resetMyPassword'
+    📁 Used in: (auth)\reset-password.tsx
+  - auth.backToLogin'
+    📁 Used in: (auth)\reset-password.tsx
+  - about.noteFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.noteFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.vaultFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.vaultFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.customizationFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.customizationFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.categoriesFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.categoriesFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.archiveFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.archiveFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.searchFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.searchFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.favoritesFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.favoritesFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.trashFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.trashFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.cloudFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.cloudFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.languageFeature'
+    📁 Used in: (modal)\about.tsx
+  - about.languageFeatureDesc'
+    📁 Used in: (modal)\about.tsx
+  - about.pageTitle'
+    📁 Used in: (modal)\about.tsx
+  - about.version'
+    📁 Used in: (modal)\about.tsx
+  - about.${BUILD_DATE}`
+    📁 Used in: (modal)\about.tsx
+  - about.appDescription'
+    📁 Used in: (modal)\about.tsx
+  - about.features'
+    📁 Used in: (modal)\about.tsx
+  - about.showLess'
+    📁 Used in: (modal)\about.tsx
+  - about.showMore'
+    📁 Used in: (modal)\about.tsx
+  - about.contactSocial'
+    📁 Used in: (modal)\about.tsx
+  - about.website'
+    📁 Used in: (modal)\about.tsx
+  - about.linkedin'
+    📁 Used in: (modal)\about.tsx
+  - about.rate'
+    📁 Used in: (modal)\about.tsx
+  - about.instagram'
+    📁 Used in: (modal)\about.tsx
+  - about.github'
+    📁 Used in: (modal)\about.tsx
+  - about.email'
+    📁 Used in: (modal)\about.tsx
+  - about.madeWith'
+    📁 Used in: (modal)\about.tsx
+  - about.privacyPolicy'
+    📁 Used in: (modal)\about.tsx
+  - aiAssistant.welcome'
+    📁 Used in: (modal)\ai-chat.tsx, components\NoteAIAnalyzer.tsx
+  - .'
+    📁 Used in: (modal)\ai-chat.tsx, utils\cloudinaryService.ts, utils\openRouterService.ts
+  - aiAssistant.cameraPermissionDenied'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.imageUploaded'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.imageAnalysis'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.poemMode'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.briefMode'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.defaultMode'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.title'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.thinking'
+    📁 Used in: (modal)\ai-chat.tsx
+  - aiAssistant.placeholder'
+    📁 Used in: (modal)\ai-chat.tsx
+  - notes.loadError'
+    📁 Used in: (modal)\archive.tsx
+  - common.warning'
+    📁 Used in: (modal)\archive.tsx, (modal)\edit-note.tsx, (modal)\task-detail.tsx, (modal)\trash.tsx, (modal)\vault.tsx, (tabs)\favorites.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx, components\NoteCard.tsx
+  - notes.selectNotesToRestore'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx
+  - notes.notesRestored'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx
+  - notes.restoreError'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx
+  - notes.selectNotesToTrash'
+    📁 Used in: (modal)\archive.tsx, (tabs)\index.tsx
+  - notes.moveToTrash'
+    📁 Used in: (modal)\archive.tsx
+  - notes.moveToTrashConfirmation'
+    📁 Used in: (modal)\archive.tsx, (tabs)\index.tsx
+  - common.cancel'
+    📁 Used in: (modal)\archive.tsx, (modal)\edit-note.tsx, (modal)\task-detail.tsx, (modal)\trash.tsx, (modal)\vault.tsx, (tabs)\categories.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx, components\CategoryInputModal.tsx, components\NoteAIAnalyzer.tsx, components\NoteCard.tsx
+  - common.delete'
+    📁 Used in: (modal)\archive.tsx, (modal)\edit-note.tsx, (modal)\task-detail.tsx, (modal)\trash.tsx, (modal)\vault.tsx, (tabs)\categories.tsx, (tabs)\index.tsx, (tabs)\new-note.tsx, (tabs)\settings.tsx, components\NoteCard.tsx
+  - notes.notesMovedToTrash'
+    📁 Used in: (modal)\archive.tsx, (tabs)\index.tsx
+  - notes.moveToTrashError'
+    📁 Used in: (modal)\archive.tsx, (tabs)\index.tsx
+  - common.unselectAll'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx
+  - common.selectAll'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx, (modal)\vault.tsx
+  - notes.restoreFromArchive'
+    📁 Used in: (modal)\archive.tsx
+  - notes.selected'
+    📁 Used in: (modal)\archive.tsx, (modal)\trash.tsx
+  - notes.archive'
+    📁 Used in: (modal)\archive.tsx
+  - notes.emptyArchive'
+    📁 Used in: (modal)\archive.tsx
+  - notes.emptyArchiveMessage'
+    📁 Used in: (modal)\archive.tsx, components\EmptyState.tsx
+  - Test başlatıldı...'
+    📁 Used in: (modal)\debug.tsx
+  - Error: ${error instanceof Error ? error.message : String(error)}`
+    📁 Used in: (modal)\debug.tsx
+  - API anahtarı alınıyor...'
+    📁 Used in: (modal)\debug.tsx
+  - API anahtarı test ediliyor...'
+    📁 Used in: (modal)\debug.tsx
+  - ❌ API anahtarı geçersiz: ${response.error}`
+    📁 Used in: (modal)\debug.tsx
+  - ❌ Hata: ${error instanceof Error ? error.message : String(error)}`
+    📁 Used in: (modal)\debug.tsx
+  - common.debug'
+    📁 Used in: (modal)\debug.tsx
+  - notes.heading1'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.heading2'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.heading3'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.bold'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.italic'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.list'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.numberedList'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.link'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.code'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.quote'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.image'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.markdownEditor'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.unsavedChanges'
+    📁 Used in: (modal)\edit-note.tsx
+  - common.close'
+    📁 Used in: (modal)\edit-note.tsx
+  - notes.fillAllFields'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.noteSaved'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.saveNoteError'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.deleteNoteConfirmation'
+    📁 Used in: (modal)\edit-note.tsx
+  - notes.deleteNoteError'
+    📁 Used in: (modal)\edit-note.tsx, components\NoteCard.tsx
+  - notes.readingModeEditing'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.deleteCategory'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\new-note.tsx
+  - notes.deleteCategoryConfirmation'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\new-note.tsx
+  - notes.deleteCategoryError'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\new-note.tsx
+  - notes.selectCategory'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - common.create'
+    📁 Used in: (modal)\edit-note.tsx, (modal)\new-task-list.tsx, (tabs)\new-note.tsx, components\CategoryInputModal.tsx
+  - notes.categoryTooLong'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\new-note.tsx, components\CategoryInputModal.tsx
+  - notes.addCategoryError'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\new-note.tsx
+  - notes.editNote'
+    📁 Used in: (modal)\edit-note.tsx
+  - notes.noteTitle'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.color'
+    📁 Used in: (modal)\edit-note.tsx
+  - colors.${selectedColor}`
+    📁 Used in: (modal)\edit-note.tsx
+  - common.default'
+    📁 Used in: (modal)\edit-note.tsx
+  - notes.category'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\categories.tsx, (tabs)\index.tsx
+  - common.image'
+    📁 Used in: (modal)\edit-note.tsx
+  - notes.noteContent'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - common.save'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - common.editMode'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - common.readingMode'
+    📁 Used in: (modal)\edit-note.tsx, (tabs)\new-note.tsx
+  - notes.emptyTaskListError'
+    📁 Used in: (modal)\new-task-list.tsx
+  - notes.newTaskList'
+    📁 Used in: (modal)\new-task-list.tsx, (tabs)\tasks.tsx
+  - notes.taskName'
+    📁 Used in: (modal)\new-task-list.tsx
+  - privacy.pageTitle'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.lastUpdated'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.overview'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.overviewText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataCollected'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataCollectedText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.endToEndEncryption'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.endToEndEncryptionText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataSecurity'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataSecurityText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataStorage'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataStorageText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.localStorageInfo'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.localStorageInfoText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.cloudStorageInfo'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.cloudStorageInfoText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.serviceProviders'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.serviceProvidersText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.supabaseInfo'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.supabaseInfoText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasures'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresBullet1'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresBullet2'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresBullet3'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresBullet4'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.securityMeasuresBullet5'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataUsage'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataUsageText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataUsageBullet1'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataUsageBullet2'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.dataUsageBullet3'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRights'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsBullet1'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsBullet2'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsBullet3'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsBullet4'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.userRightsBullet5'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.cookiesTracking'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.cookiesTrackingText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.childrenPrivacy'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.childrenPrivacyText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.changes'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.changesText'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.contact'
+    📁 Used in: (modal)\privacy.tsx
+  - privacy.contactText'
+    📁 Used in: (modal)\privacy.tsx
+  - common.deleteMultipleTasksConfirmation'
+    📁 Used in: (modal)\task-detail.tsx
+  - common.deleteTaskConfirmation'
+    📁 Used in: (modal)\task-detail.tsx
+  - common.deleteConfirmation'
+    📁 Used in: (modal)\task-detail.tsx, components\NoteCard.tsx
+  - notes.completed'
+    📁 Used in: (modal)\task-detail.tsx
+  - notes.addTask'
+    📁 Used in: (modal)\task-detail.tsx
+  - trash.selectNotesToDelete'
+    📁 Used in: (modal)\trash.tsx
+  - notes.confirmClearTrash'
+    📁 Used in: (modal)\trash.tsx
+  - notes.notesPermanentlyDeleted'
+    📁 Used in: (modal)\trash.tsx, (modal)\vault.tsx
+  - trash.deleteError'
+    📁 Used in: (modal)\trash.tsx
+  - trash.emptyTrashAlready'
+    📁 Used in: (modal)\trash.tsx
+  - notes.emptyTrashConfirmation'
+    📁 Used in: (modal)\trash.tsx
+  - notes.allNotesDeletedFromTrash'
+    📁 Used in: (modal)\trash.tsx
+  - notes.emptyTrashError'
+    📁 Used in: (modal)\trash.tsx
+  - notes.emptyTrash'
+    📁 Used in: (modal)\trash.tsx
+  - notes.restoreFromTrash'
+    📁 Used in: (modal)\trash.tsx
+  - notes.permanentlyDelete'
+    📁 Used in: (modal)\trash.tsx
+  - notes.trash'
+    📁 Used in: (modal)\trash.tsx, components\DrawerContent.tsx
+  - notes.emptyTrashMessage'
+    📁 Used in: (modal)\trash.tsx
+  - notes.security'
+    📁 Used in: (modal)\vault.tsx
+  - notes.autoLock'
+    📁 Used in: (modal)\vault.tsx
+  - notes.wrongPassword'
+    📁 Used in: (modal)\vault.tsx
+  - notes.biometricAuth'
+    📁 Used in: (modal)\vault.tsx
+  - notes.usePassword'
+    📁 Used in: (modal)\vault.tsx
+  - notes.selectNotesToMove'
+    📁 Used in: (modal)\vault.tsx
+  - notes.moveToNormal'
+    📁 Used in: (modal)\vault.tsx
+  - notes.moveToNormalConfirmation'
+    📁 Used in: (modal)\vault.tsx
+  - common.move'
+    📁 Used in: (modal)\vault.tsx
+  - notes.notesMovedToNormal'
+    📁 Used in: (modal)\vault.tsx
+  - notes.moveToNormalError'
+    📁 Used in: (modal)\vault.tsx
+  - notes.restoreNotes'
+    📁 Used in: (modal)\vault.tsx
+  - notes.restoreNotesConfirmation'
+    📁 Used in: (modal)\vault.tsx
+  - common.restore'
+    📁 Used in: (modal)\vault.tsx
+  - notes.notesCount'
+    📁 Used in: (modal)\vault.tsx, (tabs)\categories.tsx, (tabs)\favorites.tsx, (tabs)\index.tsx
+  - common.selected'
+    📁 Used in: (modal)\vault.tsx, (tabs)\categories.tsx, (tabs)\favorites.tsx, (tabs)\index.tsx
+  - notes.deleteNotes'
+    📁 Used in: (modal)\vault.tsx
+  - notes.deleteNotesConfirmation'
+    📁 Used in: (modal)\vault.tsx
+  - notes.deleteNotesError'
+    📁 Used in: (modal)\vault.tsx, (tabs)\index.tsx
+  - notes.vault'
+    📁 Used in: (modal)\vault.tsx
+  - notes.vaultPasswordRequired'
+    📁 Used in: (modal)\vault.tsx, (tabs)\index.tsx
+  - notes.vaultPasswordMessage'
+    📁 Used in: (modal)\vault.tsx
+  - settings.setPassword'
+    📁 Used in: (modal)\vault.tsx, (tabs)\index.tsx, (tabs)\settings.tsx
+  - notes.secureArea'
+    📁 Used in: (modal)\vault.tsx
+  - notes.authenticationRequired'
+    📁 Used in: (modal)\vault.tsx
+  - notes.enterPassword'
+    📁 Used in: (modal)\vault.tsx
+  - notes.unlockVault'
+    📁 Used in: (modal)\vault.tsx
+  - notes.unlockWithFingerprint'
+    📁 Used in: (modal)\vault.tsx
+  - notes.emptyVault'
+    📁 Used in: (modal)\vault.tsx
+  - notes.emptyVaultMessage'
+    📁 Used in: (modal)\vault.tsx
+  - notes.emptyCategoryError'
+    📁 Used in: (tabs)\categories.tsx, components\CategoryInputModal.tsx
+  - notes.editCategoryError'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.willBeRemoved'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.deleteCategories'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.deleteCategoriesConfirmation'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.categories'
+    📁 Used in: (tabs)\categories.tsx, (tabs)\_layout.tsx, components\DrawerContent.tsx
+  - common.active'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.lastUpdate'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.emptyCategories'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.addCategory'
+    📁 Used in: (tabs)\categories.tsx, components\CategoryInputModal.tsx
+  - notes.allNotes'
+    📁 Used in: (tabs)\categories.tsx, (tabs)\index.tsx, components\DrawerContent.tsx
+  - notes.emptyCategoryMessage'
+    📁 Used in: (tabs)\categories.tsx, (tabs)\index.tsx, components\EmptyState.tsx
+  - notes.createCategory'
+    📁 Used in: (tabs)\categories.tsx
+  - notes.selectNotesToUnfavorite'
+    📁 Used in: (tabs)\favorites.tsx
+  - notes.notesRemovedFromFavorites'
+    📁 Used in: (tabs)\favorites.tsx
+  - notes.favoriteUpdateError'
+    📁 Used in: (tabs)\favorites.tsx, (tabs)\index.tsx
+  - notes.emptyFavorites'
+    📁 Used in: (tabs)\favorites.tsx, components\EmptyState.tsx
+  - notes.emptyFavoritesMessage'
+    📁 Used in: (tabs)\favorites.tsx, components\EmptyState.tsx
+  - notes.favorites'
+    📁 Used in: (tabs)\favorites.tsx, (tabs)\_layout.tsx, components\DrawerContent.tsx
+  - notes.lastEdit'
+    📁 Used in: (tabs)\favorites.tsx, (tabs)\index.tsx
+  - common.dateNewest'
+    📁 Used in: (tabs)\index.tsx
+  - common.dateOldest'
+    📁 Used in: (tabs)\index.tsx
+  - common.titleAZ'
+    📁 Used in: (tabs)\index.tsx
+  - common.titleZA'
+    📁 Used in: (tabs)\index.tsx
+  - notes.allNotesDeleted'
+    📁 Used in: (tabs)\index.tsx
+  - notes.selectNotesToShare'
+    📁 Used in: (tabs)\index.tsx
+  - notes.shareError'
+    📁 Used in: (tabs)\index.tsx
+  - notes.selectNotesToFavorite'
+    📁 Used in: (tabs)\index.tsx
+  - notes.favoriteUpdated'
+    📁 Used in: (tabs)\index.tsx
+  - notes.selectNotesToArchive'
+    📁 Used in: (tabs)\index.tsx
+  - notes.notesArchived'
+    📁 Used in: (tabs)\index.tsx
+  - notes.archiveError'
+    📁 Used in: (tabs)\index.tsx
+  - notes.selectNotesToVault'
+    📁 Used in: (tabs)\index.tsx
+  - notes.encryptionNotAvailable'
+    📁 Used in: (tabs)\index.tsx
+  - notes.moveToVaultConfirmation'
+    📁 Used in: (tabs)\index.tsx
+  - common.confirm'
+    📁 Used in: (tabs)\index.tsx
+  - notes.notesMovedToVault'
+    📁 Used in: (tabs)\index.tsx
+  - notes.moveToVaultErrorWithRollback'
+    📁 Used in: (tabs)\index.tsx
+  - notes.criticalError'
+    📁 Used in: (tabs)\index.tsx
+  - notes.moveToVaultError'
+    📁 Used in: (tabs)\index.tsx
+  - notes.categoryNotFound'
+    📁 Used in: (tabs)\index.tsx
+  - notes.notesNotFound'
+    📁 Used in: (tabs)\index.tsx, components\EmptyState.tsx
+  - notes.emptyNotesMessage'
+    📁 Used in: (tabs)\index.tsx, components\EmptyState.tsx
+  - notes.selectionHint'
+    📁 Used in: (tabs)\index.tsx
+  - aiAssistant.analyzeMultipleNotes'
+    📁 Used in: (tabs)\index.tsx, components\NoteAIAnalyzer.tsx
+  - notes.title'
+    📁 Used in: (tabs)\index.tsx
+  - common.notAvailable'
+    📁 Used in: (tabs)\index.tsx, (tabs)\settings.tsx
+  - notes.emptyNotes'
+    📁 Used in: (tabs)\index.tsx, components\EmptyState.tsx
+  - common.sortBy'
+    📁 Used in: (tabs)\index.tsx
+  - settings.loginRequiredForBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - common.noLocalNotesToBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.backupSuccess'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.backupError'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.loginRequiredForRestore'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.restoreSuccess'
+    📁 Used in: (tabs)\settings.tsx, utils\backup.tsx
+  - settings.restoreError'
+    📁 Used in: (tabs)\settings.tsx, utils\backup.tsx
+  - settings.passwordMinLength'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordUppercase'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordLowercase'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordNumbers'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordSpecialChar'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.currentPasswordRequired'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.newPasswordRequired'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordsDoNotMatch'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.invalidPassword'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordRequirements'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.wrongCurrentPassword'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordUpdated'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordUpdateError'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.cannotRemovePasswordWithNotes'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.cannotVerifyVault'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordRemoved'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordRemoveError'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.userIdNotFound'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.generalError'
+    📁 Used in: (tabs)\settings.tsx
+  - common.noCloudBackupsFound'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.confirmCloudDataDelete'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.cloudBackupDeleteError'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.cloudBackupDeleteSuccess'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.repairBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.repairBackupConfirmation'
+    📁 Used in: (tabs)\settings.tsx
+  - common.repair'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.notLoggedIn'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.noBackupFound'
+    📁 Used in: (tabs)\settings.tsx, utils\backup.tsx
+  - settings.backupRepaired'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.corruptionDetected'
+    📁 Used in: (tabs)\settings.tsx
+  - common.info'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.backupHealthy'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.repairError'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.selectFont'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.systemFont'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.selectLanguage'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.removePassword'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.lockNotes'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.changePassword'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.newPassword'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.securityAlert'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.passwordExpired'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.later'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.changeNow'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.loginRequiredForProfileImage'
+    📁 Used in: (tabs)\settings.tsx
+  - common.noInternetConnection'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.cameraPermissionDenied'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.imageUploadFailed'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.profileImageUpdated'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.removeProfileImage'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.removeProfileImageConfirm'
+    📁 Used in: (tabs)\settings.tsx
+  - common.remove'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.profileUpdateFailed'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.profileImageRemoved'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.guestUser'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.signInToSync'
+    📁 Used in: (tabs)\settings.tsx
+  - common.login'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.removePhoto'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.themeMode'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.light'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.dark'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.system'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.themeColor'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.currentTheme'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.fontSize'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.${fontSizes[fontSize].id}`
+    📁 Used in: (tabs)\settings.tsx
+  - common.appName'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.${size.id}`
+    📁 Used in: (tabs)\settings.tsx
+  - settings.fontFamily'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.backup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.autoBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.lastBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.autoBackupDescription'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.realTimeBackupDescription'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.backupNow'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.restoreFromBackup'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.clearAllData'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.security'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.language'
+    📁 Used in: (tabs)\settings.tsx
+  - drawer.loginOption'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.signOut'
+    📁 Used in: (tabs)\settings.tsx
+  - settings.confirmSignOut'
+    📁 Used in: (tabs)\settings.tsx
+  - auth.logoutError'
+    📁 Used in: (tabs)\settings.tsx
+  - notes.taskLists'
+    📁 Used in: (tabs)\tasks.tsx, (tabs)\_layout.tsx
+  - notes.noTasksYet'
+    📁 Used in: (tabs)\tasks.tsx
+  - notes.myNotes'
+    📁 Used in: (tabs)\_layout.tsx
+  - notes.newNote'
+    📁 Used in: (tabs)\_layout.tsx
+  - notes.tasks'
+    📁 Used in: (tabs)\_layout.tsx, components\DrawerContent.tsx
+  - settings.settings'
+    📁 Used in: (tabs)\_layout.tsx
+  - tabs.performance'
+    📁 Used in: (tabs)\_layout.tsx
+  - notes.searchNotes'
+    📁 Used in: (tabs)\_layout.tsx
+  - Ask your AI assistant...'
+    📁 Used in: components\AIAssistant.tsx
+  - notes.categoryTooShort'
+    📁 Used in: components\CategoryInputModal.tsx
+  - notes.editCategory'
+    📁 Used in: components\CategoryInputModal.tsx
+  - notes.editCategoryDescription'
+    📁 Used in: components\CategoryInputModal.tsx
+  - notes.addCategoryDescription'
+    📁 Used in: components\CategoryInputModal.tsx
+  - notes.categoryName'
+    📁 Used in: components\CategoryInputModal.tsx
+  - notes.categoryPlaceholder'
+    📁 Used in: components\CategoryInputModal.tsx
+  - common.charactersRemaining'
+    📁 Used in: components\CategoryInputModal.tsx
+  - common.saving'
+    📁 Used in: components\CategoryInputModal.tsx
+  - common.update'
+    📁 Used in: components\CategoryInputModal.tsx
+  - drawer.notes'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.tasks'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.categories'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.favorites'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.vault'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.archive'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.trash'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.settings'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.about'
+    📁 Used in: components\CustomDrawer.tsx
+  - drawer.aiChat'
+    📁 Used in: components\CustomDrawer.tsx
+  - notes.emptyCategoryNotes'
+    📁 Used in: components\EmptyState.tsx
+  - notes.createNote'
+    📁 Used in: components\EmptyState.tsx
+  - common.copied'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.copiedToClipboard'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.error'
+    📁 Used in: components\NoteAIAnalyzer.tsx, hooks\useNotesWithAI.tsx
+  - aiAssistant.noResponse'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.analyzeNote'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.generateIdeas'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.customPrompt'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.enterPrompt'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.suggestions'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.summarizeNote'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.summarizeNoteDesc'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.extractMainIdeas'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.extractMainIdeasDesc'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.expandTopic'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.expandTopicDesc'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.listKeywords'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.listKeywordsDesc'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.aiResponse'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - aiAssistant.analyze'
+    📁 Used in: components\NoteAIAnalyzer.tsx
+  - notes.permanentDeleteError'
+    📁 Used in: components\NoteCard.tsx
+  - common.today'
+    📁 Used in: components\NoteCard.tsx
+  - common.yesterday'
+    📁 Used in: components\NoteCard.tsx
+  - notes.minuteRead'
+    📁 Used in: components\NoteCard.tsx
+  - common.imageError'
+    📁 Used in: components\NoteCard.tsx
+  - common.offlineTitle'
+    📁 Used in: components\OfflineFallbackScreen.tsx
+  - common.retryConnection'
+    📁 Used in: components\OfflineFallbackScreen.tsx
+  - common.offlineMessage'
+    📁 Used in: components\OfflineFallbackScreen.tsx
+  - common.networkFailedMessage'
+    📁 Used in: components\OfflineNotice.tsx
+  - error.title'
+    📁 Used in: components\OfflineScreen.tsx
+  - offline.title'
+    📁 Used in: components\OfflineScreen.tsx
+  - error.message'
+    📁 Used in: components\OfflineScreen.tsx
+  - offline.message'
+    📁 Used in: components\OfflineScreen.tsx
+  - common.retry'
+    📁 Used in: components\OfflineScreen.tsx
+  - offline.continueOffline'
+    📁 Used in: components\OfflineScreen.tsx
+  - onboarding.welcome'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.welcomeDesc'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.welcomeAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.notes'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.notesDesc'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.notesAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.security'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.securityDesc'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.securityAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.sync'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.syncDesc'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.syncAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.iconLabel'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.pageIndicator'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.dotIndicator'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.screenTitle'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.skipAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.skipHint'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.skip'
+    📁 Used in: components\OnboardingSlides.tsx
+  - onboarding.slidesList'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.previousAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.getStartedAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.nextAccessibility'
+    📁 Used in: components\OnboardingSlides.tsx
+  - common.getStarted'
+    📁 Used in: components\OnboardingSlides.tsx
+  - aiAssistant.qwenAiError'
+    📁 Used in: hooks\useNotesWithAI.tsx
+  - notes.noteNotFound'
+    📁 Used in: hooks\useNotesWithAI.tsx
+  - settings.backupDatabaseError'
+    📁 Used in: utils\backup.tsx
+  - settings.restoreMergeSuccess'
+    📁 Used in: utils\backup.tsx
+  - settings.specificBackupNotFound'
+    📁 Used in: utils\backup.tsx
+  - settings.multipleBackupSameDate'
+    📁 Used in: utils\backup.tsx
+  - fonts.sizes.small'
+    📁 Used in: utils\fonts.tsx
+  - fonts.sizes.medium'
+    📁 Used in: utils\fonts.tsx
+  - fonts.sizes.large'
+    📁 Used in: utils\fonts.tsx
+  - fonts.sizes.xlarge'
+    📁 Used in: utils\fonts.tsx
+  - fonts.families.system'
+    📁 Used in: utils\fonts.tsx
+  - fonts.families.caveatBrush'
+    📁 Used in: utils\fonts.tsx
+  - fonts.families.montserrat'
+    📁 Used in: utils\fonts.tsx
+  - fonts.families.openSans'
+    📁 Used in: utils\fonts.tsx
+  - fonts.families.roboto'
+    📁 Used in: utils\fonts.tsx
+  - common.language'
+    📁 Used in: _layout.tsx
+  - settings.autoBackupCompleted'
+    📁 Used in: _layout.tsx
+
+📁 de.tsx (169 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - privacy.endToEndEncryption
+  - privacy.endToEndEncryptionText
+  - privacy.serviceProviders
+  - privacy.serviceProvidersText
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.dataStorage
+  - privacy.dataStorageText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRights
+  - privacy.userRightsText
+  - privacy.userRightsBullet1
+  - privacy.userRightsBullet2
+  - privacy.userRightsBullet3
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasures
+  - privacy.securityMeasuresText
+  - privacy.securityMeasuresBullet1
+  - privacy.securityMeasuresBullet2
+  - privacy.securityMeasuresBullet3
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 fr.tsx (148 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 zh.tsx (159 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 es.tsx (151 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.selectFont
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.autoBackup
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 ru.tsx (154 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.cannotRemovePasswordWithNotes
+  - settings.cannotVerifyVault
+  - settings.clearAllData
+  - settings.confirmClearAllData
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 ar.tsx (147 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.login
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 hi.tsx (178 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.googleLoginError
+  - auth.googleRegisterError
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+  - aiAssistant.thinking
+  - aiAssistant.poemMode
+  - aiAssistant.briefMode
+  - aiAssistant.defaultMode
+  - aiAssistant.retry
+  - aiAssistant.imageUploaded
+  - aiAssistant.cameraPermissionDenied
+  - aiAssistant.uploadImage
+  - aiAssistant.analyzeImage
+  - aiAssistant.qwenAiError
+  - aiAssistant.analyze
+  - aiAssistant.analyzeNote
+  - aiAssistant.analyzeMultipleNotes
+  - aiAssistant.generateIdeas
+  - aiAssistant.enterPrompt
+  - aiAssistant.aiResponse
+  - aiAssistant.summarizeNote
+  - aiAssistant.extractMainIdeas
+  - aiAssistant.expandTopic
+  - aiAssistant.listKeywords
+  - aiAssistant.compareNotesDefault
+
+📁 pt.tsx (150 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 ja.tsx (162 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - about.website
+  - about.rate
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+📁 ko.tsx (156 missing keys):
+  - common.update
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.active
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.add
+  - common.remove
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.openEmail
+  - auth.backToRequestReset
+  - notes.editCategoryDescription
+  - notes.categoryTooShort
+  - notes.editCategoryError
+  - notes.restoreNotesConfirmation
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.repairError
+  - settings.restoreMergeSuccess
+  - settings.autoBackupCompleted
+  - settings.confirmCloudDataDelete
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.aiChat
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+
+⚠️  UNUSED KEYS IN ENGLISH TRANSLATION:
+(716 keys that might be unused):
+  - common.appName
+  - common.cancel
+  - common.save
+  - common.update
+  - common.delete
+  - common.edit
+  - common.close
+  - common.confirm
+  - common.saving
+  - common.charactersRemaining
+  - common.repair
+  - common.goBack
+  - common.readingMode
+  - common.editMode
+  - common.warning
+  - common.error
+  - common.success
+  - common.info
+  - common.search
+  - common.filter
+  - common.reset
+  - common.notAvailable
+  - common.sortBy
+  - common.dateNewest
+  - common.dateOldest
+  - common.alphabetical
+  - common.reverseAlphabetical
+  - common.titleAZ
+  - common.titleZA
+  - common.menu
+  - common.share
+  - common.create
+  - common.all
+  - common.selected
+  - common.active
+  - common.archive
+  - common.unarchive
+  - common.favorite
+  - common.unfavorite
+  - common.trash
+  - common.selectAll
+  - common.unselectAll
+  - common.deleteConfirmation
+  - common.deleteTaskConfirmation
+  - common.deleteMultipleTasksConfirmation
+  - common.move
+  - common.default
+  - common.appDescription
+  - common.ok
+  - common.today
+  - common.yesterday
+  - common.restore
+  - common.checkYourEmail
+  - common.verificationSent
+  - common.loading
+  - common.skip
+  - common.getStarted
+  - common.skipAccessibility
+  - common.previousAccessibility
+  - common.nextAccessibility
+  - common.getStartedAccessibility
+  - common.language
+  - common.login
+  - common.noLocalNotesToBackup
+  - common.noCloudBackupsFound
+  - common.add
+  - common.remove
+  - common.networkFailed
+  - common.networkFailedMessage
+  - common.checkingConnection
+  - common.checkingConnectionTitle
+  - common.cellularNoData
+  - common.cellularNoDataTitle
+  - common.dismiss
+  - common.tryAgain
+  - common.offline
+  - common.connectionType
+  - common.offlineTitle
+  - common.offlineMessage
+  - common.retryConnection
+  - common.copy
+  - common.copied
+  - auth.login
+  - auth.register
+  - auth.logout
+  - auth.email
+  - auth.password
+  - auth.confirmPassword
+  - auth.forgotPassword
+  - auth.loginError
+  - auth.registerError
+  - auth.logoutError
+  - auth.passwordsMustMatch
+  - auth.fillAllFields
+  - auth.anonymousLogin
+  - auth.continueWithoutAccount
+  - auth.or
+  - auth.continueWithGoogle
+  - auth.displayName
+  - auth.createAccountDesc
+  - auth.registerWithGoogle
+  - auth.alreadyHaveAccount
+  - auth.resetPassword
+  - auth.resetPasswordDesc
+  - auth.resetMyPassword
+  - auth.enterEmail
+  - auth.resetPasswordLinkSent
+  - auth.linkSent
+  - auth.backToLogin
+  - auth.googleLoginCancelled
+  - auth.googleRegisterCancelled
+  - auth.googleLoginError
+  - auth.googleRegisterError
+  - auth.guestLoginError
+  - auth.processingSignIn
+  - auth.notLoggedIn
+  - auth.loginRequired
+  - auth.googleAuthNotReady
+  - auth.invalidRedirectUri
+  - auth.googleAuthMaintenance
+  - auth.googleAuthMaintenanceMessage
+  - auth.googleRegisterMaintenance
+  - auth.googleRegisterMaintenanceMessage
+  - auth.understood
+  - auth.emailVerification
+  - auth.emailVerificationMsg
+  - auth.passwordResetEmail
+  - auth.passwordResetEmailSent
+  - auth.resetPasswordError
+  - auth.updatePassword
+  - auth.updatePasswordDesc
+  - auth.newPassword
+  - auth.enterNewPassword
+  - auth.passwordTooShort
+  - auth.passwordsDoNotMatch
+  - auth.passwordUpdated
+  - auth.passwordUpdatedSuccess
+  - auth.updatePasswordError
+  - auth.redirectingToPasswordReset
+  - auth.enterResetCode
+  - auth.resetCodeDesc
+  - auth.recoveryToken
+  - auth.enterToken
+  - auth.passwordRecoveryInstructions
+  - auth.openEmail
+  - auth.backToRequestReset
+  - auth.passwordRecoveryTitle
+  - auth.passwordRecoverySubtitle
+  - auth.passwordRecoveryMessage
+  - auth.passwordRecoveryEmail
+  - auth.backToLoginButton
+  - auth.contactInfo
+  - auth.contactEmailMessage
+  - notes.title
+  - notes.newNote
+  - notes.categories
+  - notes.categoryName
+  - notes.categoryPlaceholder
+  - notes.addCategory
+  - notes.addCategoryDescription
+  - notes.editCategory
+  - notes.editCategoryDescription
+  - notes.deleteCategory
+  - notes.categoryTooShort
+  - notes.createFirstNote
+  - notes.emptyNotes
+  - notes.emptyCategory
+  - notes.notFound
+  - notes.noteTitle
+  - notes.noteContent
+  - notes.save
+  - notes.delete
+  - notes.edit
+  - notes.moveToTrash
+  - notes.deleteForever
+  - notes.restore
+  - notes.cancel
+  - notes.search
+  - notes.searchNotes
+  - notes.noResults
+  - notes.confirmDelete
+  - notes.confirmDeleteCategory
+  - notes.categoryDeleted
+  - notes.noteDeleted
+  - notes.noteSaved
+  - notes.noteMoved
+  - notes.noteRestored
+  - notes.moveToCategory
+  - notes.chooseCategory
+  - notes.noCategory
+  - notes.favorites
+  - notes.addToFavorites
+  - notes.removeFromFavorites
+  - notes.archives
+  - notes.archivedNotes
+  - notes.archive
+  - notes.emptyArchive
+  - notes.trash
+  - notes.trashNotes
+  - notes.emptyTrash
+  - notes.clearTrash
+  - notes.confirmClearTrash
+  - notes.trashCleared
+  - notes.moveToArchive
+  - notes.minuteRead
+  - notes.tags
+  - notes.addTag
+  - notes.filterByTag
+  - notes.noTags
+  - notes.myNotes
+  - notes.editNote
+  - notes.category
+  - notes.selectCategory
+  - notes.categoryTooLong
+  - notes.fillAllFields
+  - notes.deleteNoteConfirmation
+  - notes.deleteCategoryConfirmation
+  - notes.deleteCategoryError
+  - notes.addCategoryError
+  - notes.editCategoryError
+  - notes.emptyCategoryError
+  - notes.emptyTaskListError
+  - notes.willBeRemoved
+  - notes.color
+  - notes.emptyNotesMessage
+  - notes.emptyCategories
+  - notes.emptyFavorites
+  - notes.emptyFavoritesMessage
+  - notes.emptyArchiveMessage
+  - notes.emptyTrashMessage
+  - notes.noteArchived
+  - notes.notesArchived
+  - notes.archiveError
+  - notes.favoriteUpdated
+  - notes.favoriteUpdateError
+  - notes.selectNotesToUnfavorite
+  - notes.notesRemovedFromFavorites
+  - notes.allNotesDeleted
+  - notes.allNotesDeletedFromTrash
+  - notes.allNotesDeletedLocalOnly
+  - notes.deleteNotesError
+  - notes.shareError
+  - notes.selectNotesToShare
+  - notes.selectNotesToArchive
+  - notes.selectNotesToTrash
+  - notes.selectNotesToFavorite
+  - notes.selectNotesToVault
+  - notes.moveToTrashConfirmation
+  - notes.moveToVaultConfirmation
+  - notes.notesMovedToTrash
+  - notes.moveToTrashError
+  - notes.notesMovedToVault
+  - notes.moveToVaultError
+  - notes.allNotes
+  - notes.notesCount
+  - notes.createNote
+  - notes.tasks
+  - notes.taskLists
+  - notes.newTask
+  - notes.editTask
+  - notes.completeTask
+  - notes.incompleteTask
+  - notes.newTaskList
+  - notes.editTaskList
+  - notes.noTasksYet
+  - notes.addTask
+  - notes.taskName
+  - notes.taskDescription
+  - notes.completed
+  - notes.markdownEditor
+  - notes.heading1
+  - notes.heading2
+  - notes.heading3
+  - notes.bold
+  - notes.italic
+  - notes.list
+  - notes.numberedList
+  - notes.link
+  - notes.code
+  - notes.quote
+  - notes.image
+  - notes.readingModeEditing
+  - notes.unsavedChanges
+  - notes.markAsFavorite
+  - notes.unmarkAsFavorite
+  - notes.shareNotes
+  - notes.selectionHint
+  - notes.selected
+  - notes.restoreFromArchive
+  - notes.selectNotesToRestore
+  - notes.restoreNotesConfirmation
+  - notes.notesRestored
+  - notes.restoreError
+  - notes.emptyTrashConfirmation
+  - notes.deleteAll
+  - notes.permanentlyDelete
+  - notes.trashEmptied
+  - notes.emptyTrashError
+  - notes.deleteNotes
+  - notes.deleteNotesConfirmation
+  - notes.notesPermanentlyDeleted
+  - notes.restoreFromTrash
+  - notes.vault
+  - notes.security
+  - notes.autoLock
+  - notes.wrongPassword
+  - notes.biometricAuth
+  - notes.usePassword
+  - notes.selectNotesToMove
+  - notes.moveToNormal
+  - notes.moveToNormalConfirmation
+  - notes.notesMovedToNormal
+  - notes.moveToNormalError
+  - notes.vaultPasswordRequired
+  - notes.vaultPasswordMessage
+  - notes.secureArea
+  - notes.authenticationRequired
+  - notes.enterPassword
+  - notes.unlockVault
+  - notes.unlockWithFingerprint
+  - notes.emptyVault
+  - notes.emptyVaultMessage
+  - notes.notesNotFound
+  - notes.categoryNotFound
+  - notes.emptyCategoryMessage
+  - notes.emptyCategoryNotes
+  - notes.lastEdit
+  - notes.lastUpdate
+  - notes.restoreNotes
+  - notes.createCategory
+  - notes.deleteCategories
+  - notes.deleteCategoriesConfirmation
+  - notes.categoryCount
+  - notes.encryptionNotAvailable
+  - notes.moveToVaultErrorWithRollback
+  - notes.criticalError
+  - settings.title
+  - settings.settings
+  - settings.theme
+  - settings.themeMode
+  - settings.themeColor
+  - settings.currentTheme
+  - settings.fontSize
+  - settings.fontFamily
+  - settings.systemFont
+  - settings.appearance
+  - settings.light
+  - settings.dark
+  - settings.system
+  - settings.accentColor
+  - settings.small
+  - settings.medium
+  - settings.large
+  - settings.xlarge
+  - settings.selectFont
+  - settings.sampleText
+  - settings.fontSizePreview
+  - settings.autoBackup
+  - settings.autoBackupDescription
+  - settings.realTimeBackupDescription
+  - settings.lastBackup
+  - settings.backupNow
+  - settings.backupSuccess
+  - settings.backupError
+  - settings.restoreFromBackup
+  - settings.repairBackup
+  - settings.repairBackupConfirmation
+  - settings.corruptionDetected
+  - settings.backupRepaired
+  - settings.backupHealthy
+  - settings.repairError
+  - settings.restoreConfirmTitle
+  - settings.restoreConfirmMessage
+  - settings.restoreSuccess
+  - settings.restoreError
+  - settings.restoreMergeSuccess
+  - settings.noBackupFound
+  - settings.backupDatabaseError
+  - settings.specificBackupNotFound
+  - settings.multipleBackupSameDate
+  - settings.loginRequiredForBackup
+  - settings.loginRequiredForRestore
+  - settings.autoBackupCompleted
+  - settings.security
+  - settings.language
+  - settings.selectLanguage
+  - settings.useAppPassword
+  - settings.changePassword
+  - settings.setPassword
+  - settings.noteEncryption
+  - settings.noteEncryptionDescription
+  - settings.vaultAvailable
+  - settings.turkish
+  - settings.english
+  - settings.backup
+  - settings.lockNotes
+  - settings.removePassword
+  - settings.newPassword
+  - settings.biometricAuth
+  - settings.guestUser
+  - settings.signInToSync
+  - settings.about
+  - settings.version
+  - settings.buildDate
+  - settings.account
+  - settings.profile
+  - settings.displayName
+  - settings.notifications
+  - settings.signOut
+  - settings.confirmSignOut
+  - settings.currentPasswordRequired
+  - settings.newPasswordRequired
+  - settings.invalidPassword
+  - settings.passwordRequirements
+  - settings.wrongCurrentPassword
+  - settings.passwordUpdated
+  - settings.passwordUpdateError
+  - settings.securityAlert
+  - settings.passwordExpired
+  - settings.later
+  - settings.changeNow
+  - settings.passwordMinLength
+  - settings.passwordUppercase
+  - settings.passwordLowercase
+  - settings.passwordNumbers
+  - settings.passwordSpecialChar
+  - settings.passwordRemoved
+  - settings.passwordRemoveError
+  - settings.cannotRemovePasswordWithNotes
+  - settings.cannotVerifyVault
+  - settings.clearAllData
+  - settings.confirmClearAllData
+  - settings.confirmCloudDataDelete
+  - settings.cloudBackupDeleteError
+  - settings.cloudBackupDeleteSuccess
+  - settings.userIdNotFound
+  - settings.generalError
+  - settings.reset
+  - settings.resetConfirmation
+  - settings.resetSuccess
+  - settings.resetError
+  - settings.setVaultPassword
+  - settings.removeVaultPassword
+  - settings.currentPassword
+  - settings.confirmPassword
+  - settings.loginRequiredForProfileImage
+  - settings.cameraPermissionDenied
+  - settings.imageUploadFailed
+  - settings.profileUpdateFailed
+  - settings.profileImageUpdated
+  - settings.removeProfileImage
+  - settings.removeProfileImageConfirm
+  - settings.profileImageRemoved
+  - settings.profileImageCached
+  - settings.profileImageCacheCleared
+  - settings.removePhoto
+  - settings.noInternetConnection
+  - drawer.home
+  - drawer.tasks
+  - drawer.vault
+  - drawer.settings
+  - drawer.trash
+  - drawer.archive
+  - drawer.about
+  - drawer.logout
+  - drawer.loginOption
+  - drawer.notes
+  - drawer.categories
+  - drawer.favorites
+  - drawer.aiChat
+  - about.pageTitle
+  - about.version
+  - about.features
+  - about.contactSocial
+  - about.showMore
+  - about.showLess
+  - about.privacyPolicy
+  - about.madeWith
+  - about.appDescription
+  - about.noteFeature
+  - about.noteFeatureDesc
+  - about.vaultFeature
+  - about.vaultFeatureDesc
+  - about.customizationFeature
+  - about.customizationFeatureDesc
+  - about.categoriesFeature
+  - about.categoriesFeatureDesc
+  - about.archiveFeature
+  - about.archiveFeatureDesc
+  - about.searchFeature
+  - about.searchFeatureDesc
+  - about.favoritesFeature
+  - about.favoritesFeatureDesc
+  - about.trashFeature
+  - about.trashFeatureDesc
+  - about.cloudFeature
+  - about.cloudFeatureDesc
+  - about.languageFeature
+  - about.languageFeatureDesc
+  - about.linkedin
+  - about.instagram
+  - about.github
+  - about.email
+  - about.buildDate
+  - about.website
+  - about.rate
+  - privacy.pageTitle
+  - privacy.lastUpdated
+  - privacy.overview
+  - privacy.overviewText
+  - privacy.dataCollected
+  - privacy.dataCollectedText
+  - privacy.dataSecurity
+  - privacy.dataSecurityText
+  - privacy.dataUsage
+  - privacy.dataUsageText
+  - privacy.dataUsageBullet1
+  - privacy.dataUsageBullet2
+  - privacy.dataUsageBullet3
+  - privacy.cookiesTracking
+  - privacy.cookiesTrackingText
+  - privacy.childrenPrivacy
+  - privacy.childrenPrivacyText
+  - privacy.changes
+  - privacy.changesText
+  - privacy.contact
+  - privacy.contactText
+  - privacy.copyright
+  - privacy.endToEndEncryption
+  - privacy.endToEndEncryptionText
+  - privacy.serviceProviders
+  - privacy.serviceProvidersText
+  - privacy.supabaseInfo
+  - privacy.supabaseInfoText
+  - privacy.dataStorage
+  - privacy.dataStorageText
+  - privacy.localStorageInfo
+  - privacy.localStorageInfoText
+  - privacy.cloudStorageInfo
+  - privacy.cloudStorageInfoText
+  - privacy.userRights
+  - privacy.userRightsText
+  - privacy.userRightsBullet1
+  - privacy.userRightsBullet2
+  - privacy.userRightsBullet3
+  - privacy.userRightsBullet4
+  - privacy.userRightsBullet5
+  - privacy.securityMeasures
+  - privacy.securityMeasuresText
+  - privacy.securityMeasuresBullet1
+  - privacy.securityMeasuresBullet2
+  - privacy.securityMeasuresBullet3
+  - privacy.securityMeasuresBullet4
+  - privacy.securityMeasuresBullet5
+  - colors.default
+  - colors.red
+  - colors.pink
+  - colors.purple
+  - colors.deepPurple
+  - colors.indigo
+  - colors.blue
+  - colors.lightBlue
+  - colors.cyan
+  - colors.teal
+  - colors.green
+  - colors.lightGreen
+  - colors.lime
+  - colors.yellow
+  - colors.amber
+  - colors.orange
+  - colors.deepOrange
+  - colors.brown
+  - colors.grey
+  - colors.blueGrey
+  - colors.turquoise
+  - colors.emerald
+  - colors.peterRiver
+  - colors.amethyst
+  - colors.wetAsphalt
+  - colors.sunFlower
+  - colors.carrot
+  - colors.alizarin
+  - colors.crimson
+  - colors.hotPink
+  - colors.skyBlue
+  - colors.slateBlue
+  - colors.magenta
+  - colors.forestGreen
+  - colors.gold
+  - colors.orchid
+  - colors.pastelPink
+  - colors.pastelBlue
+  - colors.pastelGreen
+  - colors.pastelPurple
+  - colors.pastelYellow
+  - colors.pastelOrange
+  - colors.silver
+  - colors.bronze
+  - colors.platinum
+  - colors.copper
+  - colors.leafGreen
+  - colors.oceanBlue
+  - colors.sandBeige
+  - colors.sunsetOrange
+  - colors.skyAzure
+  - colors.roseWood
+  - colors.neonPink
+  - colors.electricBlue
+  - colors.neonGreen
+  - colors.brightYellow
+  - colors.neonOrange
+  - colors.vividPurple
+  - colors.vintageRose
+  - colors.vintageSeafoam
+  - colors.vintageMustard
+  - colors.vintageNavy
+  - colors.retroTeal
+  - colors.retroOrange
+  - colors.retroPink
+  - colors.retroPurple
+  - colors.galaxyPurple
+  - colors.cosmicBlue
+  - colors.nebulaPink
+  - colors.marsRed
+  - colors.sunsetGradient
+  - colors.blueLagoon
+  - colors.cherryBlossom
+  - colors.flamingo
+  - colors.tangerine
+  - colors.terracotta
+  - colors.mint
+  - colors.aqua
+  - colors.iceBlue
+  - colors.periwinkle
+  - colors.dragonFruit
+  - colors.mango
+  - colors.pistachio
+  - colors.acai
+  - errors.storage.getNotes
+  - errors.storage.noteNotFound
+  - errors.storage.updateError
+  - errors.storage.deleteError
+  - errors.storage.favoriteError
+  - errors.storage.archiveError
+  - errors.storage.trashError
+  - errors.storage.restoreError
+  - errors.storage.getCategoriesError
+  - errors.storage.categoryExists
+  - errors.storage.categoryAddError
+  - errors.storage.categoryDeleteError
+  - errors.storage.getArchivedError
+  - errors.storage.getTrashError
+  - errors.storage.getFavoritesError
+  - fonts.sizes.small
+  - fonts.sizes.medium
+  - fonts.sizes.large
+  - fonts.sizes.xlarge
+  - fonts.families.system
+  - fonts.families.caveatBrush
+  - fonts.families.montserrat
+  - fonts.families.openSans
+  - fonts.families.roboto
+  - fonts.families.poppins
+  - fonts.families.poppinsBold
+  - fonts.families.raleway
+  - fonts.families.ralewayBold
+  - fonts.families.lato
+  - fonts.families.latoBold
+  - fonts.families.inter
+  - fonts.families.interBold
+  - aiAssistant.title
+  - aiAssistant.welcome
+  - aiAssistant.placeholder
+  - aiAssistant.thinking
+  - aiAssistant.error
+  - aiAssistant.poemMode
+  - aiAssistant.briefMode
+  - aiAssistant.defaultMode
+  - aiAssistant.retry
+  - aiAssistant.imageUploaded
+  - aiAssistant.cameraPermissionDenied
+  - aiAssistant.uploadImage
+  - aiAssistant.analyzeImage
+  - aiAssistant.qwenAiError
+  - aiAssistant.analyze
+  - aiAssistant.analyzeNote
+  - aiAssistant.analyzeMultipleNotes
+  - aiAssistant.generateIdeas
+  - aiAssistant.enterPrompt
+  - aiAssistant.suggestions
+  - aiAssistant.aiResponse
+  - aiAssistant.summarizeNote
+  - aiAssistant.extractMainIdeas
+  - aiAssistant.expandTopic
+  - aiAssistant.listKeywords
+  - aiAssistant.compareNotesDefault
+  - aiAssistant.customPrompt
+  - aiAssistant.copiedToClipboard
+  - onboarding.welcome
+  - onboarding.welcomeDesc
+  - onboarding.welcomeAccessibility
+  - onboarding.notes
+  - onboarding.notesDesc
+  - onboarding.notesAccessibility
+  - onboarding.security
+  - onboarding.securityDesc
+  - onboarding.securityAccessibility
+  - onboarding.sync
+  - onboarding.syncDesc
+  - onboarding.syncAccessibility
+  - onboarding.screenTitle
+  - onboarding.skipHint
+  - onboarding.pageIndicator
+  - onboarding.dotIndicator
+  - onboarding.iconLabel
+  - onboarding.slidesList
+✅ EN (en.tsx):
+   Total Keys: 716
+   Missing Keys: 0
+   Completion Rate: 100%
+
+✅ TR (tr.tsx):
+   Total Keys: 748
+   Missing Keys: 0
+   Completion Rate: 100%
+
+❌ AR (ar.tsx):
+   Total Keys: 583
+   Missing Keys: 147
+   Completion Rate: 79.5%
+
+❌ FR (fr.tsx):
+   Total Keys: 580
+   Missing Keys: 148
+   Completion Rate: 79.3%
+
+❌ PT (pt.tsx):
+   Total Keys: 576
+   Missing Keys: 150
+   Completion Rate: 79.1%
+
+❌ ES (es.tsx):
+   Total Keys: 577
+   Missing Keys: 151
+   Completion Rate: 78.9%
+
+❌ RU (ru.tsx):
+   Total Keys: 574
+   Missing Keys: 154
+   Completion Rate: 78.5%
+
+❌ KO (ko.tsx):
+   Total Keys: 576
+   Missing Keys: 156
+   Completion Rate: 78.2%
+
+❌ ZH (zh.tsx):
+   Total Keys: 573
+   Missing Keys: 159
+   Completion Rate: 77.8%
+
+❌ JA (ja.tsx):
+   Total Keys: 572
+   Missing Keys: 162
+   Completion Rate: 77.4%
+
+❌ DE (de.tsx):
+   Total Keys: 587
+   Missing Keys: 169
+   Completion Rate: 76.4%
+
+❌ HI (hi.tsx):
+   Total Keys: 561
+   Missing Keys: 178
+   Completion Rate: 75.1%
+
+
+📊 SUMMARY:
+- English keys: 716
+- Used in code: 496
+- Missing from English: 496
+- Languages with missing keys: 10
+- Potentially unused: 716
+- Average completion rate: 81.7%
