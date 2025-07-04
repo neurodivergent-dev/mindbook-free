@@ -13,6 +13,7 @@ export default {
     warning: 'Avertissement',
     error: 'Erreur',
     success: 'Succès',
+    info: 'Information',
     search: 'Rechercher',
     filter: 'Filtrer',
     reset: 'Réinitialiser',
@@ -72,6 +73,8 @@ export default {
     tryAgain: 'Réessayer',
     offline: 'Hors ligne',
     connectionType: 'Type de connexion',
+    copy: 'Copier',
+    copied: 'Copié !',
   },
   auth: {
     login: 'Connexion',
@@ -144,15 +147,17 @@ export default {
     newNote: 'Nouvelle note',
     categories: 'Catégories',
     categoryName: 'Nom de la catégorie',
+    categoryPlaceholder: 'Entrez le nom de la catégorie...',
     addCategory: 'Ajouter une catégorie',
+    addCategoryDescription: 'Créez une nouvelle catégorie pour organiser vos notes',
     editCategory: 'Modifier la catégorie',
     deleteCategory: 'Supprimer la catégorie',
     createFirstNote: 'Créez votre première note',
     emptyNotes: 'Aucune note pour le moment',
     emptyCategory: 'Aucune note dans cette catégorie',
     notFound: 'Note non trouvée',
-    noteTitle: 'Titre de la note',
-    noteContent: 'Contenu de la note',
+    noteTitle: 'Ajoutez un titre à votre note',
+    noteContent: 'Écrivez le contenu de votre note ici',
     save: 'Enregistrer',
     delete: 'Supprimer',
     edit: 'Modifier',
@@ -205,6 +210,10 @@ export default {
       'Êtes-vous sûr de vouloir supprimer cette catégorie ? Cette action est irréversible et supprimera les informations de catégorie de toutes les notes associées.',
     deleteCategoryError: "Une erreur s'est produite lors de la suppression de la catégorie.",
     addCategoryError: "Une erreur s'est produite lors de l'ajout de la catégorie.",
+    emptyCategoryError:
+      'Le nom de la catégorie ne peut pas être vide. Veuillez entrer un nom valide.',
+    emptyTaskListError:
+      'Le nom de la liste de tâches ne peut pas être vide. Veuillez entrer un nom valide.',
     willBeRemoved: 'sera retiré de cette catégorie',
     color: 'Couleur',
     emptyNotesMessage: "Vous n'avez pas encore créé de notes.",
@@ -320,8 +329,15 @@ export default {
     notesNotFound: 'Aucune note trouvée',
     categoryNotFound: "la catégorie n'a pas de notes",
     emptyCategoryMessage: "Vous n'avez pas encore créé de notes dans cette catégorie.",
+    emptyCategoryNotes: 'Aucune note trouvée dans la catégorie {{category}}.',
     lastEdit: 'Dernière modification',
+    lastUpdate: 'Dernière mise à jour',
     restoreNotes: 'Restaurer les Notes',
+    encryptionNotAvailable:
+      "Le service de chiffrement n'est pas disponible. Veuillez vérifier votre connexion internet ou réessayer plus tard.",
+    moveToVaultErrorWithRollback:
+      'Échec du déplacement des notes vers le coffre-fort. Vos notes ont été restaurées par sécurité.',
+    criticalError: "Une erreur critique s'est produite. Veuillez redémarrer l'application.",
   },
   settings: {
     title: 'Paramètres',
@@ -366,6 +382,7 @@ export default {
       'Plusieurs sauvegardes trouvées pour la même date. Veuillez contacter le support.',
     loginRequiredForBackup: 'Vous devez être connecté pour sauvegarder vos notes',
     loginRequiredForRestore: 'Vous devez être connecté pour restaurer vos notes',
+
     security: 'Sécurité',
     language: 'Langue',
     selectLanguage: 'Sélectionner une langue',
@@ -413,7 +430,12 @@ export default {
     passwordSpecialChar: 'Doit contenir au moins un caractère spécial (!@#$%^&*(),.?":{}|<>)',
     passwordRemoved: 'Mot de passe supprimé avec succès',
     passwordRemoveError: 'Une erreur est survenue lors de la suppression du mot de passe',
+    cannotRemovePasswordWithNotes:
+      "Impossible de supprimer le mot de passe - veuillez d'abord déplacer ou supprimer toutes les notes du coffre-fort",
+    cannotVerifyVault:
+      'Impossible de vérifier le contenu du coffre-fort. Le mot de passe ne peut pas être supprimé pour des raisons de sécurité',
     clearAllData: 'Effacer Toutes les Données',
+    removePhoto: 'Supprimer la Photo',
     confirmClearAllData:
       'Cela supprimera définitivement toutes vos notes de la base de données. Cette action ne peut pas être annulée. Êtes-vous sûr de vouloir continuer ?',
   },
@@ -622,6 +644,7 @@ export default {
     listKeywords: 'Lister les mots-clés',
     compareNotesDefault: 'Comparez ces notes et trouvez des connexions entre elles.',
     customPrompt: 'Instruction Personnalisée',
+    copiedToClipboard: 'Copié dans le presse-papiers !',
   },
   onboarding: {
     welcome: 'Bienvenue sur Mindbook Pro',
