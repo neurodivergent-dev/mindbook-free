@@ -1,19 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { getAllNotes, Note } from '../utils/storage';
 import useQwenAI from './useQwenAI';
+import { AIResponse } from '../utils/openRouterService';
 
 /**
  * Hook to integrate notes with AI capabilities
  * Allows sending notes to AI for analysis, summarization, etc.
  */
-
-// Define the response type
-export interface AIResponse {
-  content: string;
-  error?: string;
-}
 
 export const useNotesWithAI = () => {
   const [notes, setNotes] = useState<Note[]>([]);
