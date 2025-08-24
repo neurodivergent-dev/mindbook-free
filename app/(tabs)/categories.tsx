@@ -1,15 +1,8 @@
 // This file is Categories Screen component, which displays a list of categories and allows users to manage them.
 // It includes functionality to add, delete, and select categories, as well as view the number of notes in each category.
 import { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
@@ -25,7 +18,11 @@ import {
 import { triggerAutoBackup } from '../utils/backup';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
-import CategoryInputModal from '../components/CategoryInputModal';
+import {
+  emitCategoryAdded,
+  emitCategoryDeleted,
+  emitCategoryUpdated,
+} from '../utils/categoryEvents';
 
 // Color constants
 const COLORS = {
@@ -38,9 +35,6 @@ const COLORS = {
 
 export default function CategoriesScreen() {
   const [categories, setCategories] = useState<string[]>([]);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [editingCategory, setEditingCategory] = useState('');
   const [categoryNotes, setCategoryNotes] = useState<Record<string, number>>({});
   const [totalNotes, setTotalNotes] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -102,9 +96,9 @@ export default function CategoriesScreen() {
         // Update UI immediately
         await loadCategories();
         await loadNoteCounts();
-        setShowCategoryModal(false);
-        setModalMode('add');
-        setEditingCategory('');
+
+        // Emit event for other screens to update
+        emitCategoryAdded(categoryName.trim());
 
         // Backup in background (UI blocking)
         triggerAutoBackup(null)
@@ -138,9 +132,9 @@ export default function CategoriesScreen() {
         // Update UI immediately
         await loadCategories();
         await loadNoteCounts();
-        setShowCategoryModal(false);
-        setModalMode('add');
-        setEditingCategory('');
+
+        // Emit event for other screens to update
+        emitCategoryUpdated(oldName, newName.trim());
 
         // Backup in background (UI blocking)
         triggerAutoBackup(null)
@@ -168,16 +162,18 @@ export default function CategoriesScreen() {
     }
   };
 
-  const openEditModal = (category: string) => {
-    setModalMode('edit');
-    setEditingCategory(category);
-    setShowCategoryModal(true);
+  const openEditPage = (category: string) => {
+    router.push({
+      pathname: '/(modal)/category-input',
+      params: { mode: 'edit', editingCategory: category },
+    });
   };
 
-  const openAddModal = () => {
-    setModalMode('add');
-    setEditingCategory('');
-    setShowCategoryModal(true);
+  const openAddPage = () => {
+    router.push({
+      pathname: '/(modal)/category-input',
+      params: { mode: 'add' },
+    });
   };
 
   const handleDeleteCategory = async category => {
@@ -200,6 +196,9 @@ export default function CategoriesScreen() {
               // Update UI immediately
               await loadCategories();
               await loadNoteCounts();
+
+              // Emit event for other screens to update
+              emitCategoryDeleted(category);
 
               // Backup in background (UI blocking)
               triggerAutoBackup(null)
@@ -262,6 +261,8 @@ export default function CategoriesScreen() {
               // Delete each category in order
               for (const category of selectedCategories) {
                 await deleteCategory(category);
+                // Emit event for each deleted category
+                emitCategoryDeleted(category);
               }
 
               // Update UI immediately
@@ -311,6 +312,103 @@ export default function CategoriesScreen() {
   };
 
   const inputBackground = themeMode === 'dark' ? '#1a1a1a' : theme.card;
+
+  // Prepare data for FlashList
+  const listData =
+    categories.length > 0
+      ? [
+          {
+            id: 'all-notes',
+            type: 'all-notes',
+            category: null,
+            count: totalNotes,
+          },
+          ...categories.map(category => ({
+            id: category,
+            type: 'category',
+            category,
+            count: categoryNotes[category] || 0,
+          })),
+        ]
+      : [];
+
+  const renderCategoryItem = ({ item }) => {
+    if (item.type === 'all-notes') {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.categoryItem,
+            {
+              backgroundColor: inputBackground,
+              borderColor: theme.border,
+            },
+          ]}
+          onPress={() => router.push('/(tabs)/')}
+        >
+          <View style={styles.categoryInfo}>
+            <Ionicons name="albums-outline" size={24} color={themeColors[accentColor]} />
+            <Text style={[styles.categoryName, { color: theme.text }]}>{t('notes.allNotes')}</Text>
+            <View style={[styles.noteCount, { backgroundColor: themeColors[accentColor] + '20' }]}>
+              <Text style={[styles.noteCountText, { color: themeColors[accentColor] }]}>
+                {totalNotes} {t('notes.notesCount')}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.categoryItem,
+          {
+            backgroundColor: inputBackground,
+            borderColor: theme.border,
+            ...(isSelectionMode &&
+              selectedCategories.includes(item.category) && {
+                borderColor: themeColors[accentColor],
+                borderWidth: 2,
+              }),
+          },
+        ]}
+        onPress={() => handleSelectCategory(item.category)}
+        onLongPress={() => handleLongPressCategory(item.category)}
+      >
+        <View style={styles.categoryInfo}>
+          {isSelectionMode && (
+            <View style={styles.checkboxContainer}>
+              <Ionicons
+                name={selectedCategories.includes(item.category) ? 'checkbox' : 'square-outline'}
+                size={24}
+                color={themeColors[accentColor]}
+              />
+            </View>
+          )}
+          <Ionicons name="folder-outline" size={24} color={themeColors[accentColor]} />
+          <Text style={[styles.categoryName, { color: theme.text }]}>{item.category}</Text>
+          <View style={[styles.noteCount, { backgroundColor: themeColors[accentColor] + '20' }]}>
+            <Text style={[styles.noteCountText, { color: themeColors[accentColor] }]}>
+              {item.count} {t('notes.notesCount')}
+            </Text>
+          </View>
+        </View>
+        {!isSelectionMode && (
+          <View style={styles.categoryActions}>
+            <TouchableOpacity onPress={() => openEditPage(item.category)} style={styles.editButton}>
+              <Ionicons name="pencil-outline" size={20} color={themeColors[accentColor]} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleDeleteCategory(item.category)}
+              style={styles.deleteButton}
+            >
+              <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -405,137 +503,44 @@ export default function CategoriesScreen() {
         ) : (
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: themeColors[accentColor] }]}
-            onPress={openAddModal}
+            onPress={openAddPage}
           >
             <Ionicons name="add" size={20} color={COLORS.white} />
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView
-        style={styles.categoriesList}
+      <FlashList
+        data={listData}
+        estimatedItemSize={100}
+        renderItem={renderCategoryItem}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              await loadCategories();
-              await loadNoteCounts();
-              setRefreshing(false);
+        ListEmptyComponent={
+          <EmptyState
+            icon="folder"
+            title={t('notes.emptyCategories')}
+            message={t('notes.emptyCategoryMessage')}
+            heightMultiplier={0.6}
+            action={{
+              label: t('notes.createCategory'),
+              onPress: openAddPage,
             }}
-            tintColor={themeColors[accentColor]}
-            colors={[themeColors[accentColor]]}
           />
         }
-      >
-        <TouchableOpacity
-          style={[
-            styles.categoryItem,
-            {
-              backgroundColor: inputBackground,
-              borderColor: theme.border,
-            },
-          ]}
-          onPress={() => router.push('/(tabs)/')}
-        >
-          <View style={styles.categoryInfo}>
-            <Ionicons name="albums-outline" size={24} color={themeColors[accentColor]} />
-            <Text style={[styles.categoryName, { color: theme.text }]}>{t('notes.allNotes')}</Text>
-            <View style={[styles.noteCount, { backgroundColor: themeColors[accentColor] + '20' }]}>
-              <Text style={[styles.noteCountText, { color: themeColors[accentColor] }]}>
-                {totalNotes} {t('notes.notesCount')}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {categories.length > 0 ? (
-          categories.map(category => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryItem,
-                {
-                  backgroundColor: inputBackground,
-                  borderColor: theme.border,
-                  ...(isSelectionMode &&
-                    selectedCategories.includes(category) && {
-                      borderColor: themeColors[accentColor],
-                      borderWidth: 2,
-                    }),
-                },
-              ]}
-              onPress={() => handleSelectCategory(category)}
-              onLongPress={() => handleLongPressCategory(category)}
-            >
-              <View style={styles.categoryInfo}>
-                {isSelectionMode && (
-                  <View style={styles.checkboxContainer}>
-                    <Ionicons
-                      name={selectedCategories.includes(category) ? 'checkbox' : 'square-outline'}
-                      size={24}
-                      color={themeColors[accentColor]}
-                    />
-                  </View>
-                )}
-                <Ionicons name="folder-outline" size={24} color={themeColors[accentColor]} />
-                <Text style={[styles.categoryName, { color: theme.text }]}>{category}</Text>
-                <View
-                  style={[styles.noteCount, { backgroundColor: themeColors[accentColor] + '20' }]}
-                >
-                  <Text style={[styles.noteCountText, { color: themeColors[accentColor] }]}>
-                    {categoryNotes[category] || 0} {t('notes.notesCount')}
-                  </Text>
-                </View>
-              </View>
-              {!isSelectionMode && (
-                <View style={styles.categoryActions}>
-                  <TouchableOpacity
-                    onPress={() => openEditModal(category)}
-                    style={styles.editButton}
-                  >
-                    <Ionicons name="pencil-outline" size={20} color={themeColors[accentColor]} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteCategory(category)}
-                    style={styles.deleteButton}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))
-        ) : (
-          <View style={styles.emptyStateContainer}>
-            <EmptyState
-              icon="folder"
-              title={t('notes.emptyCategories')}
-              message={t('notes.emptyCategoryMessage')}
-              action={{
-                label: t('notes.createCategory'),
-                onPress: openAddModal,
-              }}
-            />
-          </View>
-        )}
-      </ScrollView>
-
-      <CategoryInputModal
-        visible={showCategoryModal}
-        onClose={() => {
-          setShowCategoryModal(false);
-          setModalMode('add');
-          setEditingCategory('');
+        refreshing={refreshing}
+        onRefresh={async () => {
+          setRefreshing(true);
+          await loadCategories();
+          await loadNoteCounts();
+          setRefreshing(false);
         }}
-        onAdd={handleAddCategory}
-        onEdit={handleEditCategory}
-        theme={theme}
-        themeColors={themeColors}
-        accentColor={accentColor}
-        mode={modalMode}
-        editingCategory={editingCategory}
+        extraData={[
+          selectedCategories.length,
+          isSelectionMode,
+          selectedCategories.join(','),
+          categoryNotes,
+        ]}
       />
     </View>
   );
@@ -568,7 +573,7 @@ const styles = StyleSheet.create({
   },
   categoriesList: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 24,
   },
   categoryActions: {
     alignItems: 'center',
@@ -579,6 +584,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
+    flex: 1,
   },
   categoryItem: {
     alignItems: 'center',
@@ -587,11 +593,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
-    padding: 16,
+    marginHorizontal: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    minHeight: 72,
   },
   categoryName: {
     fontSize: 16,
     fontWeight: '500',
+    flex: 1,
   },
   checkboxContainer: {
     marginRight: 4,
@@ -643,6 +653,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   scrollContent: {
+    paddingVertical: 16,
     paddingBottom: 100,
   },
   selectionActions: {

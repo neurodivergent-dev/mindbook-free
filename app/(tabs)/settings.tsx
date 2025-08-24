@@ -27,7 +27,6 @@ import { NOTES_KEY } from '../utils/storage';
 import { useAuth } from '../context/AuthContext';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import NetInfo from '@react-native-community/netinfo';
@@ -35,6 +34,7 @@ import supabase from '../utils/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { cloudinaryService } from '../utils/cloudinaryService';
 import profileImageCache from '../utils/profileImageCache';
+import { getEditModeSetting, setEditModeSetting, EditModeOption } from '../utils/editModeSettings';
 
 const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
 const TRANSPARENT = 'transparent';
@@ -82,6 +82,7 @@ const Settings = () => {
   const [userDisplayName, setUserDisplayName] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [defaultEditMode, setDefaultEditMode] = useState<EditModeOption>('editing');
 
   // Password visibility states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -275,6 +276,16 @@ const Settings = () => {
       }
     } catch (error) {
       console.error('Error saving auto backup setting:', error);
+    }
+  };
+
+  const handleEditModeChange = async (mode: EditModeOption) => {
+    setDefaultEditMode(mode);
+    try {
+      await setEditModeSetting(mode);
+    } catch (error) {
+      console.error('Error saving edit mode setting:', error);
+      Alert.alert(t('common.error'), t('common.error'));
     }
   };
 
@@ -1125,10 +1136,19 @@ const Settings = () => {
   const cacheProfileImageInBackground = useCallback(
     async (userId: string, imageUrl: string, publicId?: string) => {
       try {
-        console.log('💾 Caching profile image in background');
-        await profileImageCache.cacheProfileImage(userId, imageUrl, publicId);
+        console.log('💾 Caching profile image in background for offline use');
+        const cachedPath = await profileImageCache.cacheProfileImage(userId, imageUrl, publicId);
+
+        if (cachedPath) {
+          console.log('✅ Profile image successfully cached for offline access');
+          // Update the state to use cached version immediately
+          setProfileImage(cachedPath);
+        } else {
+          console.log('⚠️ Failed to cache profile image, keeping URL version');
+        }
       } catch (error) {
         console.error('⚠️ Error caching profile image:', error);
+        // Don't throw error, keep using URL version
       }
     },
     []
@@ -1136,16 +1156,23 @@ const Settings = () => {
 
   // Get user profile image with offline caching
   const getUserProfileImage = useCallback(async () => {
-    if (!user || user.isAnonymous) return;
+    if (!user || user.isAnonymous) {
+      setProfileImage(null);
+      return;
+    }
 
     try {
       const userId = user.id;
-      console.log('🖼️ Loading profile image for user:', userId);
+      console.log('🖼️ Loading profile image for user:', userId, {
+        isConnected,
+        hasAvatarPublicId: !!user.user_metadata?.avatar_public_id,
+        hasLegacyUrl: !!user.user_metadata?.profile_image_url,
+      });
 
       // First, try to get cached image (works offline)
       const cachedImagePath = await profileImageCache.getCachedProfileImage(userId);
       if (cachedImagePath) {
-        console.log('✅ Using cached profile image');
+        console.log('✅ Using cached profile image (offline ready)');
         setProfileImage(cachedImagePath);
 
         // In background, check if we need to update the cache
@@ -1155,10 +1182,26 @@ const Settings = () => {
         return;
       }
 
-      // If no cache and offline, show nothing
+      console.log('📊 Cache status: No valid cached image found');
+
+      // If no cache and offline, try to show any existing profile data
       if (!isConnected) {
-        console.log('🔌 Offline: No cached image available');
-        setProfileImage(null);
+        console.log('🔌 Offline mode: Attempting fallback strategies');
+
+        // Try one more time with any available metadata (for debugging)
+        const publicId = user.user_metadata?.avatar_public_id;
+        const legacyUrl = user.user_metadata?.profile_image_url;
+
+        console.log('🔍 Offline fallback data:', {
+          publicId,
+          legacyUrl,
+          userMetadata: user.user_metadata,
+        });
+
+        // Keep existing profile image if we had one (don't clear it)
+        if (!profileImage) {
+          setProfileImage(null);
+        }
         return;
       }
 
@@ -1183,21 +1226,40 @@ const Settings = () => {
       }
 
       if (imageUrl) {
+        console.log('🚀 Setting profile image URL and starting cache process');
         // Set image immediately for responsive UX
         setProfileImage(imageUrl);
 
         // Cache image in background for offline access
         cacheProfileImageInBackground(userId, imageUrl, publicId);
+      } else {
+        console.log('❌ No profile image URL found in user metadata');
+        setProfileImage(null);
       }
     } catch (error) {
       console.error('❌ Error loading profile image:', error);
+      // Don't clear existing image on error, just log it
     }
-  }, [user, isConnected, updateProfileImageCacheInBackground, cacheProfileImageInBackground]);
+  }, [
+    user,
+    isConnected,
+    profileImage,
+    updateProfileImageCacheInBackground,
+    cacheProfileImageInBackground,
+  ]);
 
   useEffect(() => {
-    loadAutoBackupSetting();
-    loadLastBackupTime();
-    checkPasswordStatus();
+    const loadSettings = async () => {
+      await loadAutoBackupSetting();
+      await loadLastBackupTime();
+      await checkPasswordStatus();
+
+      // Load edit mode setting
+      const editMode = await getEditModeSetting();
+      setDefaultEditMode(editMode);
+    };
+
+    loadSettings();
 
     if (user) {
       setUserDisplayName(getUserDisplayName());
@@ -1670,6 +1732,57 @@ const Settings = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Default Edit Mode */}
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <SectionHeader title={t('settings.defaultEditMode')} />
+          <View
+            style={[
+              styles.settingButton,
+              { backgroundColor: theme.card, borderColor: themeColors[accentColor] },
+            ]}
+          >
+            <View style={styles.themeContainer}>
+              {[
+                { id: 'editing', name: t('settings.editingMode'), icon: 'create-outline' as const },
+                { id: 'reading', name: t('settings.readingMode'), icon: 'eye-outline' as const },
+              ].map(mode => (
+                <TouchableOpacity
+                  key={mode.id}
+                  style={[
+                    styles.themeOption,
+                    {
+                      backgroundColor:
+                        defaultEditMode === mode.id ? themeColors[accentColor] : TRANSPARENT,
+                    },
+                  ]}
+                  onPress={() => handleEditModeChange(mode.id as EditModeOption)}
+                >
+                  <Ionicons
+                    name={mode.icon}
+                    size={20}
+                    color={defaultEditMode === mode.id ? WHITE : theme.text}
+                  />
+                  <Text
+                    style={[
+                      styles.themeText,
+                      { color: defaultEditMode === mode.id ? WHITE : theme.text },
+                    ]}
+                  >
+                    {mode.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View
+              style={[styles.settingContent, { borderTopColor: theme.border, borderTopWidth: 1 }]}
+            >
+              <Text style={[styles.settingPreview, { color: theme.textSecondary }]}>
+                {t('settings.defaultEditModeDescription')}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Backup */}
         <View style={[styles.section, { borderBottomColor: theme.border }]}>
           <SectionHeader title={t('settings.backup')} />
@@ -1916,22 +2029,7 @@ const Settings = () => {
                   opacity: isConnected ? ACTIVE_OPACITY : DISABLED_OPACITY,
                 },
               ]}
-              onPress={() => {
-                if (!isConnected) return;
-
-                try {
-                  forceLogin().then(result => {
-                    if (result.success) {
-                      router.replace('/(auth)/login');
-                    } else {
-                      console.error('Login redirect error:', result.error);
-                    }
-                  });
-                } catch (error) {
-                  console.error('Login process error:', error);
-                  router.replace('/(auth)/login');
-                }
-              }}
+              onPress={forceLogin}
               disabled={!isConnected}
             >
               <View style={styles.rowLayout}>
@@ -1962,24 +2060,7 @@ const Settings = () => {
                   {
                     text: t('settings.signOut'),
                     style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        const result = await logout();
-                        if (!result.success) {
-                          throw new Error(result.error || t('auth.logoutError'));
-                        }
-                        // We give a short delay for the Root Layout to load completely
-                        console.log('Logout successful, redirecting to login page...');
-                        setTimeout(() => {
-                          router.replace('/(auth)/login');
-                        }, 300);
-                      } catch (error) {
-                        console.error('Logout error:', error);
-                        setTimeout(() => {
-                          router.replace('/(auth)/login');
-                        }, 300);
-                      }
-                    },
+                    onPress: logout,
                   },
                 ]);
               }}
@@ -2005,6 +2086,7 @@ export default Settings;
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
+
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',

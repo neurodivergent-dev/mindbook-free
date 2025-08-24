@@ -3,7 +3,8 @@
 // It also provides an option to empty the trash completely.
 // It uses React Native components and Expo Router for navigation.
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import { getAllNotes, NOTES_KEY } from '../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -302,8 +303,9 @@ export default function TrashScreen() {
 
       {isSelectionMode && renderActionBar()}
 
-      <FlatList
+      <FlashList
         data={notes}
+        estimatedItemSize={200}
         renderItem={({ item }) => (
           <NoteCard
             key={item.id}
@@ -320,14 +322,14 @@ export default function TrashScreen() {
                 toggleNoteSelection(item.id);
               }
             }}
-            style={{ marginHorizontal: 4 as number }}
+            style={{ marginHorizontal: 4 }}
           />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: (isSelectionMode ? 80 : 16) as number },
-        ]}
+        contentContainerStyle={{
+          ...styles.listContent,
+          paddingBottom: isSelectionMode ? 80 : 16,
+        }}
         ListEmptyComponent={
           <EmptyState
             icon="trash-outline"
@@ -335,6 +337,7 @@ export default function TrashScreen() {
             message={t('notes.emptyTrashMessage')}
           />
         }
+        extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
       />
     </View>
   );

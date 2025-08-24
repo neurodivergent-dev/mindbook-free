@@ -68,10 +68,18 @@ const calculateReadingTime = content => {
 
 // Get the URL and alt text of the first image
 const getFirstImage = content => {
+  if (!content) return null;
+
   // Support different URL formats using a more comprehensive regex
+  // This regex now supports:
+  // - Standard markdown images: ![alt](url)
+  // - Images with query parameters
+  // - Various image formats including SVG, ICO
+  // - Both HTTP and HTTPS URLs
   const match = content.match(
-    /!\[(.*?)\]\((https?:\/\/.*?(?:png|jpe?g|gif|bmp|webp)(?:\?.*?)?)\)/i
+    /!\[(.*?)\]\((https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|bmp|webp|svg|ico)(?:\?[^\s)]*)?)\)/i
   );
+
   if (!match) return null;
 
   // match[0] = exact match "![alt](url)"
@@ -83,6 +91,26 @@ const getFirstImage = content => {
   if (!url) return null;
 
   return { url, altText: altText || 'Image' };
+};
+
+// Function to extract all images from content for potential gallery view
+const getAllImages = content => {
+  if (!content) return [];
+
+  const matches = content.matchAll(
+    /!\[(.*?)\]\((https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|bmp|webp|svg|ico)(?:\?[^\s)]*)?)\)/gi
+  );
+
+  const images = [];
+  for (const match of matches) {
+    const altText = match[1];
+    const url = match[2];
+    if (url) {
+      images.push({ url, altText: altText || 'Image' });
+    }
+  }
+
+  return images;
 };
 
 // Function to extract tags (#tag)
@@ -127,6 +155,7 @@ export default function NoteCard({
   const swipeableRef = useRef(null);
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
   const { t } = useTranslation();
 
   const getNoteColors = () => {
@@ -148,6 +177,11 @@ export default function NoteCard({
     } else {
       router.push(`/(modal)/edit-note?id=${note.id}`);
     }
+  };
+
+  const handleEditNote = () => {
+    setShowMenu(false);
+    router.push(`/(modal)/edit-note?id=${note.id}`);
   };
 
   const handleFavorite = async () => {
@@ -330,6 +364,19 @@ export default function NoteCard({
   // Check if there is an image in the content
   const imageData = useMemo(() => getFirstImage(note.content), [note.content]);
 
+  // Get all images for potential gallery view
+  const allImages = useMemo(() => {
+    const markdownImages = getAllImages(note.content);
+    const coverImage = note.coverImage;
+
+    // If there's a cover image and it's not already in markdown images, add it first
+    if (coverImage && !markdownImages.some(img => img.url === coverImage)) {
+      return [{ url: coverImage, altText: '' }, ...markdownImages];
+    }
+
+    return markdownImages;
+  }, [note.content, note.coverImage]);
+
   // Remove labels
   const tags = useMemo(() => extractTags(note.content), [note.content]);
 
@@ -413,6 +460,20 @@ export default function NoteCard({
                   />
                 </TouchableOpacity>
               )}
+              {!isSelectionMode && (
+                <View style={styles.menuContainer}>
+                  <TouchableOpacity
+                    onPress={() => setShowMenu(!showMenu)}
+                    style={styles.menuButton}
+                  >
+                    <Ionicons
+                      name="ellipsis-vertical"
+                      size={18}
+                      color={getNoteColors().text + 'AA'}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
               {isSelectionMode && (
                 <View
                   style={[
@@ -451,7 +512,105 @@ export default function NoteCard({
             </Text>
 
             <View style={[styles.previewContainer, compact ? styles.compactPreviewContainer : {}]}>
-              {imageData && !compact && (
+              {/* Image Gallery Display */}
+              {allImages.length > 0 && !compact && (
+                <View
+                  style={[
+                    styles.imageGalleryContainer,
+                    allImages.length === 1 && styles.singleImageContainer,
+                    allImages.length > 1 && styles.multiImageContainer,
+                  ]}
+                >
+                  {allImages.slice(0, 3).map((image, index) => (
+                    <View
+                      key={`image-${index}`}
+                      style={[
+                        styles.imageGalleryItem,
+                        allImages.length === 1 && styles.singleImageItem,
+                        allImages.length > 1 && index === 0 && styles.firstImageItem,
+                        allImages.length > 1 && index > 0 && styles.additionalImageItem,
+                      ]}
+                    >
+                      {!imageError ? (
+                        <>
+                          <Image
+                            source={{ uri: image.url }}
+                            style={[
+                              styles.galleryImage,
+                              allImages.length === 1 && styles.singleImageStyle,
+                              allImages.length > 1 && index === 0 && styles.firstImageStyle,
+                              allImages.length > 1 && index > 0 && styles.additionalImageStyle,
+                            ]}
+                            resizeMode="cover"
+                            onLoadStart={() => setImageLoading(true)}
+                            onLoad={() => setImageLoading(false)}
+                            onLoadEnd={() => setImageLoading(false)}
+                            onError={() => {
+                              console.log('Image error loading: ', image.url);
+                              setImageError(true);
+                              setImageLoading(false);
+                            }}
+                          />
+                          {imageLoading && (
+                            <View
+                              style={[
+                                styles.imageLoadingOverlay,
+                                { backgroundColor: theme.background + '20' },
+                              ]}
+                            />
+                          )}
+
+                          {/* Image Alt Text Caption */}
+                          {image.altText && image.altText !== 'Image' && (
+                            <View style={styles.imageCaption}>
+                              <Text style={[styles.imageCaptionText, { color: theme.text + '80' }]}>
+                                {image.altText}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      ) : (
+                        <View
+                          style={[
+                            styles.imageErrorContainer,
+                            { backgroundColor: theme.background + '10' },
+                          ]}
+                        >
+                          <Ionicons name="image-outline" size={24} color={theme.text + '80'} />
+                          <Text style={[styles.imageAltText, { color: theme.text + '80' }]}>
+                            {t('common.imageError', 'Image could not be loaded')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+
+                  {/* Show image count indicator if there are more than 3 images */}
+                  {allImages.length > 3 && (
+                    <View style={styles.imageCountOverlay}>
+                      <Text style={styles.imageCountText}>+{allImages.length - 3}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Image Placeholder for notes that might contain image references */}
+              {allImages.length === 0 &&
+                note.content &&
+                note.content.includes('![') &&
+                !compact && (
+                  <View
+                    style={[styles.imagePlaceholder, { backgroundColor: theme.background + '10' }]}
+                  >
+                    <Ionicons name="image-outline" size={24} color={theme.text + '60'} />
+                    <Text style={[styles.imagePlaceholderText, { color: theme.text + '60' }]}>
+                      {t('notes.imagePlaceholder', 'Images will appear here')}
+                    </Text>
+                  </View>
+                )}
+
+              {/* Fallback to single image display for backward compatibility */}
+              {imageData && allImages.length === 0 && !compact && (
                 <View style={styles.imageContainer}>
                   {!imageError ? (
                     <>
@@ -645,6 +804,28 @@ export default function NoteCard({
             )}
           </View>
         </Pressable>
+
+        {/* Menu Dropdown */}
+        {showMenu && (
+          <>
+            <TouchableOpacity
+              style={styles.menuOverlay}
+              onPress={() => setShowMenu(false)}
+              activeOpacity={1}
+            />
+            <View
+              style={[
+                styles.menuDropdown,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <TouchableOpacity onPress={handleEditNote} style={styles.menuItem}>
+                <Ionicons name="create-outline" size={20} color={theme.text} />
+                <Text style={[styles.menuText, { color: theme.text }]}>{t('notes.editNote')}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </Animated.View>
     </Swipeable>
   );
@@ -791,6 +972,81 @@ const styles = StyleSheet.create({
     right: 0 as number,
     top: 0 as number,
   },
+  imageGalleryContainer: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 8 as number,
+    gap: 4 as number,
+  },
+  singleImageContainer: {
+    flexDirection: 'column' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 8 as number,
+  },
+  multiImageContainer: {
+    flexDirection: 'column' as const, // Changed from 'row' to 'column' for better layout
+    alignItems: 'stretch' as const, // Changed from 'center' to 'stretch'
+    justifyContent: 'flex-start' as const, // Changed from 'space-between' to 'flex-start'
+    marginBottom: 8 as number,
+    gap: 8 as number, // Increased from 4 to 8 for better spacing
+  },
+  imageGalleryItem: {
+    borderRadius: 8 as number,
+    overflow: 'hidden' as const,
+    backgroundColor: 'rgba(0,0,0,0.05)' as string,
+  },
+  singleImageItem: {
+    width: '100%' as string,
+    aspectRatio: 1.5 as number, // Changed from 1.2 to 1.5 for better proportions
+    marginBottom: 4 as number,
+  },
+  firstImageItem: {
+    width: '100%' as string, // Changed from 48% to 100% for larger first image
+    aspectRatio: 1.8 as number, // Changed from 1.1 to 1.8 for better proportions
+    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
+  },
+  additionalImageItem: {
+    width: '48%' as string, // Keep additional images at 48% for side-by-side layout
+    aspectRatio: 1.1 as number, // Keep aspect ratio for additional images
+    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
+  },
+  galleryImage: {
+    width: '100%' as string,
+    height: '100%' as string,
+    borderRadius: 8 as number,
+  },
+  singleImageStyle: {
+    width: '100%' as string,
+    height: 250 as number, // Increased from 180 to 250
+    borderRadius: 8 as number,
+  },
+  firstImageStyle: {
+    width: '100%' as string,
+    height: 180 as number, // Increased from 120 to 180
+    borderRadius: 8 as number,
+  },
+  additionalImageStyle: {
+    width: '100%' as string,
+    height: '100%' as string,
+    borderRadius: 8 as number,
+  },
+  imageCountOverlay: {
+    position: 'absolute' as const,
+    top: 12 as number, // Increased from 8 to 12 for better positioning
+    right: 12 as number, // Increased from 8 to 12 for better positioning
+    backgroundColor: 'rgba(0,0,0,0.7)' as string,
+    borderRadius: 12 as number,
+    paddingHorizontal: 8 as number,
+    paddingVertical: 4 as number,
+    zIndex: 1 as number,
+  },
+  imageCountText: {
+    color: '#fff' as string,
+    fontSize: 12 as number,
+    fontWeight: 'bold' as const,
+  },
   noteInfo: {
     flexDirection: 'row' as const,
     gap: 12 as number,
@@ -803,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     marginTop: 8 as number,
-    maxHeight: 150 as number,
+    maxHeight: 300 as number, // Increased from 150 to 300 to accommodate larger images
     overflow: 'hidden' as const,
   },
   previewImage: {
@@ -851,5 +1107,75 @@ const styles = StyleSheet.create({
     letterSpacing: 0.25 as number,
     lineHeight: 24 as number,
     marginBottom: 8 as number,
+  },
+  imageCaption: {
+    position: 'absolute' as const,
+    bottom: 0 as number,
+    left: 0 as number,
+    right: 0 as number,
+    backgroundColor: 'rgba(0,0,0,0.5)' as string, // Reduced opacity from 0.7 to 0.5
+    paddingVertical: 2 as number, // Reduced from 4 to 2
+    paddingHorizontal: 8 as number,
+    borderBottomLeftRadius: 8 as number,
+    borderBottomRightRadius: 8 as number,
+    zIndex: 1 as number,
+  },
+  imageCaptionText: {
+    fontSize: 12 as number,
+    textAlign: 'center' as const,
+  },
+  imagePlaceholder: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderRadius: 8 as number,
+    marginTop: 8 as number,
+    paddingVertical: 20 as number,
+    paddingHorizontal: 16 as number,
+  },
+  imagePlaceholderText: {
+    fontSize: 14 as number,
+    marginTop: 8 as number,
+    textAlign: 'center' as const,
+  },
+  menuContainer: {
+    position: 'relative' as const,
+    zIndex: 1000 as number,
+  },
+  menuButton: {
+    padding: 4 as number,
+  },
+  menuOverlay: {
+    position: 'absolute' as const,
+    top: -1000 as number,
+    left: -1000 as number,
+    right: -1000 as number,
+    bottom: -1000 as number,
+    zIndex: 998 as number,
+  },
+  menuDropdown: {
+    position: 'absolute' as const,
+    top: 45 as number,
+    right: 8 as number,
+    minWidth: 150 as number,
+    borderRadius: 12 as number,
+    borderWidth: 1 as number,
+    shadowColor: '#000' as string,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25 as number,
+    shadowRadius: 3.84 as number,
+    elevation: 5 as number,
+    zIndex: 999 as number,
+    paddingVertical: 8 as number,
+  },
+  menuItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 12 as number,
+    paddingHorizontal: 16 as number,
+    gap: 12 as number,
+  },
+  menuText: {
+    fontSize: 14 as number,
+    fontWeight: '500' as const,
   },
 });

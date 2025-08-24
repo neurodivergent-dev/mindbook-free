@@ -20,7 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
-import useQwenAI from '../hooks/useQwenAI';
+
+import { geminiService } from '../services/gemini';
 import { TapGestureHandler, State } from 'react-native-gesture-handler';
 import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
@@ -57,15 +58,12 @@ export default function AIChatScreen() {
   const navigation = useNavigation();
   const stopRequested = useRef(false);
 
-  // Initialize Qwen AI
-  const { askQuestion, analyzeImage, error } = useQwenAI();
-
-  // Show error if API key is missing
+  // Show error if Gemini service is not configured
   useEffect(() => {
-    if (error) {
-      console.error('Qwen AI Error:', error);
+    if (!geminiService.isConfigured()) {
+      console.error('Gemini API key not configured');
     }
-  }, [error]);
+  }, []);
 
   const getCachedImageUri = async (originalUri: string): Promise<string> => {
     try {
@@ -118,7 +116,7 @@ export default function AIChatScreen() {
           Alert.alert(
             t('aiAssistant.imageUploaded'),
             'The image has been uploaded successfully. Now you can ask a question or press the submit button to analyze the image.',
-            [{ text: 'Tamam', style: 'default' }]
+            [{ text: t('common.ok'), style: 'default' }]
           );
         } else {
           Alert.alert(
@@ -130,10 +128,7 @@ export default function AIChatScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert(
-        t('common.error'),
-        'An error occurred while selecting the image. Please try again.'
-      );
+      Alert.alert(t('common.error'), t('notes.imageSelectionError'));
     }
   };
 
@@ -177,33 +172,51 @@ export default function AIChatScreen() {
     setMessages(prev => [...prev, aiMessagePlaceholder]);
 
     try {
-      // 3. Get the response stream
-      const response = imageUri
-        ? await analyzeImage(imageUri, userText || 'Bu resimde ne var?')
-        : await askQuestion(userText, getSystemPrompt());
-
-      if (response.error || !response.stream) {
-        throw new Error(response.error || 'Stream not available');
-      }
-
-      // 4. Process the stream
-      let fullResponse = '';
-      for await (const chunk of response.stream) {
-        if (stopRequested.current) break;
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          fullResponse += content;
-          // Update the specific AI message placeholder with the new content
-          setMessages(prev =>
-            prev.map(msg => (msg.id === aiMessageId ? { ...msg, text: fullResponse } : msg))
-          );
+      // 3. Get the response from Gemini AI
+      let response;
+      if (imageUri) {
+        // Convert image to base64 for Gemini AI
+        try {
+          const base64 = await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          response = await geminiService.analyzeImage(base64, userText || 'Bu resimde ne var?');
+        } catch (imageError) {
+          throw new Error('Failed to process image for analysis');
         }
+      } else {
+        // Add style-specific instructions to the prompt
+        let prompt = userText;
+        switch (responseStyle) {
+          case 'poem':
+            prompt = `Write a creative poem about: ${userText}`;
+            break;
+          case 'brief':
+            prompt = `Give a brief, concise answer to: ${userText}`;
+            break;
+          case 'default':
+          default:
+            prompt = `Provide a helpful and informative response to: ${userText}. Format your answer using Markdown with headings, lists, bold text, and code blocks where appropriate.`;
+            break;
+        }
+        response = await geminiService.generateContent(prompt);
       }
+
+      if (response.error || !response.content) {
+        throw new Error(response.error || 'No response content');
+      }
+
+      // 4. Update the AI message with the full response
+      setMessages(prev =>
+        prev.map(msg => (msg.id === aiMessageId ? { ...msg, text: response.content! } : msg))
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       // Update the placeholder with the error message
       setMessages(prev =>
-        prev.map(msg => (msg.id === aiMessageId ? { ...msg, text: `Hata: ${errorMessage}` } : msg))
+        prev.map(msg =>
+          msg.id === aiMessageId ? { ...msg, text: `${t('common.error')}: ${errorMessage}` } : msg
+        )
       );
     } finally {
       setIsLoading(false);
@@ -215,19 +228,6 @@ export default function AIChatScreen() {
   const handleStopAI = () => {
     stopRequested.current = true;
     setIsLoading(false);
-  };
-
-  // Function that determines the system message according to the response style
-  const getSystemPrompt = (): string => {
-    switch (responseStyle) {
-      case 'poem':
-        return 'You are a poet. Give your answers in verse format. Use poetic language and skip lines appropriately at the end of the line.';
-      case 'brief':
-        return 'Keep your answers short and concise. Use 2-3 sentences maximum.';
-      case 'default':
-      default:
-        return 'You are a helpful AI assistant. Format your answers using Markdown. Use headings, lists, bold text, and code blocks where appropriate to improve readability. Give detailed and accurate answers to questions.';
-    }
   };
 
   // AI style toggle function

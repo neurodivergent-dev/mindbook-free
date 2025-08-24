@@ -61,6 +61,13 @@ export default function ModalLayout() {
           animation: 'slide_from_bottom',
         }}
       />
+      <Stack.Screen
+        name="category-input"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+        }}
+      />
     </Stack>
   );
 }

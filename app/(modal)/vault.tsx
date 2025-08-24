@@ -10,9 +10,9 @@ import {
   Alert,
   TextInput,
   Dimensions,
-  FlatList,
   Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -789,8 +789,9 @@ export default function VaultScreen() {
           // Contents of the case
           <>
             {selectedNotes.length > 0 && renderActionBar()}
-            <FlatList
+            <FlashList
               data={vaultNotes}
+              estimatedItemSize={200}
               renderItem={({ item: note }) => (
                 <NoteCard
                   note={note}
@@ -803,11 +804,11 @@ export default function VaultScreen() {
                 />
               )}
               keyExtractor={item => item.id}
-              contentContainerStyle={[
-                styles.notesList,
-                vaultNotes.length === 0 && { flexGrow: 1, justifyContent: 'center' },
-                selectedNotes.length > 0 && { paddingBottom: Platform.OS === 'ios' ? 100 : 80 },
-              ]}
+              contentContainerStyle={{
+                ...styles.notesList,
+                ...(vaultNotes.length === 0 && { flexGrow: 1, justifyContent: 'center' }),
+                ...(selectedNotes.length > 0 && { paddingBottom: Platform.OS === 'ios' ? 100 : 80 }),
+              }}
               ListEmptyComponent={
                 <EmptyState
                   icon="lock-closed"
@@ -815,6 +816,7 @@ export default function VaultScreen() {
                   message={t('notes.emptyVaultMessage')}
                 />
               }
+              extraData={[selectedNotes.length, selectedNotes.join(',')]}
             />
           </>
         )}
@@ -919,8 +921,9 @@ export default function VaultScreen() {
         // Vault contents
         <>
           {selectedNotes.length > 0 && renderActionBar()}
-          <FlatList
+          <FlashList
             data={vaultNotes}
+            estimatedItemSize={200}
             renderItem={({ item: note }) => (
               <NoteCard
                 note={note}
@@ -933,11 +936,11 @@ export default function VaultScreen() {
               />
             )}
             keyExtractor={item => item.id}
-            contentContainerStyle={[
-              styles.notesList,
-              vaultNotes.length === 0 && { flexGrow: 1, justifyContent: 'center' },
-              selectedNotes.length > 0 && { paddingBottom: Platform.OS === 'ios' ? 100 : 80 },
-            ]}
+            contentContainerStyle={{
+              ...styles.notesList,
+              ...(vaultNotes.length === 0 && { flexGrow: 1, justifyContent: 'center' }),
+              ...(selectedNotes.length > 0 && { paddingBottom: Platform.OS === 'ios' ? 100 : 80 }),
+            }}
             ListEmptyComponent={
               <EmptyState
                 icon="lock-closed"
@@ -945,6 +948,7 @@ export default function VaultScreen() {
                 message={t('notes.emptyVaultMessage')}
               />
             }
+            extraData={[selectedNotes.length, selectedNotes.join(',')]}
           />
         </>
       )}

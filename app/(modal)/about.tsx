@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
 import { useTranslation } from 'react-i18next';
 
-const APP_VERSION = '4.1.4';
+const APP_VERSION = '4.2.2';
 const BUILD_DATE = 'buildDate';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 

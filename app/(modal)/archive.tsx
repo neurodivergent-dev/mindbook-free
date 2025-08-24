@@ -2,7 +2,8 @@
 // Mindbook Pro is archive notes screen
 
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { getAllNotes, NOTES_KEY } from '../utils/storage';
@@ -229,8 +230,9 @@ export default function ArchiveScreen() {
 
       {isSelectionMode && renderActionBar()}
 
-      <FlatList
+      <FlashList
         data={notes}
+        estimatedItemSize={200}
         renderItem={({ item }) => (
           <NoteCard
             note={item}
@@ -250,10 +252,10 @@ export default function ArchiveScreen() {
           />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: (isSelectionMode ? 80 : 16) as number },
-        ]}
+        contentContainerStyle={{
+          ...styles.listContent,
+          paddingBottom: isSelectionMode ? 80 : 16,
+        }}
         ListEmptyComponent={
           <EmptyState
             icon="archive"
@@ -261,6 +263,7 @@ export default function ArchiveScreen() {
             message={t('notes.emptyArchiveMessage')}
           />
         }
+        extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
       />
     </View>
   );

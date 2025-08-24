@@ -160,3 +160,5 @@ mindbook-landing/
 mindbook/
 mindbook-desktop/
 .cursorignore
+
+scc.exe
