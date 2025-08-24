@@ -10,6 +10,8 @@ export interface Note {
   title: string;
   content: string;
   category?: string;
+  color?: string;
+  coverImage?: string;
   createdAt: string;
   updatedAt: string;
   isArchived?: boolean;

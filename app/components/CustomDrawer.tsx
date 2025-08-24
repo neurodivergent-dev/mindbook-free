@@ -213,6 +213,17 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
       color: themeColors[accentColor],
     },
     {
+      icon: 'globe-outline' as React.ComponentProps<typeof Ionicons>['name'],
+      title: 'Web to Markdown',
+      onPress: () => {
+        onClose();
+        setTimeout(() => {
+          router.push('/(modal)/web-to-markdown');
+        }, 300);
+      },
+      color: themeColors[accentColor],
+    },
+    {
       icon: 'settings-outline' as React.ComponentProps<typeof Ionicons>['name'],
       title: t('drawer.settings'),
       onPress: () => {

@@ -4,14 +4,13 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  FlatList,
-  RefreshControl,
   TouchableOpacity,
   Text,
   Alert,
   Share,
   Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { useSearch } from '../context/SearchContext';
@@ -292,6 +291,7 @@ export default function FavoritesScreen() {
       icon="star"
       title={t('notes.emptyFavorites')}
       message={t('notes.emptyFavoritesMessage')}
+      heightMultiplier={0.6}
     />
   );
 
@@ -445,8 +445,9 @@ export default function FavoritesScreen() {
         </View>
       </View>
 
-      <FlatList
+      <FlashList
         data={filteredNotes}
+        estimatedItemSize={200}
         renderItem={({ item }) => (
           <NoteCard
             note={item}
@@ -470,19 +471,15 @@ export default function FavoritesScreen() {
           />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={[
-          styles.listContent,
-          isSelectionMode ? styles.listPaddingWithSelection : styles.listPaddingWithoutSelection,
-        ]}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[themeColors[accentColor]]}
-            tintColor={themeColors[accentColor]}
-          />
+        contentContainerStyle={
+          isSelectionMode 
+            ? { ...styles.listContent, ...styles.listPaddingWithSelection }
+            : { ...styles.listContent, ...styles.listPaddingWithoutSelection }
         }
+        ListEmptyComponent={renderEmptyState}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        extraData={[selectedNotes.size, isSelectionMode, Array.from(selectedNotes).join(',')]}
       />
       {isSelectionMode && renderActionBar()}
     </View>

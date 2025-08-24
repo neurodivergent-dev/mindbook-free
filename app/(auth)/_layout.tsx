@@ -1,12 +1,20 @@
 // expo-router: (auth) layout
 import { Stack } from 'expo-router';
+import { useTheme } from '../context/ThemeContext';
 
 // routers are used to define the layout of the app
 export default function AuthLayout() {
+  const { theme } = useTheme();
   // Stack is used to create a stack navigator
   // screenOptions is used to define the options for the stack navigator
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.background },
+        animation: 'none',
+      }}
+    >
       <Stack.Screen
         name="login"
         options={{

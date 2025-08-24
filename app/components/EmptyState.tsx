@@ -1,6 +1,6 @@
 // This file is Empty State component for React Native applications.
 // It provides a visual representation when there are no items to display.
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { router } from 'expo-router';
@@ -11,13 +11,20 @@ interface EmptyStateProps {
   icon?: string;
   title: string;
   message?: string;
+  heightMultiplier?: number;
   action?: {
     label: string;
     onPress: () => void;
   };
 }
 
-export default function EmptyState({ icon, title, message, action }: EmptyStateProps) {
+export default function EmptyState({
+  icon,
+  title,
+  message,
+  heightMultiplier = 0.9,
+  action,
+}: EmptyStateProps) {
   // Cast useTheme result to any to satisfy TS
   const { theme, themeColors, accentColor } = useTheme() as any;
   const { t } = useTranslation();
@@ -115,14 +122,15 @@ export default function EmptyState({ icon, title, message, action }: EmptyStateP
     );
   };
 
+  const screenHeight = Dimensions.get('window').height;
+
   return (
     <View
       style={{
-        flex: 1 as number,
-        alignItems: 'center' as const,
         justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        minHeight: screenHeight * heightMultiplier,
         paddingHorizontal: 32 as number,
-        marginTop: 20 as number,
       }}
     >
       <View style={{ marginBottom: 24 as number }}>

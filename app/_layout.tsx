@@ -8,11 +8,13 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import './translations';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { SearchProvider } from './context/SearchContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View, StatusBar, useColorScheme } from 'react-native';
+import { StyleSheet, View, StatusBar, useColorScheme, Platform } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
+import SystemNavigationBar from 'react-native-system-navigation-bar';
 import CustomDrawer from './components/CustomDrawer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import backup from './utils/backup';
@@ -36,12 +38,6 @@ import {
   DefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
-
-// Color constants
-const COLORS = {
-  white: '#ffffff',
-  black: '#000000',
-};
 
 // Extend global namespace for typed access to global variables
 declare global {
@@ -393,9 +389,39 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function ThemedApp() {
   const [themeInitialized, setThemeInitialized] = useState(false);
   const colorScheme = useColorScheme();
+  const { theme } = useTheme();
+
+  // Set system UI style based on theme
+  useEffect(() => {
+    const setSystemUIStyle = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          // Set root view background color to match theme
+          await SystemUI.setBackgroundColorAsync(theme.background);
+          
+          // Set navigation bar style for Android 15+
+          SystemNavigationBar.setNavigationColor(
+            theme.background,
+            colorScheme === 'dark' ? 'light' : 'dark',
+            'navigation'
+          );
+          
+          // Hide and show navigation bar to force refresh
+          SystemNavigationBar.hide();
+          setTimeout(() => {
+            SystemNavigationBar.show();
+          }, 100);
+        }
+      } catch (error) {
+        console.log('System UI styling not supported:', error);
+      }
+    };
+
+    setSystemUIStyle();
+  }, [theme.background, colorScheme]);
 
   const [fontsLoaded] = useFonts({
     'CaveatBrush-Regular': require('../assets/fonts/CaveatBrush-Regular.ttf'),
@@ -442,13 +468,13 @@ export default function RootLayout() {
     verifyThemeSettings();
   }, []); // This useEffect only works once, for theme validation
 
-  // Modify default themes to remove header border
+  // Modify default themes to use the dynamic theme background
   const customDarkTheme = {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      card: COLORS.black,
-      background: COLORS.black,
+      card: theme.background,
+      background: theme.background,
       border: 'transparent',
     },
   };
@@ -457,8 +483,8 @@ export default function RootLayout() {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      card: COLORS.white,
-      background: COLORS.white,
+      card: theme.background,
+      background: theme.background,
       border: 'transparent',
     },
   };
@@ -480,7 +506,7 @@ export default function RootLayout() {
   if (!themeInitialized || !fontsLoaded) {
     return (
       <GestureHandlerRootView style={styles.container}>
-        <View style={[styles.container, styles.whiteBackground]} />
+        <View style={[styles.container, { backgroundColor: theme.background }]} />
       </GestureHandlerRootView>
     );
   }
@@ -491,43 +517,37 @@ export default function RootLayout() {
         <NavigationThemeProvider
           value={colorScheme === 'dark' ? customDarkTheme : customLightTheme}
         >
-          <ThemeProvider>
-            <LanguageProvider>
-              <SearchProvider>
-                <OnboardingProvider>
-                  <AuthProvider>
-                    <OfflineProvider>
-                      <View
-                        style={[
-                          styles.container,
-                          colorScheme === 'dark' ? styles.darkBackground : styles.whiteBackground,
-                        ]}
-                      >
-                        <RootLayoutNav />
-                      </View>
-                    </OfflineProvider>
-                  </AuthProvider>
-                </OnboardingProvider>
-              </SearchProvider>
-            </LanguageProvider>
-          </ThemeProvider>
+          <LanguageProvider>
+            <SearchProvider>
+              <OnboardingProvider>
+                <AuthProvider>
+                  <OfflineProvider>
+                    <View style={[styles.container, { backgroundColor: theme.background }]}>
+                      <RootLayoutNav />
+                    </View>
+                  </OfflineProvider>
+                </AuthProvider>
+              </OnboardingProvider>
+            </SearchProvider>
+          </LanguageProvider>
         </NavigationThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
 
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
+  );
+}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  darkBackground: {
-    backgroundColor: COLORS.black,
-  },
   gestureContainer: {
     flex: 1,
-  },
-  whiteBackground: {
-    backgroundColor: COLORS.white,
   },
 });

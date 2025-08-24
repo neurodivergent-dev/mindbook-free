@@ -1,7 +1,7 @@
 // This utility module is used for performance testing in the Mindbook application.
 // It includes functions to measure the performance of various operations, such as creating, saving, and reading notes.
 // It also includes functions to check memory usage and measure UI render performance.
-import { PerformanceObserver } from 'react-native-performance';
+// import { PerformanceObserver } from 'react-native-performance'; // Removed due to Android linking issues
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { encryptNotes } from './encryption';
@@ -11,19 +11,9 @@ import { encryptNotes } from './encryption';
  * This module is used to measure the performance of various parts of the application.
  */
 
-// Performance monitor setup
-let performanceObserver;
-try {
-  performanceObserver = new PerformanceObserver(list => {
-    const entries = list.getEntries();
-    entries.forEach(entry => {
-      console.log(`${entry.name}: ${entry.duration.toFixed(2)}ms`);
-    });
-  });
-  performanceObserver.observe({ entryTypes: ['measure'] });
-} catch (error) {
-  console.error('Performance monitoring is not supported:', error);
-}
+// Performance monitor setup - Using native performance API instead
+// PerformanceObserver removed due to react-native-performance Android linking issues
+console.log('Performance monitoring using native APIs');
 
 // Performance measurement functions
 const measure = (name, fn) => {

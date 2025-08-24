@@ -15,7 +15,6 @@ import {
   useColorScheme,
   AccessibilityInfo,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -26,7 +25,6 @@ const { width } = Dimensions.get('window');
 
 // Constants
 const STORAGE_KEY = '@onboarding_completed';
-const ANIMATION_DELAY = 300;
 
 // Color constants
 const COLORS = {
@@ -39,7 +37,6 @@ const COLORS = {
 };
 
 const OnboardingSlides = () => {
-  const router = useRouter();
   const flatListRef = useRef(null);
   const { theme, themeColors, accentColor } = useTheme();
   const { t } = useTranslation();
@@ -117,20 +114,14 @@ const OnboardingSlides = () => {
       // 1. Update storage first
       await handleStorageOperation();
 
-      // 2. Update the context
+      // 2. Update the context, which will trigger navigation in _layout.tsx
       setHasSeenOnboarding(true);
-
-      // 3. Navigate with a fixed delay
-      setTimeout(() => {
-        router.replace('/(auth)/login');
-      }, ANIMATION_DELAY);
     } catch (error) {
-      console.error('Navigation failed:', error);
-      // Update and redirect context in case of error
+      console.error('Onboarding completion failed:', error);
+      // Even if storage fails, try to update the context to escape the screen
       setHasSeenOnboarding(true);
-      router.replace('/(auth)/login');
     }
-  }, [router, handleStorageOperation, setHasSeenOnboarding]);
+  }, [handleStorageOperation, setHasSeenOnboarding]);
 
   const handleComplete = useCallback(async () => {
     await navigateToLogin();

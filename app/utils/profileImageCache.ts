@@ -87,11 +87,20 @@ export class ProfileImageCacheService {
         return null;
       }
 
-      // Check if cached file still exists
+      // Check if cached file still exists and is valid
       const fileInfo = await FileSystem.getInfoAsync(cacheEntry.localPath);
       if (fileInfo.exists) {
-        console.log('✅ Using cached profile image:', cacheEntry.localPath);
-        return cacheEntry.localPath;
+        // Validate file size (minimum 1KB to ensure it's not corrupted)
+        const minSize = 1024; // 1KB minimum
+        if (fileInfo.size && fileInfo.size >= minSize) {
+          console.log('✅ Using cached profile image:', cacheEntry.localPath, `(${Math.round(fileInfo.size / 1024)}KB)`);
+          return cacheEntry.localPath;
+        } else {
+          console.log('⚠️ Cached file appears corrupted (too small):', fileInfo.size, 'bytes');
+          // Remove corrupted cache
+          await this.removeCachedProfileImage(userId);
+          return null;
+        }
       } else {
         console.log('🗑️ Cached file no longer exists, removing cache entry');
         await this.removeCacheEntry(userId);

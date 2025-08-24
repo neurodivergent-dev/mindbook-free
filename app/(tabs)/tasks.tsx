@@ -1,7 +1,8 @@
 // This file is Tasks screen, which displays a list of task lists.
 // It allows users to create new task lists and view existing ones.
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -102,34 +103,47 @@ export default function TaskListsScreen() {
         }}
       />
 
-      <FlatList
+      <FlashList
         data={taskLists}
+        estimatedItemSize={120}
         renderItem={renderTaskList}
         keyExtractor={item => item.id}
-        contentContainerStyle={[
-          styles.listContainer,
-          taskLists.length === 0 && styles.emptyListContainer,
-        ]}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="checkbox"
-              size={64}
-              color={themeColors[accentColor]}
-              style={styles.emptyIcon}
-            />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              {t('notes.noTasksYet')}
-            </Text>
-            <TouchableOpacity
-              style={[styles.createButton, { backgroundColor: themeColors[accentColor] }]}
-              onPress={() => router.push('/(modal)/new-task-list')}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={() => {
+          const screenHeight = Dimensions.get('window').height;
+          return (
+            <View
+              style={{
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: screenHeight * 0.8,
+              }}
             >
-              <Ionicons name="add" size={24} color={Colors.white} style={styles.createButtonIcon} />
-              <Text style={styles.createButtonText}>{t('notes.newTaskList')}</Text>
-            </TouchableOpacity>
-          </View>
-        }
+              <Ionicons
+                name="checkbox"
+                size={64}
+                color={themeColors[accentColor]}
+                style={styles.emptyIcon}
+              />
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                {t('notes.noTasksYet')}
+              </Text>
+              <TouchableOpacity
+                style={[styles.createButton, { backgroundColor: themeColors[accentColor] }]}
+                onPress={() => router.push('/(modal)/new-task-list')}
+              >
+                <Ionicons
+                  name="add"
+                  size={24}
+                  color={Colors.white}
+                  style={styles.createButtonIcon}
+                />
+                <Text style={styles.createButtonText}>{t('notes.newTaskList')}</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+        extraData={[taskLists.length]}
       />
     </View>
   );

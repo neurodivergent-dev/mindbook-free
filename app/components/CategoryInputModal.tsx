@@ -1,5 +1,6 @@
 // This component is a professional modal that allows users to input and manage category names.
 // It features stable animations, elegant design, and smooth keyboard handling.
+// Fixed for Android 15 keyboard issues
 import React, { useState, memo, useRef, useEffect } from 'react';
 import {
   View,
@@ -11,13 +12,17 @@ import {
   Modal,
   StatusBar,
   Pressable,
+  KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Constants
 const MAX_CATEGORY_LENGTH = 30;
 const MIN_CATEGORY_LENGTH = 1;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface Theme {
   background: string;
@@ -62,6 +67,7 @@ const CategoryInputModal = memo(
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationError, setValidationError] = useState('');
     const { t } = useTranslation();
+    const insets = useSafeAreaInsets();
 
     // Input ref for focus management
     const inputRef = useRef<TextInput>(null);
@@ -173,148 +179,154 @@ const CategoryInputModal = memo(
           <Pressable style={styles.overlayPress} onPress={handleClose} />
         </View>
 
-        {/* Modal Content */}
-        <View style={styles.container}>
-          <View style={styles.modalContainer}>
-            <View style={[styles.modal, { backgroundColor: theme.card }]}>
-              {/* Handle Bar */}
-              <View style={styles.handleBar}>
-                <View style={[styles.handle, { backgroundColor: theme.border }]} />
-              </View>
-
-              {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.headerContent}>
-                  <Text style={[styles.title, { color: theme.text }]}>
-                    {mode === 'edit' ? t('notes.editCategory') : t('notes.addCategory')}
-                  </Text>
-                  <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                    {mode === 'edit'
-                      ? t('notes.editCategoryDescription')
-                      : t('notes.addCategoryDescription')}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Content */}
-              <View style={styles.content}>
-                {/* Input Container */}
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.inputLabel, { color: theme.text }]}>
-                    {t('notes.categoryName')}
-                  </Text>
-
-                  <View
-                    style={[
-                      styles.inputWrapper,
-                      {
-                        borderColor: inputBorderColor,
-                        backgroundColor: theme.background,
-                      },
-                    ]}
-                  >
-                    <TextInput
-                      ref={inputRef}
-                      style={[styles.input, { color: theme.text }]}
-                      placeholder={t('notes.categoryPlaceholder')}
-                      placeholderTextColor={theme.textSecondary}
-                      value={categoryText}
-                      onChangeText={handleTextChange}
-                      onSubmitEditing={handleSubmit}
-                      maxLength={MAX_CATEGORY_LENGTH + 5}
-                      returnKeyType="done"
-                      editable={!isSubmitting}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                      selectTextOnFocus={mode === 'edit'}
-                      blurOnSubmit={false}
-                    />
-                    {categoryText.length > 0 && (
-                      <TouchableOpacity
-                        onPress={() => handleTextChange('')}
-                        style={styles.clearButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Validation Error */}
-                  {validationError ? (
-                    <View style={styles.errorContainer}>
-                      <Ionicons name="warning" size={16} color="#EF4444" />
-                      <Text style={styles.errorText}>{validationError}</Text>
-                    </View>
-                  ) : null}
-
-                  {/* Character Counter */}
-                  {showCharCounter && (
-                    <View style={styles.charCounterContainer}>
-                      <Text style={[styles.charCounter, { color: charCounterColor }]}>
-                        {remainingChars} {t('common.charactersRemaining')}
-                      </Text>
-                    </View>
-                  )}
+        {/* Modal Content with KeyboardAvoidingView */}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.modalContainer}>
+              <View style={[styles.modal, { backgroundColor: theme.card }]}>
+                {/* Handle Bar */}
+                <View style={styles.handleBar}>
+                  <View style={[styles.handle, { backgroundColor: theme.border }]} />
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.cancelButton,
-                      {
-                        backgroundColor: theme.background,
-                        borderColor: theme.border,
-                      },
-                    ]}
-                    onPress={handleClose}
-                    disabled={isSubmitting}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.cancelButtonText, { color: theme.text }]}>
-                      {t('common.cancel')}
+                {/* Header */}
+                <View style={styles.header}>
+                  <View style={styles.headerContent}>
+                    <Text style={[styles.title, { color: theme.text }]}>
+                      {mode === 'edit' ? t('notes.editCategory') : t('notes.addCategory')}
                     </Text>
-                  </TouchableOpacity>
+                    <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                      {mode === 'edit'
+                        ? t('notes.editCategoryDescription')
+                        : t('notes.addCategoryDescription')}
+                    </Text>
+                  </View>
+                </View>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.submitButton,
-                      {
-                        backgroundColor: submitButtonBg,
-                        shadowOpacity: submitButtonShadowOpacity,
-                        elevation: submitButtonElevation,
-                      },
-                    ]}
-                    onPress={handleSubmit}
-                    disabled={!isValid || isSubmitting}
-                    activeOpacity={0.8}
-                  >
-                    {isSubmitting ? (
-                      <View style={styles.loadingContainer}>
-                        <View style={styles.loadingSpinner}>
-                          <Ionicons name="sync" size={18} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.submitButtonText}>{t('common.saving')}...</Text>
+                {/* Content */}
+                <View style={styles.content}>
+                  {/* Input Container */}
+                  <View style={styles.inputContainer}>
+                    <Text style={[styles.inputLabel, { color: theme.text }]}>
+                      {t('notes.categoryName')}
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        {
+                          borderColor: inputBorderColor,
+                          backgroundColor: theme.background,
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        ref={inputRef}
+                        style={[styles.input, { color: theme.text }]}
+                        placeholder={t('notes.categoryPlaceholder')}
+                        placeholderTextColor={theme.textSecondary}
+                        value={categoryText}
+                        onChangeText={handleTextChange}
+                        onSubmitEditing={handleSubmit}
+                        maxLength={MAX_CATEGORY_LENGTH + 5}
+                        returnKeyType="done"
+                        editable={!isSubmitting}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                        selectTextOnFocus={mode === 'edit'}
+                        blurOnSubmit={false}
+                      />
+                      {categoryText.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => handleTextChange('')}
+                          style={styles.clearButton}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Validation Error */}
+                    {validationError ? (
+                      <View style={styles.errorContainer}>
+                        <Ionicons name="warning" size={16} color="#EF4444" />
+                        <Text style={styles.errorText}>{validationError}</Text>
                       </View>
-                    ) : (
-                      <View style={styles.buttonContent}>
-                        <Ionicons
-                          name={mode === 'edit' ? 'checkmark-circle' : 'add-circle'}
-                          size={20}
-                          color={submitButtonTextColor}
-                        />
-                        <Text style={[styles.submitButtonText, { color: submitButtonTextColor }]}>
-                          {mode === 'edit' ? t('common.update') : t('common.create')}
+                    ) : null}
+
+                    {/* Character Counter */}
+                    {showCharCounter && (
+                      <View style={styles.charCounterContainer}>
+                        <Text style={[styles.charCounter, { color: charCounterColor }]}>
+                          {remainingChars} {t('common.charactersRemaining')}
                         </Text>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View style={styles.actionContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.cancelButton,
+                        {
+                          backgroundColor: theme.background,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                      onPress={handleClose}
+                      disabled={isSubmitting}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.cancelButtonText, { color: theme.text }]}>
+                        {t('common.cancel')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.submitButton,
+                        {
+                          backgroundColor: submitButtonBg,
+                          shadowOpacity: submitButtonShadowOpacity,
+                          elevation: submitButtonElevation,
+                        },
+                      ]}
+                      onPress={handleSubmit}
+                      disabled={!isValid || isSubmitting}
+                      activeOpacity={0.8}
+                    >
+                      {isSubmitting ? (
+                        <View style={styles.loadingContainer}>
+                          <View style={styles.loadingSpinner}>
+                            <Ionicons name="sync" size={18} color="#FFFFFF" />
+                          </View>
+                          <Text style={styles.submitButtonText}>{t('common.saving')}...</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.buttonContent}>
+                          <Ionicons
+                            name={mode === 'edit' ? 'checkmark-circle' : 'add-circle'}
+                            size={20}
+                            color={submitButtonTextColor}
+                          />
+                          <Text style={[styles.submitButtonText, { color: submitButtonTextColor }]}>
+                            {mode === 'edit' ? t('common.update') : t('common.create')}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     );
   }
@@ -357,7 +369,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     pointerEvents: 'box-none',
   },
   content: {
@@ -416,6 +428,9 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 16,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   loadingContainer: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -434,9 +449,8 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
   },
   modalContainer: {
-    marginBottom: Platform.OS === 'ios' ? 34 : 16,
     marginHorizontal: 16,
-    maxHeight: '80%',
+    maxHeight: SCREEN_HEIGHT * 0.8,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

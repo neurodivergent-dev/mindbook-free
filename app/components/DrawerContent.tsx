@@ -37,6 +37,11 @@ const DrawerContent = ({ navigation }) => {
       label: t('notes.trash'),
       route: '/trash',
     },
+    {
+      icon: 'globe-outline',
+      label: 'Web to Markdown',
+      route: '/(modal)/web-to-markdown',
+    },
   ];
 
   const isActiveRoute = route => {

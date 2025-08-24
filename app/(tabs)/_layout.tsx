@@ -26,6 +26,13 @@ declare global {
     toggleSort?: () => void;
     setSortOption?: (option: string) => void;
     showFavorites?: boolean;
+    toggleFullScreen?: () => void;
+    checkContentAndToggleFullScreen?: () => void;
+    saveNewNote?: () => void;
+    resetNewNote?: () => void;
+    toggleFocusMode?: () => void;
+    showAIGenerator?: () => void;
+    copyContent?: () => void;
   }
 }
 
@@ -47,6 +54,7 @@ export default function TabLayout() {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortBy, setSortBy] = useState('date');
+  const [showNewNoteMenu, setShowNewNoteMenu] = useState(false);
   const segments = useSegments();
   const { t } = useTranslation();
 
@@ -96,7 +104,11 @@ export default function TabLayout() {
     headerRightContainer: {
       flexDirection: 'row',
       gap: 12,
-      marginRight: 16,
+      marginRight: 8,
+    },
+    headerButton: {
+      marginRight: 4,
+      padding: 4,
     },
     headerRow: {
       alignItems: 'center',
@@ -184,6 +196,47 @@ export default function TabLayout() {
     },
     sortMenuText: {
       fontSize: 14,
+    },
+    newNoteMenuContainer: {
+      borderRadius: 12,
+      borderWidth: 1,
+      elevation: 10,
+      position: 'absolute',
+      right: 4,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      top: Platform.OS === 'ios' ? 100 : 90,
+      minWidth: 160,
+      zIndex: 99999,
+      paddingVertical: 8,
+    },
+    menuOverlay: {
+      position: 'absolute',
+      top: -1000,
+      left: -1000,
+      right: -1000,
+      bottom: -1000,
+      zIndex: 99998,
+    },
+    newNoteMenuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 12,
+    },
+    newNoteMenuItemDanger: {
+      borderTopWidth: 1,
+      borderTopColor: '#ff475720',
+    },
+    newNoteMenuText: {
+      fontSize: 14,
+      fontWeight: '500',
     },
   });
 
@@ -279,6 +332,29 @@ export default function TabLayout() {
                 <View style={styles.headerRow}>
                   <Ionicons name="create" size={24} color={COLORS.white} />
                   <Text style={styles.headerTitle}>{t('notes.newNote')}</Text>
+                </View>
+              ),
+              headerRight: () => (
+                <View style={styles.headerRightContainer}>
+                  {__DEV__ && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        // AI content generator trigger
+                        if (window.showAIGenerator) {
+                          window.showAIGenerator();
+                        }
+                      }}
+                      style={styles.headerButton}
+                    >
+                      <Ionicons name="sparkles" size={24} color={COLORS.white} />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => setShowNewNoteMenu(!showNewNoteMenu)}
+                    style={styles.headerButton}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={24} color={COLORS.white} />
+                  </TouchableOpacity>
                 </View>
               ),
               tabBarIcon: ({ color }) => <Ionicons name="create-outline" size={24} color={color} />,
@@ -430,6 +506,96 @@ export default function TabLayout() {
               )}
             </TouchableOpacity>
           </View>
+        )}
+
+        {showNewNoteMenu && (
+          <>
+            <TouchableOpacity
+              style={styles.menuOverlay}
+              onPress={() => setShowNewNoteMenu(false)}
+              activeOpacity={1}
+            />
+            <View
+              style={[
+                styles.newNoteMenuContainer,
+                { backgroundColor: theme.background, borderColor: theme.border },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.newNoteMenuItem}
+                onPress={() => {
+                  setShowNewNoteMenu(false);
+                  // Focus mode functionality will be handled by the new-note page
+                  if (window.toggleFocusMode) {
+                    window.toggleFocusMode();
+                  }
+                }}
+              >
+                <Ionicons name="contract-outline" size={20} color={theme.text} />
+                <Text style={[styles.newNoteMenuText, { color: theme.text }]}>
+                  {t('common.focusMode')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newNoteMenuItem}
+                onPress={() => {
+                  setShowNewNoteMenu(false);
+                  if (window.checkContentAndToggleFullScreen) {
+                    window.checkContentAndToggleFullScreen();
+                  }
+                }}
+              >
+                <Ionicons name="expand-outline" size={20} color={theme.text} />
+                <Text style={[styles.newNoteMenuText, { color: theme.text }]}>
+                  {t('common.readingMode')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newNoteMenuItem}
+                onPress={() => {
+                  setShowNewNoteMenu(false);
+                  if (window.copyContent) {
+                    window.copyContent();
+                  }
+                }}
+              >
+                <Ionicons name="copy-outline" size={20} color={theme.text} />
+                <Text style={[styles.newNoteMenuText, { color: theme.text }]}>
+                  {t('common.copy')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newNoteMenuItem}
+                onPress={() => {
+                  setShowNewNoteMenu(false);
+                  // Save functionality will be handled by the new-note page
+                  if (window.saveNewNote) {
+                    window.saveNewNote();
+                  }
+                }}
+              >
+                <Ionicons name="save-outline" size={20} color={theme.text} />
+                <Text style={[styles.newNoteMenuText, { color: theme.text }]}>
+                  {t('common.save')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.newNoteMenuItem, styles.newNoteMenuItemDanger]}
+                onPress={() => {
+                  setShowNewNoteMenu(false);
+                  // Reset functionality will be handled by the new-note page
+                  if (window.resetNewNote) {
+                    window.resetNewNote();
+                  }
+                }}
+              >
+                <Ionicons name="refresh-outline" size={20} color="#ff4757" />
+                <Text style={[styles.newNoteMenuText, { color: '#ff4757' }]}>
+                  {t('common.reset')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </View>
     </GestureDetector>

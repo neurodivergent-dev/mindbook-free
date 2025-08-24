@@ -6,12 +6,72 @@
 // and defining constants for keys used in AsyncStorage.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Performance optimization: debounce index building
+let indexBuildTimeout: NodeJS.Timeout | null = null;
+let backupTimeout: NodeJS.Timeout | null = null;
+
+// Memory cache for notes - massive performance boost!
+let notesCache: Note[] | null = null;
+let cacheTimestamp: number = 0;
+
+// Pagination cache
+let paginationCache: { [key: string]: Note[] } = {};
+
+// Search results cache for faster search
+let searchCache: { [key: string]: Note[] } = {};
+let searchCacheTimestamp: { [key: string]: number } = {};
+
 export const NOTES_KEY = '@notes';
 export const CATEGORIES_KEY = '@categories';
 // Index keys
 export const CATEGORY_INDEX_KEY = '@notes_index_categories';
 export const FAVORITE_INDEX_KEY = '@notes_index_favorites';
 export const DATE_INDEX_KEY = '@notes_index_dates';
+
+// Cache management
+const invalidateCache = () => {
+  notesCache = null;
+  cacheTimestamp = 0;
+  clearPaginationCache();
+  // Clear search cache too
+  searchCache = {};
+  searchCacheTimestamp = {};
+};
+
+// Performance optimized functions
+const debouncedBuildNoteIndices = async () => {
+  if (indexBuildTimeout) {
+    clearTimeout(indexBuildTimeout);
+  }
+
+  return new Promise<void>(resolve => {
+    indexBuildTimeout = setTimeout(async () => {
+      await buildNoteIndices();
+      resolve();
+    }, 300); // 300ms delay
+  });
+};
+
+const debouncedBackup = async (userId?: string) => {
+  if (backupTimeout) {
+    clearTimeout(backupTimeout);
+  }
+
+  return new Promise<void>(resolve => {
+    backupTimeout = setTimeout(async () => {
+      try {
+        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
+        const finalUserId = userId || (await getCurrentUserId());
+        if (finalUserId) {
+          await triggerAutoBackup(finalUserId, true);
+        }
+      } catch (error) {
+        console.error('Debounced backup error:', error);
+      }
+      resolve();
+    }, 1000); // 1 second delay
+  });
+};
 
 // Note interface for better type checking
 export interface Note {
@@ -34,14 +94,115 @@ export interface Note {
 // Get notes
 export const getAllNotes = async (): Promise<Note[]> => {
   try {
+    // Check cache first (5 second cache)
+    const now = Date.now();
+    if (notesCache && now - cacheTimestamp < 5000) {
+      return notesCache;
+    }
+
+    // Cache miss - load from storage
     const notesStr = await AsyncStorage.getItem(NOTES_KEY);
-    if (!notesStr) return [];
+    if (!notesStr) {
+      notesCache = [];
+      cacheTimestamp = now;
+      return [];
+    }
+
     const notes = JSON.parse(notesStr);
-    if (!Array.isArray(notes)) return [];
+    if (!Array.isArray(notes)) {
+      notesCache = [];
+      cacheTimestamp = now;
+      return [];
+    }
+
+    // Update cache
+    notesCache = notes;
+    cacheTimestamp = now;
     return notes;
   } catch (error) {
     return [];
   }
+};
+
+// Pagination - get notes in chunks for better performance
+export const getPaginatedNotes = async (
+  page: number = 0,
+  pageSize: number = 50
+): Promise<{ notes: Note[]; hasMore: boolean; total: number }> => {
+  try {
+    const cacheKey = `page_${page}_${pageSize}`;
+
+    // Check pagination cache
+    if (paginationCache[cacheKey]) {
+      const allNotes = await getAllNotes();
+      const startIndex = page * pageSize;
+      const endIndex = startIndex + pageSize;
+      const hasMore = endIndex < allNotes.length;
+
+      return {
+        notes: paginationCache[cacheKey],
+        hasMore,
+        total: allNotes.length,
+      };
+    }
+
+    const allNotes = await getAllNotes();
+    const startIndex = page * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedNotes = allNotes.slice(startIndex, endIndex);
+    const hasMore = endIndex < allNotes.length;
+
+    // Cache the page
+    paginationCache[cacheKey] = paginatedNotes;
+
+    return {
+      notes: paginatedNotes,
+      hasMore,
+      total: allNotes.length,
+    };
+  } catch (error) {
+    return { notes: [], hasMore: false, total: 0 };
+  }
+};
+
+// Clear pagination cache when data changes
+const clearPaginationCache = () => {
+  paginationCache = {};
+};
+
+// Super fast search with caching
+export const searchNotesOptimized = async (query: string): Promise<Note[]> => {
+  if (!query.trim()) return await getAllNotes();
+
+  const cacheKey = query.toLowerCase().trim();
+  const now = Date.now();
+
+  // Check search cache (10 second cache for search)
+  if (
+    searchCache[cacheKey] &&
+    searchCacheTimestamp[cacheKey] &&
+    now - searchCacheTimestamp[cacheKey] < 10000
+  ) {
+    return searchCache[cacheKey];
+  }
+
+  const allNotes = await getAllNotes();
+  const lowerQuery = query.toLowerCase();
+
+  // Fast search - check title first (most common), then content
+  const results = allNotes.filter(note => {
+    return (
+      note.title.toLowerCase().includes(lowerQuery) ||
+      note.content.toLowerCase().includes(lowerQuery) ||
+      note.category?.toLowerCase().includes(lowerQuery)
+    );
+  });
+
+  // Cache results
+  searchCache[cacheKey] = results;
+  searchCacheTimestamp[cacheKey] = now;
+
+  return results;
 };
 
 // Batch get notes by IDs - new optimized function
@@ -87,10 +248,12 @@ export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<
     });
 
     // Save all notes in one operation
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
@@ -99,11 +262,7 @@ export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<
     try {
       const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
       if (autoBackupEnabled === 'true') {
-        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-        const userId = await getCurrentUserId();
-        if (userId) {
-          triggerAutoBackup(userId, true); // Force immediate backup
-        }
+        debouncedBackup(); // Non-blocking debounced backup
       }
     } catch (error) {
       console.error('Error during auto-backup after batch update:', error);
@@ -151,10 +310,12 @@ export const saveNote = async note => {
     };
 
     notes.unshift(newNote);
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
@@ -163,11 +324,7 @@ export const saveNote = async note => {
     try {
       const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
       if (autoBackupEnabled === 'true') {
-        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-        const userId = await getCurrentUserId();
-        if (userId) {
-          triggerAutoBackup(userId, true); // Force immediate backup
-        }
+        debouncedBackup(); // Non-blocking debounced backup
       }
     } catch (error) {
       console.error('Error during auto-backup after save:', error);
@@ -197,23 +354,21 @@ export const updateNote = async (noteId, updatedNote) => {
       updatedAt: now,
     };
 
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
-    // Check if auto-backup is enabled and trigger immediate backup
+    // Check if auto-backup is enabled and trigger debounced backup
     try {
       const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
       if (autoBackupEnabled === 'true') {
-        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-        const userId = await getCurrentUserId();
-        if (userId) {
-          triggerAutoBackup(userId, true); // Force immediate backup
-        }
+        debouncedBackup(); // Non-blocking debounced backup
       }
     } catch (error) {
       console.error('Error during auto-backup after update:', error);
@@ -232,10 +387,12 @@ export const deleteNote = async noteId => {
     const notes = await getAllNotes();
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
     const filteredNotes = notes.filter(note => !noteIds.includes(note.id));
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(filteredNotes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     const now = new Date().toISOString();
@@ -274,6 +431,7 @@ export const toggleFavorite = async noteId => {
 
   notes[noteIndex].isFavorite = !notes[noteIndex].isFavorite;
   notes[noteIndex].updatedAt = new Date().toISOString();
+  invalidateCache(); // Clear cache before updating
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
   // Update indices
@@ -296,6 +454,7 @@ export const toggleArchive = async noteId => {
 
   notes[noteIndex].isArchived = !notes[noteIndex].isArchived;
   notes[noteIndex].updatedAt = new Date().toISOString();
+  invalidateCache(); // Clear cache before updating
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
   // Update indices
@@ -333,10 +492,12 @@ export const moveToTrash = async noteId => {
       throw new Error('Not bulunamadı');
     }
 
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     const now = new Date().toISOString();
@@ -375,10 +536,12 @@ export const restoreFromTrash = async noteId => {
     }
 
     notes[noteIndex].isTrash = false;
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
-    // Update indices
-    await buildNoteIndices();
+    // Update indices (debounced)
+    await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
     const now = new Date().toISOString();
@@ -597,6 +760,8 @@ export const updateCategory = async (oldCategoryName: string, newCategoryName: s
       return note;
     });
 
+    invalidateCache(); // Clear cache before updating
+    invalidateCache(); // Clear cache before updating
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
     // Set lastChangeTimestamp for backup detection
@@ -642,6 +807,7 @@ export const deleteCategory = async category => {
     return note;
   });
 
+  invalidateCache(); // Clear cache before updating
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
 
   // Set lastChangeTimestamp for backup detection

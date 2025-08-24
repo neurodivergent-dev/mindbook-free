@@ -11,7 +11,11 @@ import {
   Platform,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  StatusBar,
+  Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,9 +35,13 @@ import { useTranslation } from 'react-i18next';
 import { triggerAutoBackup } from '../utils/backup';
 import { showToast as androidShowToast, useBackButtonHandler } from '../utils/android';
 import supabase from '../utils/supabase';
-import CategoryInputModal from '../components/CategoryInputModal';
 import { BLACK } from '../../utils/colors';
 import NoteAIAnalyzer from '../components/NoteAIAnalyzer';
+import { categoryEvents, CATEGORY_EVENTS } from '../utils/categoryEvents';
+import { getEditModeSetting } from '../utils/editModeSettings';
+import ImageUploader from '../components/ImageUploader';
+import FullScreenReader from '../components/FullScreenReader';
+import * as Clipboard from 'expo-clipboard';
 
 interface MarkdownToolbarProps {
   onInsert: (text: string) => void;
@@ -130,13 +138,17 @@ export default function EditNoteModal() {
   const [categories, setCategories] = useState([]);
   const [selectedColor, setSelectedColor] = useState('default');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showColorOptions, setShowColorOptions] = useState(false);
   const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [coverImage, setCoverImage] = useState('');
+  const [showFullScreen, setShowFullScreen] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const contentRef = useRef(null);
   const { id: paramId } = useLocalSearchParams();
   const id = typeof paramId === 'string' ? paramId : Array.isArray(paramId) ? paramId[0] : '';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     theme,
     themeMode,
@@ -234,6 +246,7 @@ export default function EditNoteModal() {
         setContent(sanitizedNote.content || '');
         setSelectedCategory(sanitizedNote.category || null);
         setSelectedColor(sanitizedNote.color || 'default');
+        setCoverImage((sanitizedNote as any).coverImage || '');
         return;
       }
 
@@ -262,6 +275,7 @@ export default function EditNoteModal() {
           setContent(sanitizedVaultNote.content || '');
           setSelectedCategory(sanitizedVaultNote.category || null);
           setSelectedColor(sanitizedVaultNote.color || 'default');
+          setCoverImage(sanitizedVaultNote.coverImage || '');
         }
       }
     } catch (error) {
@@ -270,10 +284,61 @@ export default function EditNoteModal() {
   };
 
   useEffect(() => {
-    loadNote();
-    loadCategories();
+    const initializeNote = async () => {
+      await loadNote();
+      await loadCategories();
+
+      // Set initial reading mode based on user preference
+      const defaultMode = await getEditModeSetting();
+      setIsReadingMode(defaultMode === 'reading');
+    };
+
+    initializeNote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    // Listen for category changes
+    const handleCategoriesChanged = () => {
+      loadCategories();
+    };
+
+    const handleCategoryUpdated = ({ oldName, newName }) => {
+      // Update selected category if it was renamed
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName);
+      }
+      loadCategories();
+    };
+
+    const handleCategoryDeleted = deletedCategory => {
+      // Clear selected category if it was deleted
+      if (selectedCategory === deletedCategory) {
+        setSelectedCategory(null);
+      }
+      loadCategories();
+    };
+
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORIES_CHANGED, handleCategoriesChanged);
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORY_UPDATED, handleCategoryUpdated);
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORY_DELETED, handleCategoryDeleted);
+
+    return () => {
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORIES_CHANGED, handleCategoriesChanged);
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORY_UPDATED, handleCategoryUpdated);
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORY_DELETED, handleCategoryDeleted);
+    };
+  }, [selectedCategory]);
+
+  // Component unmount olduğunda status bar'ı geri yükle
+  useEffect(() => {
+    return () => {
+      if (isFocusMode && Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(themeColors[accentColor], true);
+        StatusBar.setBarStyle('light-content', true);
+      }
+    };
+  }, [isFocusMode, themeColors, accentColor]);
 
   const handleTitleChange = newTitle => {
     // Apply 40 character limit for title
@@ -307,6 +372,7 @@ export default function EditNoteModal() {
         content: content.trim(),
         category: selectedCategory,
         color: selectedColor,
+        coverImage: coverImage || undefined,
         updatedAt: new Date().toISOString(),
       };
 
@@ -364,7 +430,14 @@ export default function EditNoteModal() {
   };
 
   const handleReadingMode = () => {
-    setIsReadingMode(!isReadingMode);
+    // Direkt tam ekran reader'ı aç
+    setShowFullScreen(true);
+  };
+
+  const copyContent = async () => {
+    const fullText = `${title}\n\n${content}`;
+    await Clipboard.setStringAsync(fullText);
+    androidShowToast(t('common.copied'));
   };
 
   themeMode === 'dark' ? '#1a1a1a' : theme.card;
@@ -375,6 +448,7 @@ export default function EditNoteModal() {
     } else {
       setSelectedCategory(category);
     }
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteCategory = categoryToDelete => {
@@ -486,7 +560,7 @@ export default function EditNoteModal() {
                     shadowRadius: 1.41 as number,
                   },
                 ]}
-                onPress={() => setShowCategoryModal(true)}
+                onPress={() => router.push('/(modal)/category-input')}
               >
                 <Ionicons name="add" size={14} color={themeColors[accentColor]} />
                 <Text
@@ -507,24 +581,6 @@ export default function EditNoteModal() {
         )}
       </View>
     );
-  };
-
-  const handleAddNewCategory = async categoryText => {
-    try {
-      await addCategory(categoryText);
-      await loadCategories();
-      await triggerAutoBackup(null);
-      setSelectedCategory(categoryText);
-      setShowCategoryModal(false);
-    } catch (error) {
-      if ((error as Error).message === 'Category name too long') {
-        Alert.alert(t('common.error'), t('notes.categoryTooLong'));
-      } else if ((error as Error).message === 'Category already exists') {
-        Alert.alert(t('common.error'), t('notes.addCategoryError'));
-      } else {
-        Alert.alert(t('common.error'), t('notes.addCategoryError'));
-      }
-    }
   };
 
   const handleToolInsert = text => {
@@ -591,12 +647,44 @@ export default function EditNoteModal() {
     setShowAIAnalyzer(true);
   };
 
+  const handleFocusMode = () => {
+    setIsFocusMode(!isFocusMode);
+
+    if (!isFocusMode) {
+      // Focus mode açılırken - status bar'ı gizleme, sadece renk değiştir
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor('transparent', true);
+        StatusBar.setBarStyle(
+          theme.background === '#000000' ? 'light-content' : 'dark-content',
+          true
+        );
+      }
+
+      // Focus mode açıldıktan sonra keyboard'u göster
+      setTimeout(() => {
+        contentRef.current?.focus();
+      }, 200);
+    } else {
+      // Focus mode'dan çıkarken
+      Keyboard.dismiss();
+
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(themeColors[accentColor], true);
+        StatusBar.setBarStyle('light-content', true);
+      }
+    }
+  };
+
   if (!note) {
     return null;
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <Stack.Screen
         options={{
           headerShown: true,
@@ -633,380 +721,555 @@ export default function EditNoteModal() {
             </View>
           ),
           headerRight: () => (
-            <View style={styles.headerRightContainer}>
+            <View style={[styles.headerRightContainer, { zIndex: 100000 }]}>
               {/* AI Analyzer Button */}
               {__DEV__ && (
                 <View onTouchStart={handleOpenAIAnalyzer} style={styles.headerIconContainer}>
                   <Ionicons name="sparkles-outline" size={24} color="#fff" />
                 </View>
               )}
-              {/* Reading Mode Button */}
-              <View onTouchStart={handleReadingMode} style={styles.headerIconContainer}>
-                <Ionicons
-                  name={isReadingMode ? 'create-outline' : 'eye-outline'}
-                  size={24}
-                  color="#fff"
-                />
-              </View>
-              {/* Save Button */}
-              <View onTouchStart={handleSave} style={styles.headerIconContainer}>
-                <Ionicons name="save-outline" size={24} color="#fff" />
-              </View>
-              {/* Delete Button */}
-              <View onTouchStart={handleDelete} style={styles.headerIconContainer}>
-                <Ionicons name="trash-outline" size={24} color="#fff" />
+
+              {/* Three Dots Menu */}
+              <View style={styles.headerMenuContainer}>
+                <View
+                  onTouchStart={() => {
+                    setShowHeaderMenu(!showHeaderMenu);
+                  }}
+                  style={styles.headerIconContainer}
+                >
+                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                </View>
               </View>
             </View>
           ),
         }}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.contentContainer}>
-          {/* Title Input */}
-          <TextInput
+      {/* Header Menu Dropdown - Rendered at root level for proper positioning */}
+      {showHeaderMenu && (
+        <>
+          <TouchableOpacity
+            style={[styles.headerMenuOverlay, { backgroundColor: 'rgba(0,0,0,0.1)' }]}
+            onPress={() => setShowHeaderMenu(false)}
+            activeOpacity={1}
+          />
+          <View
             style={[
-              styles.titleInput,
-              {
-                color: theme.text,
-                backgroundColor: theme.card,
-                fontSize: fontSizes[fontSize].titleSize,
-                fontFamily: fontFamilies[fontFamily].family,
-                borderColor: theme.border,
-              },
+              styles.headerDropdown,
+              { backgroundColor: theme.card, borderColor: theme.border },
             ]}
-            placeholder={t('notes.noteTitle')}
-            placeholderTextColor={theme.textSecondary}
-            value={title}
-            onChangeText={handleTitleChange}
-            editable={!isReadingMode}
-            onPressIn={() => isReadingMode && showReadingModeToast()}
-            maxLength={40}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                handleFocusMode();
+              }}
+              style={styles.headerMenuItem}
+            >
+              <Ionicons name="contract-outline" size={20} color={theme.text} />
+              <Text style={[styles.headerMenuText, { color: theme.text }]}>
+                {t('common.focusMode')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                handleReadingMode();
+              }}
+              style={styles.headerMenuItem}
+            >
+              <Ionicons name="expand-outline" size={20} color={theme.text} />
+              <Text style={[styles.headerMenuText, { color: theme.text }]}>
+                {t('common.readingMode')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                copyContent();
+              }}
+              style={styles.headerMenuItem}
+            >
+              <Ionicons name="copy-outline" size={20} color={theme.text} />
+              <Text style={[styles.headerMenuText, { color: theme.text }]}>{t('common.copy')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                handleSave();
+              }}
+              style={styles.headerMenuItem}
+            >
+              <Ionicons name="save-outline" size={20} color={theme.text} />
+              <Text style={[styles.headerMenuText, { color: theme.text }]}>{t('common.save')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                handleDelete();
+              }}
+              style={[styles.headerMenuItem, styles.headerMenuItemDanger]}
+            >
+              <Ionicons name="trash-outline" size={20} color="#ff4757" />
+              <Text style={[styles.headerMenuText, { color: '#ff4757' }]}>
+                {t('common.delete')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {isFocusMode ? (
+        // Focus Mode - Minimal UI with full screen text input
+        <View style={styles.focusModeContainer}>
+          {/* Focus Mode StatusBar */}
+          <StatusBar
+            barStyle={theme.background === '#000000' ? 'light-content' : 'dark-content'}
+            backgroundColor="transparent"
+            translucent={false}
+            hidden={false}
           />
 
-          {/* Options Section */}
-          {!isReadingMode && (
-            <View style={styles.optionsSection}>
-              {/* Color Picker */}
-              <View style={styles.optionContainer}>
-                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                  {t('notes.color')}
-                </Text>
-
-                {/* Renk seçici başlık - tıklanabilir */}
-                <TouchableOpacity
-                  style={[styles.colorHeader, colorHeaderStyle]}
-                  onPress={() => setShowColorOptions(!showColorOptions)}
-                >
-                  <View style={styles.selectedColorPreviewContainer}>
-                    <View
-                      style={[
-                        styles.selectedColorPreview,
-                        {
-                          backgroundColor: selectedColor
-                            ? allColors[selectedColor]?.background === 'transparent'
-                              ? theme.card
-                              : allColors[selectedColor]?.background
-                            : theme.card,
-                        },
-                      ]}
-                    />
-                    <Text style={[styles.colorName, { color: theme.text }]}>
-                      {selectedColor
-                        ? t(`colors.${selectedColor}`) || selectedColor
-                        : t('common.default')}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={showColorOptions ? 'chevron-up' : 'chevron-down'}
-                    size={24}
-                    color={theme.text}
-                  />
-                </TouchableOpacity>
-
-                {/* Renk seçici içeriği - açılır kapanır */}
-                {showColorOptions && (
-                  <View style={[styles.colorSelector, { borderColor: theme.border }]}>
-                    {Object.values(allColors).map(color => (
-                      <TouchableOpacity
-                        key={color.id}
-                        style={[styles.colorCircle, colorCircleStyle(color.background)]}
-                        onPress={async () => {
-                          setSelectedColor(color.id);
-
-                          // Update the color of the note object directly
-                          if (note) {
-                            const updatedNote = {
-                              ...note,
-                              color: color.id,
-                              updatedAt: new Date().toISOString(),
-                            };
-
-                            setNote(updatedNote);
-
-                            // Save note directly
-                            try {
-                              if (note?.isVaulted) {
-                                // Update Vault note
-                                const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
-                                if (vaultNotesStr) {
-                                  const decryptedNotes = await decryptNotes(vaultNotesStr);
-                                  const updatedNotes = decryptedNotes.map(n =>
-                                    n.id === note.id ? updatedNote : n
-                                  );
-                                  const encryptedNotes = await encryptNotes(updatedNotes);
-                                  await AsyncStorage.setItem('vault_notes', encryptedNotes);
-                                }
-                              } else {
-                                // Update normal grade
-                                await updateNote(note.id, updatedNote);
-                              }
-                              // Notify that changes have been saved
-                              setHasUnsavedChanges(false);
-                              androidShowToast(t('notes.noteSaved'));
-                            } catch (error) {
-                              // Notify the user in case of error
-                              Alert.alert(t('common.error'), t('notes.saveNoteError'));
-                              setHasUnsavedChanges(true);
-                            }
-                          }
-                        }}
-                      >
-                        {selectedColor === color.id && (
-                          <Ionicons name="checkmark" size={18} color="white" />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* Category Picker */}
-              <View style={styles.optionContainer}>
-                <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                  {t('notes.category')}
-                </Text>
-                <CategoryPicker />
-              </View>
-            </View>
-          )}
-
-          {/* Markdown Toolbar */}
-          {!isReadingMode && <MarkdownToolbar onInsert={handleToolInsert} />}
-
-          {/* Content Area */}
-          {isReadingMode ? (
-            <View style={[styles.readingContainer, { backgroundColor: theme.card }]}>
-              <Markdown
-                style={{
-                  body: {
-                    color: theme.text,
-                    fontFamily: fontFamilies[fontFamily].family,
-                    fontSize: fontSizes[fontSize].contentSize,
-                  },
-                  heading1: {
-                    color: theme.text,
-                    fontFamily: fontFamilies[fontFamily].family,
-                    fontSize: fontSizes[fontSize].contentSize * 1.8,
-                  },
-                  heading2: {
-                    color: theme.text,
-                    fontFamily: fontFamilies[fontFamily].family,
-                    fontSize: fontSizes[fontSize].contentSize * 1.5,
-                  },
-                  heading3: {
-                    color: theme.text,
-                    fontFamily: fontFamilies[fontFamily].family,
-                    fontSize: fontSizes[fontSize].contentSize * 1.2,
-                  },
-                  paragraph: {
-                    color: theme.text,
-                    fontFamily: fontFamilies[fontFamily].family,
-                    fontSize: fontSizes[fontSize].contentSize,
-                    lineHeight: fontSizes[fontSize].contentSize * 1.5,
-                  },
-                  link: {
-                    color: themeColors[accentColor],
-                    fontSize: fontSizes[fontSize].contentSize,
-                  },
-                  blockquote: {
-                    backgroundColor: theme.background,
-                    borderColor: themeColors[accentColor],
-                    fontSize: fontSizes[fontSize].contentSize,
-                  },
-                  code_inline: {
-                    backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
-                    color: themeMode === 'dark' ? '#7dcfff' : '#0550ae',
-                    fontFamily: 'monospace',
-                    fontSize: fontSizes[fontSize].contentSize * 0.9,
-                    padding: 4,
-                    borderRadius: 4,
-                  },
-                  code_block: {
-                    backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
-                    color: themeMode === 'dark' ? '#c0caf5' : '#1a1b26',
-                    fontFamily: 'monospace',
-                    fontSize: fontSizes[fontSize].contentSize * 0.9,
-                    padding: 8,
-                    borderRadius: 6,
-                    marginVertical: 8,
-                  },
-                  fence: {
-                    backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
-                    color: themeMode === 'dark' ? '#c0caf5' : '#1a1b26',
-                    fontFamily: 'monospace',
-                    fontSize: fontSizes[fontSize].contentSize * 0.9,
-                    padding: 8,
-                    borderRadius: 6,
-                    marginVertical: 8,
-                  },
-                }}
-                rules={{
-                  image: (node, index) => {
-                    const { src, alt } = node.attributes;
-                    return (
-                      <Image
-                        key={`image-${index}-${src}`}
-                        source={{ uri: src }}
-                        style={{
-                          width: '100%' as string,
-                          height: 200 as number,
-                          borderRadius: 8 as number,
-                        }}
-                        accessible={true}
-                        accessibilityLabel={alt || t('common.image')}
-                      />
-                    );
-                  },
-                  code_block: (node, children, parent, styles) => {
-                    return (
-                      <View key={node.key} style={[styles.code_block, codeBlockStyle]}>
-                        <Text style={codeTextStyle}>{node.content}</Text>
-                      </View>
-                    );
-                  },
-                  fence: (node, children, parent, styles) => {
-                    return (
-                      <View key={node.key} style={[styles.code_block, codeBlockStyle]}>
-                        <Text style={codeTextStyle}>{node.content}</Text>
-                      </View>
-                    );
-                  },
-                }}
-              >
-                {content}
-              </Markdown>
-            </View>
-          ) : (
-            <TextInput
-              ref={contentRef}
+          <KeyboardAvoidingView
+            style={styles.focusKeyboardContainer}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
+          >
+            {/* Focus Mode Header */}
+            <View
               style={[
-                styles.contentInput,
+                styles.focusHeader,
+                {
+                  backgroundColor: theme.background,
+                  borderBottomColor: theme.border,
+                  paddingTop: Platform.OS === 'ios' ? insets.top + 10 : 10,
+                },
+              ]}
+            >
+              <TouchableOpacity onPress={handleFocusMode} style={styles.focusExitButton}>
+                <Ionicons name="expand-outline" size={24} color={themeColors[accentColor]} />
+                <Text style={[styles.focusExitText, { color: themeColors[accentColor] }]}>
+                  {t('common.exitFocus')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                style={[styles.focusSaveButton, { backgroundColor: themeColors[accentColor] }]}
+              >
+                <Ionicons name="checkmark" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Focus Mode Text Input */}
+            <ScrollView
+              style={styles.focusScrollContainer}
+              contentContainerStyle={styles.focusScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              keyboardDismissMode="interactive"
+              automaticallyAdjustKeyboardInsets={true}
+            >
+              <TextInput
+                ref={contentRef}
+                style={[
+                  styles.focusTextInput,
+                  {
+                    color: theme.text,
+                    backgroundColor: theme.background,
+                    fontSize: fontSizes[fontSize].contentSize,
+                    fontFamily: fontFamilies[fontFamily].family,
+                  },
+                ]}
+                placeholder={t('notes.focusModePlaceholder')}
+                placeholderTextColor={theme.textSecondary}
+                value={content}
+                onChangeText={handleContentChange}
+                multiline
+                textAlignVertical="top"
+                autoFocus
+                scrollEnabled={false}
+              />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.contentContainer}>
+            {/* Title Input */}
+            <TextInput
+              style={[
+                styles.titleInput,
                 {
                   color: theme.text,
                   backgroundColor: theme.card,
+                  fontSize: fontSizes[fontSize].titleSize,
+                  fontFamily: fontFamilies[fontFamily].family,
+                  borderColor: theme.border,
+                },
+              ]}
+              placeholder={t('notes.noteTitle')}
+              placeholderTextColor={theme.textSecondary}
+              value={title}
+              onChangeText={handleTitleChange}
+              editable={!isReadingMode}
+              onPressIn={() => isReadingMode && showReadingModeToast()}
+              maxLength={40}
+            />
+
+            {/* Options Section */}
+            {!isReadingMode && (
+              <View style={styles.optionsSection}>
+                {/* Color Picker */}
+                <View style={styles.optionContainer}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                    {t('notes.color')}
+                  </Text>
+
+                  {/* Renk seçici başlık - tıklanabilir */}
+                  <TouchableOpacity
+                    style={[styles.colorHeader, colorHeaderStyle]}
+                    onPress={() => setShowColorOptions(!showColorOptions)}
+                  >
+                    <View style={styles.selectedColorPreviewContainer}>
+                      <View
+                        style={[
+                          styles.selectedColorPreview,
+                          {
+                            backgroundColor: selectedColor
+                              ? allColors[selectedColor]?.background === 'transparent'
+                                ? theme.card
+                                : allColors[selectedColor]?.background
+                              : theme.card,
+                          },
+                        ]}
+                      />
+                      <Text style={[styles.colorName, { color: theme.text }]}>
+                        {selectedColor
+                          ? t(`colors.${selectedColor}`) || selectedColor
+                          : t('common.default')}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={showColorOptions ? 'chevron-up' : 'chevron-down'}
+                      size={24}
+                      color={theme.text}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Renk seçici içeriği - açılır kapanır */}
+                  {showColorOptions && (
+                    <View style={[styles.colorSelector, { borderColor: theme.border }]}>
+                      {Object.values(allColors).map(color => (
+                        <TouchableOpacity
+                          key={color.id}
+                          style={[styles.colorCircle, colorCircleStyle(color.background)]}
+                          onPress={async () => {
+                            setSelectedColor(color.id);
+
+                            // Update the color of the note object directly
+                            if (note) {
+                              const updatedNote = {
+                                ...note,
+                                color: color.id,
+                                updatedAt: new Date().toISOString(),
+                              };
+
+                              setNote(updatedNote);
+
+                              // Save note directly
+                              try {
+                                if (note?.isVaulted) {
+                                  // Update Vault note
+                                  const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
+                                  if (vaultNotesStr) {
+                                    const decryptedNotes = await decryptNotes(vaultNotesStr);
+                                    const updatedNotes = decryptedNotes.map(n =>
+                                      n.id === note.id ? updatedNote : n
+                                    );
+                                    const encryptedNotes = await encryptNotes(updatedNotes);
+                                    await AsyncStorage.setItem('vault_notes', encryptedNotes);
+                                  }
+                                } else {
+                                  // Update normal grade
+                                  await updateNote(note.id, updatedNote);
+                                }
+                                // Notify that changes have been saved
+                                setHasUnsavedChanges(false);
+                                androidShowToast(t('notes.noteSaved'));
+                              } catch (error) {
+                                // Notify the user in case of error
+                                Alert.alert(t('common.error'), t('notes.saveNoteError'));
+                                setHasUnsavedChanges(true);
+                              }
+                            }
+                          }}
+                        >
+                          {selectedColor === color.id && (
+                            <Ionicons name="checkmark" size={18} color="white" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Category Picker */}
+                <View style={styles.optionContainer}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                    {t('notes.category')}
+                  </Text>
+                  <CategoryPicker />
+                </View>
+              </View>
+            )}
+
+            {/* Markdown Toolbar */}
+            {!isReadingMode && <MarkdownToolbar onInsert={handleToolInsert} />}
+
+            {/* Image Uploader */}
+            {!isReadingMode && (
+              <ImageUploader onImageSelect={setCoverImage} selectedImage={coverImage} />
+            )}
+
+            {/* Content Area */}
+            {isReadingMode ? (
+              <View style={[styles.readingContainer, { backgroundColor: theme.card }]}>
+                <Markdown
+                  style={{
+                    body: {
+                      color: theme.text,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      fontSize: fontSizes[fontSize].contentSize,
+                    },
+                    heading1: {
+                      color: theme.text,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      fontSize: fontSizes[fontSize].contentSize * 1.8,
+                    },
+                    heading2: {
+                      color: theme.text,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      fontSize: fontSizes[fontSize].contentSize * 1.5,
+                    },
+                    heading3: {
+                      color: theme.text,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      fontSize: fontSizes[fontSize].contentSize * 1.2,
+                    },
+                    paragraph: {
+                      color: theme.text,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      fontSize: fontSizes[fontSize].contentSize,
+                      lineHeight: fontSizes[fontSize].contentSize * 1.5,
+                    },
+                    link: {
+                      color: themeColors[accentColor],
+                      fontSize: fontSizes[fontSize].contentSize,
+                    },
+                    blockquote: {
+                      backgroundColor: theme.background,
+                      borderColor: themeColors[accentColor],
+                      fontSize: fontSizes[fontSize].contentSize,
+                    },
+                    code_inline: {
+                      backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
+                      color: themeMode === 'dark' ? '#7dcfff' : '#0550ae',
+                      fontFamily: 'monospace',
+                      fontSize: fontSizes[fontSize].contentSize * 0.9,
+                      padding: 4,
+                      borderRadius: 4,
+                    },
+                    code_block: {
+                      backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
+                      color: themeMode === 'dark' ? '#c0caf5' : '#1a1b26',
+                      fontFamily: 'monospace',
+                      fontSize: fontSizes[fontSize].contentSize * 0.9,
+                      padding: 8,
+                      borderRadius: 6,
+                      marginVertical: 8,
+                    },
+                    fence: {
+                      backgroundColor: themeMode === 'dark' ? '#1a1b26' : '#f7f7f7',
+                      color: themeMode === 'dark' ? '#c0caf5' : '#1a1b26',
+                      fontFamily: 'monospace',
+                      fontSize: fontSizes[fontSize].contentSize * 0.9,
+                      padding: 8,
+                      borderRadius: 6,
+                      marginVertical: 8,
+                    },
+                    table: {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      marginVertical: 8,
+                    },
+                    tr: {
+                      backgroundColor: theme.card,
+                      borderBottomColor: theme.border,
+                      borderBottomWidth: 1,
+                    },
+                    th: {
+                      backgroundColor:
+                        themeMode === 'dark' ? theme.background : theme.border + '40',
+                      color: theme.text,
+                      fontWeight: 'bold',
+                      padding: 8,
+                      borderRightColor: theme.border,
+                      borderRightWidth: 1,
+                    },
+                    td: {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      padding: 8,
+                      borderRightColor: theme.border,
+                      borderRightWidth: 1,
+                    },
+                  }}
+                  rules={{
+                    image: (node, index) => {
+                      const { src, alt } = node.attributes;
+                      return (
+                        <Image
+                          key={`image-${index}-${src}`}
+                          source={{ uri: src }}
+                          style={{
+                            width: '100%' as string,
+                            height: 200 as number,
+                            borderRadius: 8 as number,
+                          }}
+                          accessible={true}
+                          accessibilityLabel={alt || t('common.image')}
+                        />
+                      );
+                    },
+                    code_block: (node, children, parent, styles) => {
+                      return (
+                        <View key={node.key} style={[styles.code_block, codeBlockStyle]}>
+                          <Text style={codeTextStyle}>{node.content}</Text>
+                        </View>
+                      );
+                    },
+                    fence: (node, children, parent, styles) => {
+                      return (
+                        <View key={node.key} style={[styles.code_block, codeBlockStyle]}>
+                          <Text style={codeTextStyle}>{node.content}</Text>
+                        </View>
+                      );
+                    },
+                  }}
+                >
+                  {content}
+                </Markdown>
+              </View>
+            ) : (
+              <TextInput
+                ref={contentRef}
+                style={[
+                  styles.contentInput,
+                  {
+                    color: theme.text,
+                    backgroundColor: theme.card,
+                    fontSize: fontSizes[fontSize].contentSize,
+                    fontFamily: fontFamilies[fontFamily].family,
+                  },
+                ]}
+                placeholder={t('notes.noteContent')}
+                placeholderTextColor={theme.textSecondary}
+                value={content}
+                onChangeText={handleContentChange}
+                onSelectionChange={event => {
+                  contentRef.current._lastNativeSelection = event.nativeEvent.selection;
+                }}
+                multiline
+                textAlignVertical="top"
+                editable={!isReadingMode}
+                onPressIn={() => isReadingMode && showReadingModeToast()}
+              />
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Bottom Action Buttons - Hide in focus mode */}
+      {!isFocusMode && (
+        <View
+          style={[
+            styles.buttonContainer,
+            {
+              backgroundColor: theme.background,
+              borderTopColor: theme.border,
+              paddingBottom: Math.max(insets.bottom + 8, 20),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: themeColors[accentColor],
+                elevation: 3 as number,
+                shadowColor: themeColors[accentColor],
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25 as number,
+                shadowRadius: 3.84 as number,
+                flex: 1 as number,
+              },
+            ]}
+            onPress={handleSave}
+          >
+            <Ionicons name="checkmark-circle-outline" size={24} color="white" />
+            <Text
+              style={[
+                styles.buttonText,
+                {
                   fontSize: fontSizes[fontSize].contentSize,
                   fontFamily: fontFamilies[fontFamily].family,
                 },
               ]}
-              placeholder={t('notes.noteContent')}
-              placeholderTextColor={theme.textSecondary}
-              value={content}
-              onChangeText={handleContentChange}
-              onSelectionChange={event => {
-                contentRef.current._lastNativeSelection = event.nativeEvent.selection;
-              }}
-              multiline
-              textAlignVertical="top"
-              editable={!isReadingMode}
-              onPressIn={() => isReadingMode && showReadingModeToast()}
-            />
-          )}
+            >
+              {t('common.save')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: 'transparent' as string,
+                borderWidth: 1.5 as number,
+                borderColor: themeColors[accentColor],
+                elevation: 0 as number,
+                shadowOpacity: 0 as number,
+                flex: 1 as number,
+              },
+            ]}
+            onPress={handleReadingMode}
+          >
+            <Ionicons name="expand-outline" size={24} color={themeColors[accentColor]} />
+            <Text
+              style={[
+                styles.buttonText,
+                {
+                  fontSize: fontSizes[fontSize].contentSize,
+                  fontFamily: fontFamilies[fontFamily].family,
+                  color: themeColors[accentColor],
+                },
+              ]}
+            >
+              {t('common.readingMode')}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      {/* Bottom Action Buttons */}
-      <View
-        style={[
-          styles.buttonContainer,
-          { backgroundColor: theme.background, borderTopColor: theme.border },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.button,
-            {
-              backgroundColor: themeColors[accentColor],
-              elevation: 3 as number,
-              shadowColor: themeColors[accentColor],
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25 as number,
-              shadowRadius: 3.84 as number,
-              flex: 1 as number,
-            },
-          ]}
-          onPress={handleSave}
-        >
-          <Ionicons name="checkmark-circle-outline" size={24} color="white" />
-          <Text
-            style={[
-              styles.buttonText,
-              {
-                fontSize: fontSizes[fontSize].contentSize,
-                fontFamily: fontFamilies[fontFamily].family,
-              },
-            ]}
-          >
-            {t('common.save')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            {
-              backgroundColor: 'transparent' as string,
-              borderWidth: 1.5 as number,
-              borderColor: themeColors[accentColor],
-              elevation: 0 as number,
-              shadowOpacity: 0 as number,
-              flex: 1 as number,
-            },
-          ]}
-          onPress={handleReadingMode}
-        >
-          <Ionicons
-            name={isReadingMode ? 'create-outline' : 'eye-outline'}
-            size={24}
-            color={themeColors[accentColor]}
-          />
-          <Text
-            style={[
-              styles.buttonText,
-              {
-                fontSize: fontSizes[fontSize].contentSize,
-                fontFamily: fontFamilies[fontFamily].family,
-                color: themeColors[accentColor],
-              },
-            ]}
-          >
-            {isReadingMode ? t('common.editMode') : t('common.readingMode')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <CategoryInputModal
-        visible={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        onAdd={handleAddNewCategory}
-        theme={theme}
-        themeColors={themeColors}
-        accentColor={accentColor}
-      />
+      )}
 
       {/* AI Analyzer Modal */}
       <NoteAIAnalyzer
@@ -1014,7 +1277,16 @@ export default function EditNoteModal() {
         noteId={id}
         onClose={() => setShowAIAnalyzer(false)}
       />
-    </View>
+
+      {/* Full Screen Reader */}
+      <FullScreenReader
+        visible={showFullScreen}
+        onClose={() => setShowFullScreen(false)}
+        content={content}
+        title={title}
+        coverImage={coverImage}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1036,7 +1308,7 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   buttonText: {
     color: 'white' as string,
@@ -1177,12 +1449,53 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   headerIconContainer: {
-    marginRight: 10,
     padding: 10,
+  },
+  headerMenuContainer: {
+    position: 'relative',
+    zIndex: 10000,
+  },
+  headerDropdown: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    minWidth: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 10,
+    zIndex: 99999,
+    paddingVertical: 8,
+  },
+  headerMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  headerMenuItemDanger: {
+    borderTopWidth: 1,
+    borderTopColor: '#ff475720',
+  },
+  headerMenuText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  headerMenuOverlay: {
+    position: 'absolute',
+    top: -1000,
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    zIndex: 99998,
   },
   headerRightContainer: {
     flexDirection: 'row' as const,
-    marginRight: 8,
+    alignItems: 'flex-end',
   },
   optionContainer: {
     marginBottom: 16,
@@ -1290,5 +1603,60 @@ const styles = StyleSheet.create({
     color: '#FFF' as string,
     fontSize: 15,
     fontWeight: '600',
+  },
+  // Focus Mode Styles
+  focusModeContainer: {
+    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+  },
+  focusKeyboardContainer: {
+    flex: 1,
+  },
+  focusScrollContainer: {
+    flex: 1,
+  },
+  focusScrollContent: {
+    flexGrow: 1,
+    minHeight: '100%',
+  },
+  focusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  focusExitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  focusExitText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  focusSaveButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  focusTextInput: {
+    flex: 1,
+    padding: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'android' ? 80 : 40, // Keyboard için daha fazla padding
+    fontSize: 18,
+    lineHeight: 28,
+    textAlignVertical: 'top',
   },
 });

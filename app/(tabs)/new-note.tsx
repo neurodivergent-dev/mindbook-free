@@ -26,7 +26,11 @@ import { useTranslation } from 'react-i18next';
 import { triggerAutoBackup } from '../utils/backup';
 import supabase from '../utils/supabase';
 import { showToast as platformShowToast } from '../utils/android';
-import CategoryInputModal from '../components/CategoryInputModal';
+import { categoryEvents, CATEGORY_EVENTS } from '../utils/categoryEvents';
+import FullScreenReader from '../components/FullScreenReader';
+import ImageUploader from '../components/ImageUploader';
+import AIContentGenerator from '../components/AIContentGenerator';
+import * as Clipboard from 'expo-clipboard';
 
 const Colors = {
   transparent: 'transparent',
@@ -124,13 +128,15 @@ interface ExtendedTextInput extends TextInput {
 const NewNote = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [isReadingMode, setIsReadingMode] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [showFullScreen, setShowFullScreen] = useState(false);
+  const [coverImage, setCoverImage] = useState<string>('');
   const [categories, setCategories] = useState<CategoryState>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   const router = useRouter();
   const { theme, accentColor, themeColors, fontSize, fontSizes, fontFamily, fontFamilies } =
@@ -145,6 +151,64 @@ const NewNote = () => {
 
   useEffect(() => {
     loadCategories();
+
+    // Global functions for header menu
+    window.toggleFullScreen = () => {
+      setShowFullScreen(true);
+    };
+
+    window.checkContentAndToggleFullScreen = () => {
+      if (!content.trim()) {
+        platformShowToast(t('notes.noContentToRead'));
+        return;
+      }
+      setShowFullScreen(true);
+    };
+
+    window.saveNewNote = () => {
+      handleSave();
+    };
+
+    window.resetNewNote = () => {
+      resetForm();
+    };
+
+    window.toggleFocusMode = () => {
+      handleFocusMode();
+    };
+
+    window.showAIGenerator = () => {
+      setShowAIGenerator(true);
+    };
+
+    window.copyContent = () => {
+      copyContent();
+    };
+
+    // Listen for category changes
+    const handleCategoriesChanged = () => {
+      loadCategories();
+    };
+
+    const handleCategoryUpdated = ({ oldName, newName }) => {
+      // Update selected category if it was renamed
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName);
+      }
+      loadCategories();
+    };
+
+    const handleCategoryDeleted = deletedCategory => {
+      // Clear selected category if it was deleted
+      if (selectedCategory === deletedCategory) {
+        setSelectedCategory(null);
+      }
+      loadCategories();
+    };
+
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORIES_CHANGED, handleCategoriesChanged);
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORY_UPDATED, handleCategoryUpdated);
+    categoryEvents.on(CATEGORY_EVENTS.CATEGORY_DELETED, handleCategoryDeleted);
 
     // Keyboard event listeners
     const keyboardWillShow = Keyboard.addListener(
@@ -164,10 +228,13 @@ const NewNote = () => {
     );
 
     return () => {
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORIES_CHANGED, handleCategoriesChanged);
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORY_UPDATED, handleCategoryUpdated);
+      categoryEvents.off(CATEGORY_EVENTS.CATEGORY_DELETED, handleCategoryDeleted);
       keyboardWillShow.remove();
       keyboardWillHide.remove();
     };
-  }, []);
+  }, [selectedCategory, content]);
 
   const loadCategories = async () => {
     const loadedCategories = await getCategories();
@@ -212,7 +279,6 @@ const NewNote = () => {
         await addCategory(categoryName.trim());
         await loadCategories();
         await triggerAutoBackup(null);
-        setShowCategoryModal(false);
         setSelectedCategory(categoryName.trim());
       } catch (error) {
         if (error instanceof Error && error.message === 'Category name too long') {
@@ -230,6 +296,7 @@ const NewNote = () => {
     setTitle('');
     setContent('');
     setSelectedCategory(null);
+    setCoverImage('');
   };
 
   const handleSave = async () => {
@@ -243,6 +310,7 @@ const NewNote = () => {
         title: title.trim(),
         content: content.trim(),
         category: selectedCategory,
+        coverImage: coverImage || undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -280,7 +348,21 @@ const NewNote = () => {
   };
 
   const handleReadingMode = () => {
-    setIsReadingMode(!isReadingMode);
+    if (!content.trim()) {
+      platformShowToast(t('notes.noContentToRead'));
+      return;
+    }
+    setShowFullScreen(true);
+  };
+
+  const handleFocusMode = () => {
+    setIsFocusMode(!isFocusMode);
+  };
+
+  const copyContent = async () => {
+    const fullText = `${title}\n\n${content}`;
+    await Clipboard.setStringAsync(fullText);
+    platformShowToast(t('common.copied'));
   };
 
   const handleCategoryPress = (category: string) => {
@@ -346,6 +428,50 @@ const NewNote = () => {
           end: newCursorPosition,
         },
       });
+    }
+  };
+
+  const handleAIContentGenerated = (
+    generatedContent: string,
+    coverImageUrl?: string,
+    generatedTitle?: string
+  ) => {
+    // Set cover image if provided
+    if (coverImageUrl) {
+      setCoverImage(coverImageUrl);
+    }
+
+    // Set title if provided and current title is empty
+    if (generatedTitle && !title.trim()) {
+      setTitle(generatedTitle);
+    }
+
+    // AI içeriğini mevcut içeriğe ekle veya değiştir
+    if (content.trim()) {
+      // Eğer mevcut içerik varsa, kullanıcıya seçenek sun
+      Alert.alert(t('ai.insertContent'), t('ai.insertContentMessage'), [
+        {
+          text: t('ai.replace'),
+          onPress: () => {
+            setContent(generatedContent);
+            // Also set title if replacing content and no title exists
+            if (generatedTitle && !title.trim()) {
+              setTitle(generatedTitle);
+            }
+          },
+        },
+        {
+          text: t('ai.append'),
+          onPress: () => setContent(content + '\n\n' + generatedContent),
+        },
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+      ]);
+    } else {
+      // Eğer içerik yoksa direkt ekle
+      setContent(generatedContent);
     }
   };
 
@@ -493,6 +619,51 @@ const NewNote = () => {
     },
   };
 
+  // Focus Mode UI
+  if (isFocusMode) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View
+          style={[
+            styles.focusHeader,
+            { backgroundColor: theme.background, borderBottomColor: theme.border },
+          ]}
+        >
+          <TouchableOpacity onPress={handleFocusMode} style={styles.focusExitButton}>
+            <Ionicons name="expand-outline" size={24} color={themeColors[accentColor]} />
+            <Text style={[styles.focusExitText, { color: themeColors[accentColor] }]}>
+              {t('common.exitFocus')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.focusSaveButton, { backgroundColor: themeColors[accentColor] }]}
+            onPress={handleSave}
+          >
+            <Ionicons name="checkmark" size={20} color="white" />
+            <Text style={styles.focusSaveButtonText}>{t('common.save')}</Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={[
+            styles.focusContentInput,
+            {
+              color: theme.text,
+              backgroundColor: theme.background,
+              fontSize: fontSizes[fontSize].contentSize,
+              fontFamily: fontFamilies[fontFamily].family,
+            },
+          ]}
+          placeholder={t('notes.noteContent')}
+          placeholderTextColor={theme.textSecondary}
+          value={content}
+          onChangeText={setContent}
+          multiline
+          autoFocus
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={dynamicStyles.container}>
       <KeyboardAvoidingView
@@ -523,6 +694,12 @@ const NewNote = () => {
           />
 
           <MarkdownToolbar onInsert={handleToolInsert} />
+
+          <ImageUploader
+            key={`image-uploader-${coverImage || 'empty'}`}
+            onImageSelect={setCoverImage}
+            selectedImage={coverImage}
+          />
 
           <View style={styles.pickerContainer}>
             <TouchableOpacity
@@ -577,7 +754,7 @@ const NewNote = () => {
                   ))}
                   <TouchableOpacity
                     style={dynamicStyles.addCategoryChip}
-                    onPress={() => setShowCategoryModal(true)}
+                    onPress={() => router.push('/(modal)/category-input')}
                   >
                     <Ionicons name="add" size={14} color={themeColors[accentColor]} />
                     <Text
@@ -593,49 +770,23 @@ const NewNote = () => {
             )}
           </View>
 
-          {isReadingMode ? (
-            <View style={dynamicStyles.readingContainer}>
-              <Markdown
-                style={markdownStyles}
-                rules={{
-                  image: (node, index) => {
-                    const { src, alt } = node.attributes;
-                    return (
-                      <Image
-                        key={`image-${index}-${src}`}
-                        source={{ uri: src }}
-                        style={styles.markdownImage}
-                        accessible={true}
-                        accessibilityLabel={alt || 'Markdown image'}
-                      />
-                    );
-                  },
-                }}
-              >
-                {content}
-              </Markdown>
-            </View>
-          ) : (
-            <TextInput
-              ref={contentRef}
-              style={dynamicStyles.contentInput}
-              placeholder={t('notes.noteContent')}
-              placeholderTextColor={theme.textSecondary}
-              value={content}
-              onChangeText={handleContentChange}
-              onFocus={handleContentFocus}
-              onSelectionChange={event => {
-                if (contentRef.current) {
-                  (contentRef.current as ExtendedTextInput)._lastNativeSelection =
-                    event.nativeEvent.selection;
-                }
-              }}
-              multiline
-              textAlignVertical="top"
-              editable={!isReadingMode}
-              onPressIn={() => isReadingMode && showToast()}
-            />
-          )}
+          <TextInput
+            ref={contentRef}
+            style={dynamicStyles.contentInput}
+            placeholder={t('notes.noteContent')}
+            placeholderTextColor={theme.textSecondary}
+            value={content}
+            onChangeText={handleContentChange}
+            onFocus={handleContentFocus}
+            onSelectionChange={event => {
+              if (contentRef.current) {
+                (contentRef.current as ExtendedTextInput)._lastNativeSelection =
+                  event.nativeEvent.selection;
+              }
+            }}
+            multiline
+            textAlignVertical="top"
+          />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -647,24 +798,23 @@ const NewNote = () => {
         </TouchableOpacity>
 
         <TouchableOpacity style={dynamicStyles.secondaryButton} onPress={handleReadingMode}>
-          <Ionicons
-            name={isReadingMode ? 'create-outline' : 'eye-outline'}
-            size={24}
-            color={themeColors[accentColor]}
-          />
-          <Text style={dynamicStyles.secondaryButtonText}>
-            {isReadingMode ? t('common.editMode') : t('common.readingMode')}
-          </Text>
+          <Ionicons name="eye-outline" size={24} color={themeColors[accentColor]} />
+          <Text style={dynamicStyles.secondaryButtonText}>{t('common.readingMode')}</Text>
         </TouchableOpacity>
       </View>
 
-      <CategoryInputModal
-        visible={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        onAdd={handleAddCategory}
-        theme={theme}
-        themeColors={themeColors}
-        accentColor={accentColor}
+      <FullScreenReader
+        visible={showFullScreen}
+        onClose={() => setShowFullScreen(false)}
+        content={content}
+        title={title}
+        coverImage={coverImage}
+      />
+
+      <AIContentGenerator
+        visible={showAIGenerator}
+        onClose={() => setShowAIGenerator(false)}
+        onContentGenerated={handleAIContentGenerated}
       />
     </View>
   );
@@ -878,5 +1028,43 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 15,
     fontWeight: '600',
+  },
+  // Focus Mode Styles
+  focusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  focusExitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  focusExitText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  focusSaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  focusSaveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  focusContentInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlignVertical: 'top',
   },
 });
