@@ -12,14 +12,12 @@ let backupTimeout: NodeJS.Timeout | null = null;
 
 // Memory cache for notes - massive performance boost!
 let notesCache: Note[] | null = null;
-let cacheTimestamp: number = 0;
 
 // Pagination cache
 let paginationCache: { [key: string]: Note[] } = {};
 
 // Search results cache for faster search
 let searchCache: { [key: string]: Note[] } = {};
-let searchCacheTimestamp: { [key: string]: number } = {};
 
 export const NOTES_KEY = '@notes';
 export const CATEGORIES_KEY = '@categories';
@@ -30,12 +28,10 @@ export const DATE_INDEX_KEY = '@notes_index_dates';
 
 // Cache management
 const invalidateCache = () => {
-  notesCache = null;
-  cacheTimestamp = 0;
+  // If we just nullify, next read will be slow. 
+  // We'll handle cache updates manually in write functions for maximum speed.
   clearPaginationCache();
-  // Clear search cache too
   searchCache = {};
-  searchCacheTimestamp = {};
 };
 
 // Performance optimized functions
@@ -52,73 +48,30 @@ const debouncedBuildNoteIndices = async () => {
   });
 };
 
-const debouncedBackup = async (userId?: string) => {
-  if (backupTimeout) {
-    clearTimeout(backupTimeout);
-  }
-
-  return new Promise<void>(resolve => {
-    backupTimeout = setTimeout(async () => {
-      try {
-        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-        const finalUserId = userId || (await getCurrentUserId());
-        if (finalUserId) {
-          await triggerAutoBackup(finalUserId, true);
-        }
-      } catch (error) {
-        console.error('Debounced backup error:', error);
-      }
-      resolve();
-    }, 1000); // 1 second delay
-  });
-};
-
-// Note interface for better type checking
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  category?: string;
-  createdAt: string;
-  updatedAt: string;
-  isFavorite: boolean;
-  isArchived: boolean;
-  isTrash: boolean;
-  trashedAt?: string;
-  isVaulted?: boolean;
-  tags?: string[];
-  color?: string;
-  [key: string]: any; // Allow for additional properties
-}
-
-// Get notes
+// Get notes - Now returns direct memory reference for MAXIMUM SPEED
 export const getAllNotes = async (): Promise<Note[]> => {
   try {
-    // Check cache first (5 second cache)
-    const now = Date.now();
-    if (notesCache && now - cacheTimestamp < 5000) {
+    // If cache exists, return reference immediately (0 allocations, 0ms)
+    if (notesCache) {
       return notesCache;
     }
 
-    // Cache miss - load from storage
+    // Cache miss - load from storage once
     const notesStr = await AsyncStorage.getItem(NOTES_KEY);
     if (!notesStr) {
       notesCache = [];
-      cacheTimestamp = now;
       return [];
     }
 
     const notes = JSON.parse(notesStr);
     if (!Array.isArray(notes)) {
       notesCache = [];
-      cacheTimestamp = now;
       return [];
     }
 
     // Update cache
     notesCache = notes;
-    cacheTimestamp = now;
-    return notes;
+    return notesCache;
   } catch (error) {
     return [];
   }
@@ -175,32 +128,39 @@ export const searchNotesOptimized = async (query: string): Promise<Note[]> => {
   if (!query.trim()) return await getAllNotes();
 
   const cacheKey = query.toLowerCase().trim();
-  const now = Date.now();
 
-  // Check search cache (10 second cache for search)
-  if (
-    searchCache[cacheKey] &&
-    searchCacheTimestamp[cacheKey] &&
-    now - searchCacheTimestamp[cacheKey] < 10000
-  ) {
+  // Check search cache
+  if (searchCache[cacheKey]) {
     return searchCache[cacheKey];
   }
 
   const allNotes = await getAllNotes();
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = cacheKey;
 
-  // Fast search - check title first (most common), then content
-  const results = allNotes.filter(note => {
-    return (
-      note.title.toLowerCase().includes(lowerQuery) ||
-      note.content.toLowerCase().includes(lowerQuery) ||
-      note.category?.toLowerCase().includes(lowerQuery)
-    );
-  });
+  // Fast search using simple loop for better V8 optimization than filter
+  const results = [];
+  const len = allNotes.length;
+  
+  for (let i = 0; i < len; i++) {
+    const note = allNotes[i];
+    // Check title first (fastest)
+    if (note.title && note.title.toLowerCase().includes(lowerQuery)) {
+      results.push(note);
+      continue;
+    }
+    // Then category
+    if (note.category && note.category.toLowerCase().includes(lowerQuery)) {
+      results.push(note);
+      continue;
+    }
+    // Finally content (slowest, largest text)
+    if (note.content && note.content.toLowerCase().includes(lowerQuery)) {
+      results.push(note);
+    }
+  }
 
   // Cache results
   searchCache[cacheKey] = results;
-  searchCacheTimestamp[cacheKey] = now;
 
   return results;
 };
@@ -221,61 +181,6 @@ export const batchGetNotes = async (noteIds: string[]): Promise<Note[]> => {
   }
 };
 
-// Batch update notes - new optimized function
-export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<boolean> => {
-  try {
-    if (!notesToUpdate || notesToUpdate.length === 0) return false;
-
-    // Make sure each note to update has an ID
-    const validUpdates = notesToUpdate.filter(note => note.id);
-    if (validUpdates.length === 0) return false;
-
-    // Get all notes
-    const allNotes = await getAllNotes();
-
-    // Update the matching notes
-    const now = new Date().toISOString();
-    const updatedAllNotes = allNotes.map(note => {
-      const updateInfo = validUpdates.find(update => update.id === note.id);
-      if (updateInfo) {
-        return {
-          ...note,
-          ...updateInfo,
-          updatedAt: now,
-        };
-      }
-      return note;
-    });
-
-    // Save all notes in one operation
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes));
-
-    // Update indices (debounced)
-    await debouncedBuildNoteIndices();
-
-    // Set lastChangeTimestamp for backup detection
-    await AsyncStorage.setItem('@lastChangeTimestamp', now);
-
-    // Check if auto-backup is enabled and trigger immediate backup
-    try {
-      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-      if (autoBackupEnabled === 'true') {
-        debouncedBackup(); // Non-blocking debounced backup
-      }
-    } catch (error) {
-      console.error('Error during auto-backup after batch update:', error);
-      // Continue anyway since the main update operation succeeded
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error in batch update notes:', error);
-    return false;
-  }
-};
-
 // Get a single note by ID - new helper function
 export const getNoteById = async (noteId: string): Promise<Note | null> => {
   try {
@@ -292,13 +197,56 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
-// Save note
+// Batch update notes - Optimized to update memory cache first
+export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<boolean> => {
+  try {
+    if (!notesToUpdate || notesToUpdate.length === 0) return false;
+
+    const validUpdates = notesToUpdate.filter(note => note.id);
+    if (validUpdates.length === 0) return false;
+
+    // 1. Get current notes (from memory)
+    const allNotes = await getAllNotes();
+
+    // 2. Prepare updated list
+    const now = new Date().toISOString();
+    const updatedAllNotes = allNotes.map(note => {
+      const updateInfo = validUpdates.find(update => update.id === note.id);
+      if (updateInfo) {
+        return {
+          ...note,
+          ...updateInfo,
+          updatedAt: now,
+        };
+      }
+      return note;
+    });
+
+    // 3. IMMEDIATELY update memory cache for instant UI response
+    notesCache = updatedAllNotes;
+    invalidateCache(); 
+
+    // 4. Save to disk in background
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes)).catch(err => 
+      console.error('Background disk write failed:', err)
+    );
+
+    await debouncedBuildNoteIndices();
+    await AsyncStorage.setItem('@lastChangeTimestamp', now);
+
+    return true;
+  } catch (error) {
+    console.error('Error in batch update notes:', error);
+    return false;
+  }
+};
+
+// Save note - Optimized for instant feedback
 export const saveNote = async note => {
   try {
-    const storedNotes = await AsyncStorage.getItem(NOTES_KEY);
-    const notes = storedNotes ? JSON.parse(storedNotes) : [];
-
+    const allNotes = await getAllNotes();
     const now = new Date().toISOString();
+    
     const newNote = {
       ...note,
       id: generateId(),
@@ -309,27 +257,17 @@ export const saveNote = async note => {
       isTrash: false,
     };
 
-    notes.unshift(newNote);
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    // 1. Update memory cache immediately
+    notesCache = [newNote, ...allNotes];
+    invalidateCache();
 
-    // Update indices (debounced)
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+      console.error('Disk save failed:', err)
+    );
+
     await debouncedBuildNoteIndices();
-
-    // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
-
-    // Check if auto-backup is enabled and trigger immediate backup
-    try {
-      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-      if (autoBackupEnabled === 'true') {
-        debouncedBackup(); // Non-blocking debounced backup
-      }
-    } catch (error) {
-      console.error('Error during auto-backup after save:', error);
-      // Continue anyway since the main save operation succeeded
-    }
 
     return true;
   } catch (error) {
@@ -337,43 +275,36 @@ export const saveNote = async note => {
   }
 };
 
-// Update note
+// Update note - Optimized for instant feedback
 export const updateNote = async (noteId, updatedNote) => {
   try {
-    const notes = await getAllNotes();
-    const noteIndex = notes.findIndex(note => note.id === noteId);
+    const allNotes = await getAllNotes();
+    const noteIndex = allNotes.findIndex(note => note.id === noteId);
 
     if (noteIndex === -1) {
       throw new Error('Note not found');
     }
 
     const now = new Date().toISOString();
-    notes[noteIndex] = {
-      ...notes[noteIndex],
+    const updatedNoteFull = {
+      ...allNotes[noteIndex],
       ...updatedNote,
       updatedAt: now,
     };
 
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    // 1. Update memory cache immediately
+    const updatedAllNotes = [...allNotes];
+    updatedAllNotes[noteIndex] = updatedNoteFull;
+    notesCache = updatedAllNotes;
+    invalidateCache();
 
-    // Update indices (debounced)
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+      console.error('Disk update failed:', err)
+    );
+
     await debouncedBuildNoteIndices();
-
-    // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
-
-    // Check if auto-backup is enabled and trigger debounced backup
-    try {
-      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-      if (autoBackupEnabled === 'true') {
-        debouncedBackup(); // Non-blocking debounced backup
-      }
-    } catch (error) {
-      console.error('Error during auto-backup after update:', error);
-      // Continue anyway since the main update operation succeeded
-    }
 
     return true;
   } catch (error) {
@@ -381,38 +312,24 @@ export const updateNote = async (noteId, updatedNote) => {
   }
 };
 
-// Delete note
+// Delete note - Optimized for instant feedback
 export const deleteNote = async noteId => {
   try {
-    const notes = await getAllNotes();
+    const allNotes = await getAllNotes();
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
-    const filteredNotes = notes.filter(note => !noteIds.includes(note.id));
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(filteredNotes));
+    
+    // 1. Update memory cache immediately
+    notesCache = allNotes.filter(note => !noteIds.includes(note.id));
+    invalidateCache();
 
-    // Update indices (debounced)
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+      console.error('Disk delete failed:', err)
+    );
+
     await debouncedBuildNoteIndices();
-
-    // Set lastChangeTimestamp for backup detection
     const now = new Date().toISOString();
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
-
-    // Change timestamp approach didn't work, call backup directly
-    try {
-      const { backupToCloud, getCurrentUserId } = require('./backup');
-
-      // Get the user id with getCurrentUserId
-      const userId = await getCurrentUserId();
-
-      if (userId) {
-        await backupToCloud(userId);
-      } else {
-        return true;
-      }
-    } catch (e) {
-      return true;
-    }
 
     return true;
   } catch (error) {
@@ -422,17 +339,29 @@ export const deleteNote = async noteId => {
 
 // Add to Remove from favorites
 export const toggleFavorite = async noteId => {
-  const notes = await getAllNotes();
-  const noteIndex = notes.findIndex(note => note.id === noteId);
+  const allNotes = await getAllNotes();
+  const noteIndex = allNotes.findIndex(note => note.id === noteId);
 
   if (noteIndex === -1) {
     throw new Error('Note not found');
   }
 
-  notes[noteIndex].isFavorite = !notes[noteIndex].isFavorite;
-  notes[noteIndex].updatedAt = new Date().toISOString();
-  invalidateCache(); // Clear cache before updating
-  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  const updatedNote = {
+    ...allNotes[noteIndex],
+    isFavorite: !allNotes[noteIndex].isFavorite,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 1. Update memory cache immediately
+  const updatedAllNotes = [...allNotes];
+  updatedAllNotes[noteIndex] = updatedNote;
+  notesCache = updatedAllNotes;
+  invalidateCache();
+
+  // 2. Background disk write
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    console.error('Disk toggle favorite failed:', err)
+  );
 
   // Update indices
   await buildNoteIndices();
@@ -445,17 +374,29 @@ export const toggleFavorite = async noteId => {
 
 // Add/remove to archive
 export const toggleArchive = async noteId => {
-  const notes = await getAllNotes();
-  const noteIndex = notes.findIndex(note => note.id === noteId);
+  const allNotes = await getAllNotes();
+  const noteIndex = allNotes.findIndex(note => note.id === noteId);
 
   if (noteIndex === -1) {
     throw new Error('Note not found');
   }
 
-  notes[noteIndex].isArchived = !notes[noteIndex].isArchived;
-  notes[noteIndex].updatedAt = new Date().toISOString();
-  invalidateCache(); // Clear cache before updating
-  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  const updatedNote = {
+    ...allNotes[noteIndex],
+    isArchived: !allNotes[noteIndex].isArchived,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 1. Update memory cache immediately
+  const updatedAllNotes = [...allNotes];
+  updatedAllNotes[noteIndex] = updatedNote;
+  notesCache = updatedAllNotes;
+  invalidateCache();
+
+  // 2. Background disk write
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    console.error('Disk toggle archive failed:', err)
+  );
 
   // Update indices
   await buildNoteIndices();
@@ -469,76 +410,76 @@ export const toggleArchive = async noteId => {
 // Move to trash
 export const moveToTrash = async noteId => {
   try {
-    const notes = await getAllNotes();
+    const allNotes = await getAllNotes();
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
 
-    let updatedNotes = [...notes];
     let found = false;
+    const now = new Date().toISOString();
 
-    // Update notes that match any ID in the array
-    updatedNotes = updatedNotes.map(note => {
+    // 1. Update memory cache immediately
+    const updatedAllNotes = allNotes.map(note => {
       if (noteIds.includes(note.id)) {
         found = true;
         return {
           ...note,
           isTrash: true,
-          trashedAt: new Date().toISOString(),
+          trashedAt: now,
+          updatedAt: now,
         };
       }
       return note;
     });
 
     if (!found) {
-      throw new Error('Not bulunamadı');
+      throw new Error('Note not found');
     }
 
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+    notesCache = updatedAllNotes;
+    invalidateCache();
+
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+      console.error('Disk move to trash failed:', err)
+    );
 
     // Update indices (debounced)
     await debouncedBuildNoteIndices();
 
     // Set lastChangeTimestamp for backup detection
-    const now = new Date().toISOString();
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
-
-    // Call backup directly after moving to trash
-    try {
-      const { backupToCloud, getCurrentUserId } = require('./backup');
-
-      // Get the user id with getCurrentUserId
-      const userId = await getCurrentUserId();
-
-      if (userId) {
-        await backupToCloud(userId);
-      }
-    } catch (e) {
-      console.error('Backup error after trashing note:', e);
-      // Continue anyway since the main operation succeeded
-    }
 
     return true;
   } catch (error) {
     console.error('Move to trash error:', error);
-    throw error; // Re-throw to allow caller to handle it
+    throw error;
   }
 };
 
 // Restore from trash
 export const restoreFromTrash = async noteId => {
   try {
-    const notes = await getAllNotes();
-    const noteIndex = notes.findIndex(note => note.id === noteId);
+    const allNotes = await getAllNotes();
+    const noteIndex = allNotes.findIndex(note => note.id === noteId);
 
     if (noteIndex === -1) {
       throw new Error('No notes found');
     }
 
-    notes[noteIndex].isTrash = false;
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    // 1. Update memory cache immediately
+    const updatedAllNotes = [...allNotes];
+    updatedAllNotes[noteIndex] = {
+      ...allNotes[noteIndex],
+      isTrash: false,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    notesCache = updatedAllNotes;
+    invalidateCache();
+
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+      console.error('Disk restore failed:', err)
+    );
 
     // Update indices (debounced)
     await debouncedBuildNoteIndices();
@@ -547,23 +488,10 @@ export const restoreFromTrash = async noteId => {
     const now = new Date().toISOString();
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
-    // Backup operation - should not affect the main operation if it fails
-    try {
-      const { backupToCloud, getCurrentUserId } = require('./backup');
-      const userId = await getCurrentUserId();
-      if (userId) {
-        await backupToCloud(userId);
-      }
-    } catch (e) {
-      // Backup failure should not affect the main process
-      console.log('Error during backup:', e);
-    }
-
     return true;
   } catch (error) {
-    // We should actually catch and handle errors in the main process
     console.error('Error while restoring from trash:', error);
-    throw error; // or it would be better to do error handling
+    throw error;
   }
 };
 
@@ -606,78 +534,7 @@ export const debugStorage = async () => {
   }
 };
 
-// DEBUG: Backup inspection function
-export const debugBackupContent = async () => {
-  try {
-    const { getCurrentUserId } = require('../utils/backup');
-    const supabase = require('../utils/supabase').default;
-    const { decryptNotes } = require('../utils/encryption');
-
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      const { Alert } = require('react-native');
-      Alert.alert('Debug Error', 'No user ID found');
-      return;
-    }
-
-    // Get raw backup data
-    const { data, error } = await supabase
-      .from('backups')
-      .select('data')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
-
-    if (error || !data || data.length === 0) {
-      const { Alert } = require('react-native');
-      Alert.alert('Debug Error', 'No backup found in cloud');
-      return;
-    }
-
-    const backupData = data[0].data;
-
-    // Try to decrypt categories
-    const categoriesRaw = backupData.categories;
-    const categoriesDecrypted = await decryptNotes(categoriesRaw);
-
-    // Try to decrypt notes
-    const notesRaw = backupData.notes;
-    const notesDecrypted = await decryptNotes(notesRaw);
-
-    const { Alert } = require('react-native');
-    Alert.alert(
-      '☁️ BACKUP DEBUG',
-      `Backup Date: ${backupData.backup_date || 'Unknown'}\n` +
-        `Categories Encrypted: ${!!categoriesRaw}\n` +
-        `Categories Decrypted: ${Array.isArray(categoriesDecrypted)}\n` +
-        `Categories Count: ${
-          Array.isArray(categoriesDecrypted) ? categoriesDecrypted.length : 'ERROR'
-        }\n` +
-        `Categories Sample: ${
-          Array.isArray(categoriesDecrypted) ? categoriesDecrypted.slice(0, 2).join(', ') : 'ERROR'
-        }\n\n` +
-        `Notes Encrypted: ${!!notesRaw}\n` +
-        `Notes Decrypted: ${Array.isArray(notesDecrypted)}\n` +
-        `Notes Count: ${Array.isArray(notesDecrypted) ? notesDecrypted.length : 'ERROR'}`,
-      [{ text: 'OK' }]
-    );
-
-    return {
-      categoriesRaw: !!categoriesRaw,
-      categoriesDecrypted: Array.isArray(categoriesDecrypted),
-      categoriesCount: Array.isArray(categoriesDecrypted) ? categoriesDecrypted.length : 0,
-      notesDecrypted: Array.isArray(notesDecrypted),
-      notesCount: Array.isArray(notesDecrypted) ? notesDecrypted.length : 0,
-    };
-  } catch (error) {
-    const { Alert } = require('react-native');
-    Alert.alert(
-      'Debug Error',
-      'Backup debug failed: ' + (error instanceof Error ? error.message : String(error))
-    );
-    return null;
-  }
-};
+// Backup removed for free version - debug function removed
 
 // Add category
 export const addCategory = async category => {
@@ -699,20 +556,7 @@ export const addCategory = async category => {
   // Set lastChangeTimestamp for backup detection
   await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
 
-  // Check if auto-backup is enabled and trigger immediate backup
-  try {
-    const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-    if (autoBackupEnabled === 'true') {
-      const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-      const userId = await getCurrentUserId();
-      if (userId) {
-        // Force immediate backup to include the new category
-        await triggerAutoBackup(userId, true);
-      }
-    }
-  } catch (error) {
-    // Continue anyway since the main category add operation succeeded
-  }
+  // Backup removed for free version
 
   return true;
 };
@@ -760,27 +604,17 @@ export const updateCategory = async (oldCategoryName: string, newCategoryName: s
       return note;
     });
 
-    invalidateCache(); // Clear cache before updating
-    invalidateCache(); // Clear cache before updating
-    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+    // 1. Update memory cache immediately
+    notesCache = updatedNotes;
+    invalidateCache(); 
+
+    // 2. Background disk write
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err => 
+      console.error('Disk update category notes failed:', err)
+    );
 
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
-
-    // Check if auto-backup is enabled and trigger immediate backup
-    try {
-      const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-      if (autoBackupEnabled === 'true') {
-        const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-        const userId = await getCurrentUserId();
-        if (userId) {
-          // Force immediate backup to include the category update
-          await triggerAutoBackup(userId, true);
-        }
-      }
-    } catch (error) {
-      // Continue anyway since the main category update operation succeeded
-    }
 
     return true;
   } catch (error) {
@@ -807,26 +641,17 @@ export const deleteCategory = async category => {
     return note;
   });
 
-  invalidateCache(); // Clear cache before updating
-  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
+  // 1. Update memory cache immediately
+  notesCache = updatedNotes;
+  invalidateCache(); 
+
+  // 2. Background disk write
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err => 
+    console.error('Disk delete category notes failed:', err)
+  );
 
   // Set lastChangeTimestamp for backup detection
   await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
-
-  // Check if auto-backup is enabled and trigger immediate backup
-  try {
-    const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-    if (autoBackupEnabled === 'true') {
-      const { triggerAutoBackup, getCurrentUserId } = require('./backup');
-      const userId = await getCurrentUserId();
-      if (userId) {
-        // Force immediate backup to include the category deletion
-        await triggerAutoBackup(userId, true);
-      }
-    }
-  } catch (error) {
-    // Continue anyway since the main category delete operation succeeded
-  }
 
   return true;
 };
@@ -1034,17 +859,7 @@ export const batchMoveToTrash = async (noteIds: string[]): Promise<boolean> => {
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
-    // Call backup directly after moving to trash
-    try {
-      const { backupToCloud, getCurrentUserId } = require('./backup');
-      const userId = await getCurrentUserId();
-      if (userId) {
-        await backupToCloud(userId);
-      }
-    } catch (e) {
-      console.error('Backup error after trashing notes:', e);
-      // Continue anyway since the main operation succeeded
-    }
+    // Backup removed for free version
 
     return result;
   } catch (error) {
@@ -1078,17 +893,7 @@ export const batchRestoreFromTrash = async (noteIds: string[]): Promise<boolean>
     // Set lastChangeTimestamp for backup detection
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
-    // Backup operation
-    try {
-      const { backupToCloud, getCurrentUserId } = require('./backup');
-      const userId = await getCurrentUserId();
-      if (userId) {
-        await backupToCloud(userId);
-      }
-    } catch (e) {
-      console.error('Backup error after restoring notes:', e);
-      // Continue anyway since the main operation succeeded
-    }
+    // Backup removed for free version
 
     return result;
   } catch (error) {
@@ -1182,6 +987,67 @@ export const buildNoteIndices = async () => {
   }
 };
 
+// Create backup data string
+export const createBackup = async (): Promise<string> => {
+  try {
+    const notes = await getAllNotes();
+    const categories = await getCategories();
+    
+    const backupData = {
+      version: 1,
+      date: new Date().toISOString(),
+      notes,
+      categories,
+    };
+    
+    return JSON.stringify(backupData);
+  } catch (error) {
+    console.error('Create backup error:', error);
+    throw error;
+  }
+};
+
+// Restore backup data from string
+export const restoreBackup = async (backupString: string): Promise<boolean> => {
+  try {
+    let data;
+    try {
+      data = JSON.parse(backupString);
+    } catch (e) {
+      throw new Error('Invalid JSON format');
+    }
+
+    // Basic validation
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid backup data');
+    }
+
+    if (!Array.isArray(data.notes)) {
+      throw new Error('Invalid notes format in backup');
+    }
+
+    // Restore notes
+    const notes = data.notes;
+    notesCache = notes;
+    invalidateCache(); 
+    await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+
+    // Restore categories if available
+    if (Array.isArray(data.categories)) {
+      await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(data.categories));
+    }
+
+    // Update indices and timestamp
+    await debouncedBuildNoteIndices();
+    await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
+
+    return true;
+  } catch (error) {
+    console.error('Restore backup error:', error);
+    return false;
+  }
+};
+
 // Export all functions
 export default {
   getAllNotes,
@@ -1215,7 +1081,8 @@ export default {
   batchMoveToTrash,
   batchRestoreFromTrash,
   batchUpdateCategory,
-  debugBackupContent,
+  createBackup,
+  restoreBackup,
 };
 
 /**

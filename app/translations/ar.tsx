@@ -313,6 +313,7 @@ export default {
     emptyCategoryMessage: 'لم تقم بإنشاء أي ملاحظات في هذا التصنيف بعد.',
     emptyCategoryNotes: 'لا توجد ملاحظات في الفئة {{category}}.',
     lastEdit: 'آخر تعديل',
+    details: 'تفاصيل الملاحظة',
     lastUpdate: 'آخر تحديث',
     restoreNotes: 'استعادة الملاحظات',
     encryptionNotAvailable:
@@ -429,6 +430,8 @@ export default {
       'لم يتم العثور على نسخ احتياطية في التخزين السحابي. تحتاج إلى إنشاء نسخة احتياطية أولاً.',
     website: 'الموقع الإلكتروني',
     rate: 'قيّمنا',
+    upgradeToPro: 'الترقية إلى برو',
+    proFeaturesDesc: 'مزامنة السحاب، ميزات الذكاء الاصطناعي والمزيد',
   },
   drawer: {
     home: 'الرئيسية',

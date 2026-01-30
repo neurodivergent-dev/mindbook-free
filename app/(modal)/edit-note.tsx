@@ -27,21 +27,19 @@ import {
   deleteCategory,
   moveToTrash,
 } from '../utils/storage';
-import { decryptNotes, encryptNotes } from '../utils/encryption';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NOTE_COLORS, DARK_NOTE_COLORS } from '../utils/colors';
 import Markdown from 'react-native-markdown-display';
 import { useTranslation } from 'react-i18next';
-import { triggerAutoBackup } from '../utils/backup';
 import { showToast as androidShowToast, useBackButtonHandler } from '../utils/android';
-import supabase from '../utils/supabase';
 import { BLACK } from '../../utils/colors';
-import NoteAIAnalyzer from '../components/NoteAIAnalyzer';
 import { categoryEvents, CATEGORY_EVENTS } from '../utils/categoryEvents';
 import { getEditModeSetting } from '../utils/editModeSettings';
 import ImageUploader from '../components/ImageUploader';
 import FullScreenReader from '../components/FullScreenReader';
 import * as Clipboard from 'expo-clipboard';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface MarkdownToolbarProps {
   onInsert: (text: string) => void;
@@ -139,7 +137,7 @@ export default function EditNoteModal() {
   const [selectedColor, setSelectedColor] = useState('default');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showColorOptions, setShowColorOptions] = useState(false);
-  const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [coverImage, setCoverImage] = useState('');
   const [showFullScreen, setShowFullScreen] = useState(false);
@@ -250,34 +248,7 @@ export default function EditNoteModal() {
         return;
       }
 
-      const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
-      if (vaultNotesStr) {
-        const decryptedNotes = await decryptNotes(vaultNotesStr);
-        const foundVaultNote = decryptedNotes.find(n => n.id === id);
-
-        if (foundVaultNote) {
-          // Ensure date values are properly formatted for vault notes
-          const sanitizedVaultNote = {
-            ...foundVaultNote,
-            createdAt: foundVaultNote.createdAt
-              ? new Date(foundVaultNote.createdAt).toISOString()
-              : new Date().toISOString(),
-            updatedAt: foundVaultNote.updatedAt
-              ? new Date(foundVaultNote.updatedAt).toISOString()
-              : new Date().toISOString(),
-            deletedAt: foundVaultNote.deletedAt
-              ? new Date(foundVaultNote.deletedAt).toISOString()
-              : null,
-          };
-
-          setNote(sanitizedVaultNote);
-          setTitle(sanitizedVaultNote.title || '');
-          setContent(sanitizedVaultNote.content || '');
-          setSelectedCategory(sanitizedVaultNote.category || null);
-          setSelectedColor(sanitizedVaultNote.color || 'default');
-          setCoverImage(sanitizedVaultNote.coverImage || '');
-        }
-      }
+      // Vault feature removed for free version
     } catch (error) {
       return null;
     }
@@ -376,25 +347,10 @@ export default function EditNoteModal() {
         updatedAt: new Date().toISOString(),
       };
 
-      if (note?.isVaulted) {
-        // Update Vault note
-        const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
-        if (vaultNotesStr) {
-          const decryptedNotes = await decryptNotes(vaultNotesStr);
-          const updatedNotes = decryptedNotes.map(n => (n.id === note.id ? updatedNote : n));
-          const encryptedNotes = await encryptNotes(updatedNotes);
-          await AsyncStorage.setItem('vault_notes', encryptedNotes);
-        }
-      } else {
-        // Update normal grade
-        await updateNote(id, updatedNote);
-      }
+      // Vault feature removed for free version
+      await updateNote(id, updatedNote);
 
-      // Trigger automatic backup
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        triggerAutoBackup(userData.user);
-      }
+      // Backup removed for free version
 
       setHasUnsavedChanges(false);
       androidShowToast(t('notes.noteSaved'));
@@ -440,6 +396,37 @@ export default function EditNoteModal() {
     androidShowToast(t('common.copied'));
   };
 
+  const exportToPdf = async () => {
+    try {
+      const htmlContent = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #333; }
+              h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+              .meta { color: #666; font-size: 12px; margin-bottom: 30px; }
+              .content { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <h1>${title || 'Untitled Note'}</h1>
+            <div class="meta">
+              <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
+              ${selectedCategory ? `<strong>Category:</strong> ${selectedCategory}` : ''}
+            </div>
+            <div class="content">${content}</div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      Alert.alert(t('common.error'), 'Failed to export PDF');
+    }
+  };
+
   themeMode === 'dark' ? '#1a1a1a' : theme.card;
 
   const handleCategoryPress = category => {
@@ -464,7 +451,7 @@ export default function EditNoteModal() {
             }
             await deleteCategory(categoryToDelete);
             loadCategories();
-            await triggerAutoBackup(null);
+// Backup removed for free version
           } catch (error) {
             Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
           }
@@ -493,7 +480,7 @@ export default function EditNoteModal() {
             <View style={styles.pickerLeftContent}>
               <Ionicons
                 name="pricetag-outline"
-                size={20}
+                size={22}
                 color={showCategoryPicker ? themeColors[accentColor] : theme.text}
               />
               <Text style={[styles.pickerText, { color: theme.text }]}>
@@ -502,7 +489,7 @@ export default function EditNoteModal() {
             </View>
             <Ionicons
               name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-              size={20}
+              size={22}
               color={showCategoryPicker ? themeColors[accentColor] : theme.text}
             />
           </View>
@@ -511,10 +498,10 @@ export default function EditNoteModal() {
         {showCategoryPicker && (
           <View style={[styles.dropdownContainer, { backgroundColor: theme.card }]}>
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
               style={styles.categoryScroll}
               contentContainerStyle={styles.categoryScrollContent}
+              nestedScrollEnabled={true}
             >
               {categories.map(category => {
                 const isSelected = selectedCategory === category;
@@ -642,11 +629,6 @@ export default function EditNoteModal() {
     borderColor: themeMode === 'dark' ? '#292e42' : '#e1e1e1',
   };
 
-  const handleOpenAIAnalyzer = () => {
-    Keyboard.dismiss();
-    setShowAIAnalyzer(true);
-  };
-
   const handleFocusMode = () => {
     setIsFocusMode(!isFocusMode);
 
@@ -722,13 +704,6 @@ export default function EditNoteModal() {
           ),
           headerRight: () => (
             <View style={[styles.headerRightContainer, { zIndex: 100000 }]}>
-              {/* AI Analyzer Button */}
-              {__DEV__ && (
-                <View onTouchStart={handleOpenAIAnalyzer} style={styles.headerIconContainer}>
-                  <Ionicons name="sparkles-outline" size={24} color="#fff" />
-                </View>
-              )}
-
               {/* Three Dots Menu */}
               <View style={styles.headerMenuContainer}>
                 <View
@@ -794,6 +769,17 @@ export default function EditNoteModal() {
             >
               <Ionicons name="copy-outline" size={20} color={theme.text} />
               <Text style={[styles.headerMenuText, { color: theme.text }]}>{t('common.copy')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowHeaderMenu(false);
+                exportToPdf();
+              }}
+              style={styles.headerMenuItem}
+            >
+              <Ionicons name="document-text-outline" size={20} color={theme.text} />
+              <Text style={[styles.headerMenuText, { color: theme.text }]}>Export PDF</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -924,120 +910,131 @@ export default function EditNoteModal() {
               maxLength={40}
             />
 
-            {/* Options Section */}
+            {/* Note Details Toggle */}
             {!isReadingMode && (
-              <View style={styles.optionsSection}>
-                {/* Color Picker */}
-                <View style={styles.optionContainer}>
-                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                    {t('notes.color')}
+              <View>
+                <TouchableOpacity
+                  style={[
+                    styles.sectionToggle,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  onPress={() => setShowOptions(!showOptions)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={showOptions ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={themeColors[accentColor]}
+                  />
+                  <Text style={[styles.sectionToggleText, { color: themeColors[accentColor] }]}>
+                    {t('notes.details') || 'Note Details'}
                   </Text>
+                </TouchableOpacity>
 
-                  {/* Renk seçici başlık - tıklanabilir */}
-                  <TouchableOpacity
-                    style={[styles.colorHeader, colorHeaderStyle]}
-                    onPress={() => setShowColorOptions(!showColorOptions)}
-                  >
-                    <View style={styles.selectedColorPreviewContainer}>
-                      <View
-                        style={[
-                          styles.selectedColorPreview,
-                          {
-                            backgroundColor: selectedColor
-                              ? allColors[selectedColor]?.background === 'transparent'
-                                ? theme.card
-                                : allColors[selectedColor]?.background
-                              : theme.card,
-                          },
-                        ]}
-                      />
-                      <Text style={[styles.colorName, { color: theme.text }]}>
-                        {selectedColor
-                          ? t(`colors.${selectedColor}`) || selectedColor
-                          : t('common.default')}
+                {showOptions && (
+                  <View style={styles.optionsContent}>
+                    {/* Color Picker */}
+                    <View style={styles.optionContainer}>
+                      <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                        {t('notes.color')}
                       </Text>
-                    </View>
-                    <Ionicons
-                      name={showColorOptions ? 'chevron-up' : 'chevron-down'}
-                      size={24}
-                      color={theme.text}
-                    />
-                  </TouchableOpacity>
 
-                  {/* Renk seçici içeriği - açılır kapanır */}
-                  {showColorOptions && (
-                    <View style={[styles.colorSelector, { borderColor: theme.border }]}>
-                      {Object.values(allColors).map(color => (
-                        <TouchableOpacity
-                          key={color.id}
-                          style={[styles.colorCircle, colorCircleStyle(color.background)]}
-                          onPress={async () => {
-                            setSelectedColor(color.id);
+                      <TouchableOpacity
+                        style={[styles.colorHeader, colorHeaderStyle]}
+                        onPress={() => setShowColorOptions(!showColorOptions)}
+                      >
+                        <View style={styles.selectedColorPreviewContainer}>
+                          <View
+                            style={[
+                              styles.selectedColorPreview,
+                              {
+                                backgroundColor: selectedColor
+                                  ? allColors[selectedColor]?.background === 'transparent'
+                                    ? theme.card
+                                    : allColors[selectedColor]?.background
+                                  : theme.card,
+                              },
+                            ]}
+                          />
+                          <Text style={[styles.colorName, { color: theme.text }]}>
+                            {selectedColor
+                              ? t(`colors.${selectedColor}`) || selectedColor
+                              : t('common.default')}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={showColorOptions ? 'chevron-up' : 'chevron-down'}
+                          size={24}
+                          color={theme.text}
+                        />
+                      </TouchableOpacity>
 
-                            // Update the color of the note object directly
-                            if (note) {
-                              const updatedNote = {
-                                ...note,
-                                color: color.id,
-                                updatedAt: new Date().toISOString(),
-                              };
+                      {showColorOptions && (
+                        <View style={[styles.colorSelector, { borderColor: theme.border }]}>
+                          {['default', 'red', 'orange', 'yellow', 'green', 'blue']
+                            .map(key => allColors[key])
+                            .filter(Boolean)
+                            .map(color => (
+                              <TouchableOpacity
+                                key={color.id}
+                                style={[styles.colorCircle, colorCircleStyle(color.background)]}
+                                onPress={async () => {
+                                  setSelectedColor(color.id);
 
-                              setNote(updatedNote);
+                                  if (note) {
+                                    const updatedNote = {
+                                      ...note,
+                                      color: color.id,
+                                      updatedAt: new Date().toISOString(),
+                                    };
 
-                              // Save note directly
-                              try {
-                                if (note?.isVaulted) {
-                                  // Update Vault note
-                                  const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
-                                  if (vaultNotesStr) {
-                                    const decryptedNotes = await decryptNotes(vaultNotesStr);
-                                    const updatedNotes = decryptedNotes.map(n =>
-                                      n.id === note.id ? updatedNote : n
-                                    );
-                                    const encryptedNotes = await encryptNotes(updatedNotes);
-                                    await AsyncStorage.setItem('vault_notes', encryptedNotes);
+                                    setNote(updatedNote);
+
+                                    try {
+                                      await updateNote(note.id, updatedNote);
+                                      setHasUnsavedChanges(false);
+                                      androidShowToast(t('notes.noteSaved'));
+                                    } catch (error) {
+                                      Alert.alert(t('common.error'), t('notes.saveNoteError'));
+                                      setHasUnsavedChanges(true);
+                                    }
                                   }
-                                } else {
-                                  // Update normal grade
-                                  await updateNote(note.id, updatedNote);
-                                }
-                                // Notify that changes have been saved
-                                setHasUnsavedChanges(false);
-                                androidShowToast(t('notes.noteSaved'));
-                              } catch (error) {
-                                // Notify the user in case of error
-                                Alert.alert(t('common.error'), t('notes.saveNoteError'));
-                                setHasUnsavedChanges(true);
-                              }
-                            }
-                          }}
-                        >
-                          {selectedColor === color.id && (
-                            <Ionicons name="checkmark" size={18} color="white" />
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                                }}
+                              >
+                                {selectedColor === color.id && (
+                                  <Ionicons name="checkmark" size={18} color="white" />
+                                )}
+                              </TouchableOpacity>
+                            ))}
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
 
-                {/* Category Picker */}
-                <View style={styles.optionContainer}>
-                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
-                    {t('notes.category')}
-                  </Text>
-                  <CategoryPicker />
-                </View>
+                    {/* Category Picker */}
+                    <View style={styles.optionContainer}>
+                      <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                        {t('notes.category')}
+                      </Text>
+                      <CategoryPicker />
+                    </View>
+
+                    {/* Image Uploader */}
+                    <View style={styles.optionContainer}>
+                      <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                        {t('notes.coverImage')}
+                      </Text>
+                      <ImageUploader onImageSelect={setCoverImage} selectedImage={coverImage} />
+                    </View>
+                  </View>
+                )}
               </View>
             )}
 
             {/* Markdown Toolbar */}
             {!isReadingMode && <MarkdownToolbar onInsert={handleToolInsert} />}
-
-            {/* Image Uploader */}
-            {!isReadingMode && (
-              <ImageUploader onImageSelect={setCoverImage} selectedImage={coverImage} />
-            )}
 
             {/* Content Area */}
             {isReadingMode ? (
@@ -1271,13 +1268,6 @@ export default function EditNoteModal() {
         </View>
       )}
 
-      {/* AI Analyzer Modal */}
-      <NoteAIAnalyzer
-        visible={showAIAnalyzer}
-        noteId={id}
-        onClose={() => setShowAIAnalyzer(false)}
-      />
-
       {/* Full Screen Reader */}
       <FullScreenReader
         visible={showFullScreen}
@@ -1292,6 +1282,24 @@ export default function EditNoteModal() {
 
 // Edit Note Styles
 const styles = StyleSheet.create({
+  sectionToggle: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 16,
+    padding: 12,
+  },
+  sectionToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  optionsContent: {
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
   button: {
     alignItems: 'center',
     borderRadius: 12,
@@ -1319,12 +1327,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
-    height: 32,
+    height: 42,
     justifyContent: 'center',
     marginRight: 8,
+    marginBottom: 8,
     minWidth: 80,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   categoryChipSelected: {
     alignItems: 'center',
@@ -1332,12 +1341,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 2,
     flexDirection: 'row',
-    height: 32,
+    height: 42,
     justifyContent: 'center',
     marginRight: 8,
+    marginBottom: 8,
     minWidth: 80,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     shadowColor: BLACK,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -1351,12 +1361,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 2,
     flexDirection: 'row',
-    height: 32,
+    height: 42,
     justifyContent: 'center',
     marginRight: 8,
+    marginBottom: 8,
     minWidth: 80,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     shadowColor: BLACK,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -1366,38 +1377,40 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   categoryScrollContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 12,
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    maxWidth: 90,
+    maxWidth: 120,
     textAlign: 'center',
   },
   categoryTextSelected: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     marginLeft: 2,
-    maxWidth: 90,
+    maxWidth: 120,
     textAlign: 'center',
   },
   categoryTextUnselected: {
     color: undefined,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     marginLeft: 2,
-    maxWidth: 90,
+    maxWidth: 120,
     textAlign: 'center',
   },
   colorCircle: {
     alignItems: 'center',
-    borderRadius: 18,
-    height: 36,
+    borderRadius: 21,
+    height: 42,
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
-    width: 36,
+    width: 42,
   },
   colorHeader: {
     alignItems: 'center',
@@ -1418,9 +1431,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'flex-start',
-    padding: 8,
+    gap: 8,
+    justifyContent: 'space-between',
+    padding: 12,
   },
   container: {
     flex: 1,
@@ -1513,12 +1526,14 @@ const styles = StyleSheet.create({
   pickerButton: {
     borderRadius: 12,
     borderWidth: 1,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   pickerButtonContent: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 14,
   },
   pickerContainer: {
     marginTop: 8,
@@ -1531,8 +1546,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pickerText: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
   readingContainer: {
     backgroundColor: 'transparent' as string,

@@ -307,6 +307,7 @@ export default {
     emptyCategoryMessage: '你还没有在此分类中创建任何笔记。',
     emptyCategoryNotes: '在{{category}}类别中未找到笔记。',
     lastEdit: '最后编辑',
+    details: '笔记详情',
     lastUpdate: '最后更新',
     restoreNotes: '恢复笔记',
     encryptionNotAvailable: '加密服务不可用。请检查您的网络连接或稍后重试。',
@@ -407,6 +408,8 @@ export default {
     clearAllData: '清除所有数据',
     removePhoto: '删除照片',
     confirmClearAllData: '这将永久删除数据库中的所有笔记。此操作无法撤销。您确定要继续吗？',
+    upgradeToPro: '升级到 Pro',
+    proFeaturesDesc: '云同步、AI 功能等',
   },
   drawer: {
     home: '主页',

@@ -38,65 +38,30 @@ export const FONT_FAMILIES = {
     name: () => i18next.t('fonts.families.system'),
     family: undefined,
   },
-  caveatBrush: {
-    id: 'caveatBrush',
-    name: () => i18next.t('fonts.families.caveatBrush'),
-    family: 'CaveatBrush-Regular',
+  poppins: {
+    id: 'poppins',
+    name: () => 'Poppins',
+    family: 'Poppins-Regular',
   },
   montserrat: {
     id: 'montserrat',
     name: () => i18next.t('fonts.families.montserrat'),
     family: 'Montserrat-Regular',
   },
-  openSans: {
-    id: 'openSans',
-    name: () => i18next.t('fonts.families.openSans'),
-    family: 'OpenSans-Regular',
-  },
   roboto: {
     id: 'roboto',
     name: () => i18next.t('fonts.families.roboto'),
     family: 'Roboto-Regular',
-  },
-  poppins: {
-    id: 'poppins',
-    name: () => 'Poppins',
-    family: 'Poppins-Regular',
-  },
-  poppinsBold: {
-    id: 'poppinsBold',
-    name: () => 'Poppins Bold',
-    family: 'Poppins-Bold',
-  },
-  raleway: {
-    id: 'raleway',
-    name: () => 'Raleway',
-    family: 'Raleway-Regular',
-  },
-  ralewayBold: {
-    id: 'ralewayBold',
-    name: () => 'Raleway Bold',
-    family: 'Raleway-Bold',
-  },
-  lato: {
-    id: 'lato',
-    name: () => 'Lato',
-    family: 'Lato-Regular',
-  },
-  latoBold: {
-    id: 'latoBold',
-    name: () => 'Lato Bold',
-    family: 'Lato-Bold',
   },
   inter: {
     id: 'inter',
     name: () => 'Inter',
     family: 'Inter-Regular',
   },
-  interBold: {
-    id: 'interBold',
-    name: () => 'Inter Bold',
-    family: 'Inter-Bold',
+  caveatBrush: {
+    id: 'caveatBrush',
+    name: () => i18next.t('fonts.families.caveatBrush'),
+    family: 'CaveatBrush-Regular',
   },
 };
 

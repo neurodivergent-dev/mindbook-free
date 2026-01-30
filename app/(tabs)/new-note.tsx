@@ -17,20 +17,21 @@ import {
   Keyboard,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveNote, getCategories, addCategory, deleteCategory } from '../utils/storage';
 import { useTheme } from '../context/ThemeContext';
+import { NOTE_COLORS, DARK_NOTE_COLORS } from '../utils/colors';
 import Markdown from 'react-native-markdown-display';
 import { useTranslation } from 'react-i18next';
-import { triggerAutoBackup } from '../utils/backup';
-import supabase from '../utils/supabase';
 import { showToast as platformShowToast } from '../utils/android';
 import { categoryEvents, CATEGORY_EVENTS } from '../utils/categoryEvents';
 import FullScreenReader from '../components/FullScreenReader';
 import ImageUploader from '../components/ImageUploader';
-import AIContentGenerator from '../components/AIContentGenerator';
 import * as Clipboard from 'expo-clipboard';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const Colors = {
   transparent: 'transparent',
@@ -39,6 +40,8 @@ const Colors = {
   modalOverlay: 'rgba(0,0,0,0.5)',
   borderTransparent: 'rgba(0,0,0,0.1)',
 };
+
+const DRAFT_NOTE_KEY = '@draft_note';
 
 interface MarkdownToolbarProps {
   onInsert: (text: string) => void;
@@ -134,20 +137,109 @@ const NewNote = () => {
   const [categories, setCategories] = useState<CategoryState>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('default');
+  const [showColorOptions, setShowColorOptions] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   const router = useRouter();
-  const { theme, accentColor, themeColors, fontSize, fontSizes, fontFamily, fontFamilies } =
+  const { theme, accentColor, themeColors, fontSize, fontSizes, fontFamily, fontFamilies, themeMode } =
     useTheme();
   const { t } = useTranslation();
+
+  const colors = themeMode === 'dark' ? DARK_NOTE_COLORS : NOTE_COLORS;
+  const EXTRA_COLORS =
+    themeMode === 'dark'
+      ? {
+          purple: {
+            id: 'purple',
+            background: '#6b46c1',
+            text: '#fff',
+            nameKey: 'notes.purpleColor',
+          },
+          teal: { id: 'teal', background: '#319795', text: '#fff', nameKey: 'notes.tealColor' },
+          pink: { id: 'pink', background: '#d53f8c', text: '#fff', nameKey: 'notes.pinkColor' },
+          cyan: { id: 'cyan', background: '#00B5D8', text: '#fff', nameKey: 'notes.cyanColor' },
+          indigo: {
+            id: 'indigo',
+            background: '#5a67d8',
+            text: '#fff',
+            nameKey: 'notes.indigoColor',
+          },
+          lime: { id: 'lime', background: '#86D11A', text: '#fff', nameKey: 'notes.limeColor' },
+        }
+      : {
+          purple: {
+            id: 'purple',
+            background: '#9C6DD3',
+            text: '#fff',
+            nameKey: 'notes.purpleColor',
+          },
+          teal: { id: 'teal', background: '#4FD1C5', text: '#fff', nameKey: 'notes.tealColor' },
+          pink: { id: 'pink', background: '#ED64A6', text: '#fff', nameKey: 'notes.pinkColor' },
+          cyan: { id: 'cyan', background: '#76E4F7', text: '#000', nameKey: 'notes.cyanColor' },
+          indigo: {
+            id: 'indigo',
+            background: '#7886D7',
+            text: '#fff',
+            nameKey: 'notes.indigoColor',
+          },
+          lime: { id: 'lime', background: '#B4F063', text: '#000', nameKey: 'notes.limeColor' },
+        };
+
+  const allColors = { ...colors, ...EXTRA_COLORS };
 
   // Refs for scroll management
   const scrollViewRef = useRef<ScrollView>(null);
   const titleRef = useRef<TextInput>(null);
   const contentRef = useRef<TextInput>(null);
   const screenHeight = Dimensions.get('window').height;
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      try {
+        const draftJson = await AsyncStorage.getItem(DRAFT_NOTE_KEY);
+        if (draftJson) {
+          const draft = JSON.parse(draftJson);
+          if (draft.title) setTitle(draft.title);
+          if (draft.content) setContent(draft.content);
+          if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
+          if (draft.coverImage) setCoverImage(draft.coverImage);
+          if (draft.selectedColor) setSelectedColor(draft.selectedColor);
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      }
+    };
+    loadDraft();
+  }, []);
+
+  // Save draft on changes
+  useEffect(() => {
+    const saveDraft = async () => {
+      // Only save if there is some content
+      if (title || content || selectedCategory || coverImage || selectedColor !== 'default') {
+        const draft = {
+          title,
+          content,
+          selectedCategory,
+          coverImage,
+          selectedColor,
+        };
+        try {
+          await AsyncStorage.setItem(DRAFT_NOTE_KEY, JSON.stringify(draft));
+        } catch (error) {
+          console.error('Error saving draft:', error);
+        }
+      }
+    };
+
+    // Debounce save to avoid too many writes
+    const timeoutId = setTimeout(saveDraft, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [title, content, selectedCategory, coverImage, selectedColor]);
 
   useEffect(() => {
     loadCategories();
@@ -175,10 +267,6 @@ const NewNote = () => {
 
     window.toggleFocusMode = () => {
       handleFocusMode();
-    };
-
-    window.showAIGenerator = () => {
-      setShowAIGenerator(true);
     };
 
     window.copyContent = () => {
@@ -278,7 +366,6 @@ const NewNote = () => {
       try {
         await addCategory(categoryName.trim());
         await loadCategories();
-        await triggerAutoBackup(null);
         setSelectedCategory(categoryName.trim());
       } catch (error) {
         if (error instanceof Error && error.message === 'Category name too long') {
@@ -292,11 +379,16 @@ const NewNote = () => {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
     setTitle('');
     setContent('');
     setSelectedCategory(null);
     setCoverImage('');
+    try {
+      await AsyncStorage.removeItem(DRAFT_NOTE_KEY);
+    } catch (e) {
+      console.error('Error clearing draft:', e);
+    }
   };
 
   const handleSave = async () => {
@@ -310,6 +402,7 @@ const NewNote = () => {
         title: title.trim(),
         content: content.trim(),
         category: selectedCategory,
+        color: selectedColor,
         coverImage: coverImage || undefined,
         createdAt: new Date().toISOString(),
       };
@@ -319,11 +412,8 @@ const NewNote = () => {
       console.log('Note save result:', result);
 
       if (result) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-          triggerAutoBackup(userData.user);
-        }
-
+        // Clear draft after successful save
+        await AsyncStorage.removeItem(DRAFT_NOTE_KEY);
         resetForm();
         Alert.alert(t('common.success'), t('notes.noteSaved'), [
           {
@@ -365,6 +455,40 @@ const NewNote = () => {
     platformShowToast(t('common.copied'));
   };
 
+  const exportToPdf = async () => {
+    if (!title.trim() && !content.trim()) {
+      platformShowToast(t('notes.noContentToRead'));
+      return;
+    }
+    try {
+      const htmlContent = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #333; }
+              h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+              .meta { color: #666; font-size: 12px; margin-bottom: 30px; }
+              .content { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <h1>${title || 'Untitled Note'}</h1>
+            <div class="meta">
+              <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
+              ${selectedCategory ? `<strong>Category:</strong> ${selectedCategory}` : ''}
+            </div>
+            <div class="content">${content}</div>
+          </body>
+        </html>
+      `;
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      Alert.alert(t('common.error'), 'Failed to export PDF');
+    }
+  };
+
   const handleCategoryPress = (category: string) => {
     if (selectedCategory === category) {
       setSelectedCategory(null);
@@ -386,7 +510,6 @@ const NewNote = () => {
             }
             await deleteCategory(categoryToDelete);
             loadCategories();
-            await triggerAutoBackup(null);
           } catch (error) {
             console.error('Error deleting category:', error);
             Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
@@ -431,49 +554,7 @@ const NewNote = () => {
     }
   };
 
-  const handleAIContentGenerated = (
-    generatedContent: string,
-    coverImageUrl?: string,
-    generatedTitle?: string
-  ) => {
-    // Set cover image if provided
-    if (coverImageUrl) {
-      setCoverImage(coverImageUrl);
-    }
-
-    // Set title if provided and current title is empty
-    if (generatedTitle && !title.trim()) {
-      setTitle(generatedTitle);
-    }
-
-    // AI içeriğini mevcut içeriğe ekle veya değiştir
-    if (content.trim()) {
-      // Eğer mevcut içerik varsa, kullanıcıya seçenek sun
-      Alert.alert(t('ai.insertContent'), t('ai.insertContentMessage'), [
-        {
-          text: t('ai.replace'),
-          onPress: () => {
-            setContent(generatedContent);
-            // Also set title if replacing content and no title exists
-            if (generatedTitle && !title.trim()) {
-              setTitle(generatedTitle);
-            }
-          },
-        },
-        {
-          text: t('ai.append'),
-          onPress: () => setContent(content + '\n\n' + generatedContent),
-        },
-        {
-          text: t('common.cancel'),
-          style: 'cancel',
-        },
-      ]);
-    } else {
-      // Eğer içerik yoksa direkt ekle
-      setContent(generatedContent);
-    }
-  };
+  // AI content generator removed for free version
 
   // Calculate keyboard avoiding view offset
   const getKeyboardVerticalOffset = () => {
@@ -506,6 +587,7 @@ const NewNote = () => {
       {
         backgroundColor: theme.card,
         borderColor: showCategoryPicker ? themeColors[accentColor] : theme.border,
+        minHeight: 52,
       },
     ],
     pickerText: [styles.pickerText, { color: theme.text }],
@@ -521,6 +603,7 @@ const NewNote = () => {
       {
         backgroundColor: selectedCategory === category ? themeColors[accentColor] : theme.card,
         borderColor: selectedCategory === category ? themeColors[accentColor] : theme.border,
+        height: 42,
       },
       styles.categoryChipShadow,
     ],
@@ -528,6 +611,7 @@ const NewNote = () => {
       styles.categoryTextWithMargin,
       {
         color: selectedCategory === category ? Colors.white : themeColors[accentColor],
+        fontSize: 14,
       },
     ],
     addCategoryChip: [
@@ -535,10 +619,11 @@ const NewNote = () => {
       {
         backgroundColor: theme.card,
         borderColor: themeColors[accentColor],
+        height: 42,
       },
       styles.categoryChipShadow,
     ],
-    addCategoryText: [styles.categoryText, { color: themeColors[accentColor] }],
+    addCategoryText: [styles.categoryText, { color: themeColors[accentColor], fontSize: 14 }],
     readingContainer: [styles.readingContainer, { borderColor: theme.border }],
     contentInput: [
       styles.contentInput,
@@ -666,6 +751,17 @@ const NewNote = () => {
 
   return (
     <View style={dynamicStyles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: t('notes.newNote'),
+          headerRight: () => (
+            <TouchableOpacity onPress={exportToPdf} style={{ marginRight: 15 }}>
+              <Ionicons name="document-text-outline" size={24} color={themeColors[accentColor]} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -693,82 +789,194 @@ const NewNote = () => {
             maxLength={40}
           />
 
-          <MarkdownToolbar onInsert={handleToolInsert} />
-
-          <ImageUploader
-            key={`image-uploader-${coverImage || 'empty'}`}
-            onImageSelect={setCoverImage}
-            selectedImage={coverImage}
-          />
-
-          <View style={styles.pickerContainer}>
+          {/* Note Details Toggle */}
+          <View>
             <TouchableOpacity
-              style={dynamicStyles.pickerButton}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+              style={[
+                styles.sectionToggle,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setShowOptions(!showOptions)}
+              activeOpacity={0.8}
             >
-              <View style={styles.pickerButtonContent}>
-                <View style={styles.pickerLeftContent}>
-                  <Ionicons
-                    name="pricetag-outline"
-                    size={20}
-                    color={dynamicStyles.pickerIcon.color}
-                  />
-                  <Text style={dynamicStyles.pickerText}>
-                    {selectedCategory || t('notes.selectCategory')}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color={dynamicStyles.pickerChevron.color}
-                />
-              </View>
+              <Ionicons
+                name={showOptions ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={themeColors[accentColor]}
+              />
+              <Text style={[styles.sectionToggleText, { color: themeColors[accentColor] }]}>
+                {t('notes.details') || 'Note Details'}
+              </Text>
             </TouchableOpacity>
 
-            {showCategoryPicker && (
-              <View style={dynamicStyles.dropdownContainer}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.categoryScroll}
-                  contentContainerStyle={styles.categoryScrollContent}
-                >
-                  {categories.map(category => (
-                    <TouchableOpacity
-                      key={category}
-                      style={dynamicStyles.categoryChip(category)}
-                      onPress={() => {
-                        handleCategoryPress(category);
-                        setShowCategoryPicker(false);
-                      }}
-                      onLongPress={() => handleDeleteCategory(category)}
-                    >
-                      <Text
-                        style={dynamicStyles.categoryText(category)}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+            {showOptions && (
+              <View style={styles.optionsContent}>
+                {/* Color Picker */}
+                <View style={styles.optionContainer}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                    {t('notes.color')}
+                  </Text>
+
                   <TouchableOpacity
-                    style={dynamicStyles.addCategoryChip}
-                    onPress={() => router.push('/(modal)/category-input')}
+                    style={[
+                      styles.colorHeader,
+                      {
+                        backgroundColor: 'transparent',
+                        borderColor: theme.border,
+                        marginBottom: showColorOptions ? 12 : 0,
+                      },
+                    ]}
+                    onPress={() => setShowColorOptions(!showColorOptions)}
                   >
-                    <Ionicons name="add" size={14} color={themeColors[accentColor]} />
-                    <Text
-                      style={dynamicStyles.addCategoryText}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {t('common.create')}
-                    </Text>
+                    <View style={styles.selectedColorPreviewContainer}>
+                      <View
+                        style={[
+                          styles.selectedColorPreview,
+                          {
+                            backgroundColor: selectedColor
+                              ? (allColors[selectedColor]?.background === 'transparent'
+                                ? theme.card
+                                : allColors[selectedColor]?.background)
+                              : theme.card,
+                          },
+                        ]}
+                      />
+                      <Text style={[styles.colorName, { color: theme.text }]}>
+                        {selectedColor
+                          ? t(`colors.${selectedColor}`) || selectedColor
+                          : t('common.default')}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={showColorOptions ? 'chevron-up' : 'chevron-down'}
+                      size={24}
+                      color={theme.text}
+                    />
                   </TouchableOpacity>
-                </ScrollView>
+
+                  {showColorOptions && (
+                    <View style={[styles.colorSelector, { borderColor: theme.border }]}>
+                      {['default', 'red', 'orange', 'yellow', 'green', 'blue']
+                        .map(key => allColors[key])
+                        .filter(Boolean)
+                        .map(color => (
+                          <TouchableOpacity
+                            key={color.id}
+                            style={[
+                              styles.colorCircle,
+                              {
+                                backgroundColor: color.background === 'transparent' ? theme.card : color.background,
+                                borderColor: selectedColor === color.id ? themeColors[accentColor] : 'transparent',
+                                borderWidth: selectedColor === color.id ? 2 : 0,
+                              }
+                            ]}
+                            onPress={() => {
+                              setSelectedColor(color.id);
+                            }}
+                          >
+                            {selectedColor === color.id && (
+                              <Ionicons name="checkmark" size={18} color="white" />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Category Picker */}
+                <View style={styles.optionContainer}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                    {t('notes.category')}
+                  </Text>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={dynamicStyles.pickerButton}
+                      onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                    >
+                      <View style={styles.pickerButtonContent}>
+                        <View style={styles.pickerLeftContent}>
+                          <Ionicons
+                            name="pricetag-outline"
+                            size={22}
+                            color={dynamicStyles.pickerIcon.color}
+                          />
+                          <Text style={dynamicStyles.pickerText}>
+                            {selectedCategory || t('notes.selectCategory')}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
+                          size={22}
+                          color={dynamicStyles.pickerChevron.color}
+                        />
+                      </View>
+                    </TouchableOpacity>
+
+                    {showCategoryPicker && (
+                      <View style={dynamicStyles.dropdownContainer}>
+                        <ScrollView
+                          showsVerticalScrollIndicator={false}
+                          style={styles.categoryScroll}
+                          contentContainerStyle={styles.categoryScrollContent}
+                          nestedScrollEnabled={true}
+                        >
+                          {categories.map(category => (
+                            <TouchableOpacity
+                              key={category}
+                              style={dynamicStyles.categoryChip(category)}
+                              onPress={() => {
+                                handleCategoryPress(category);
+                                setShowCategoryPicker(false);
+                              }}
+                              onLongPress={() => handleDeleteCategory(category)}
+                            >
+                              <Text
+                                style={dynamicStyles.categoryText(category)}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {category}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                          <TouchableOpacity
+                            style={dynamicStyles.addCategoryChip}
+                            onPress={() => router.push('/(modal)/category-input')}
+                          >
+                            <Ionicons name="add" size={14} color={themeColors[accentColor]} />
+                            <Text
+                              style={dynamicStyles.addCategoryText}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {t('common.create')}
+                            </Text>
+                          </TouchableOpacity>
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Image Uploader */}
+                <View style={styles.optionContainer}>
+                  <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                    {t('notes.coverImage')}
+                  </Text>
+                  <ImageUploader
+                    key={`image-uploader-${coverImage || 'empty'}`}
+                    onImageSelect={setCoverImage}
+                    selectedImage={coverImage}
+                  />
+                </View>
               </View>
             )}
           </View>
+
+          <MarkdownToolbar onInsert={handleToolInsert} />
 
           <TextInput
             ref={contentRef}
@@ -811,11 +1019,6 @@ const NewNote = () => {
         coverImage={coverImage}
       />
 
-      <AIContentGenerator
-        visible={showAIGenerator}
-        onClose={() => setShowAIGenerator(false)}
-        onContentGenerated={handleAIContentGenerated}
-      />
     </View>
   );
 };
@@ -843,12 +1046,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
-    height: 32,
+    height: 42,
     justifyContent: 'center',
     marginRight: 8,
+    marginBottom: 8,
     minWidth: 80,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   categoryChipShadow: {
     elevation: 2,
@@ -861,19 +1065,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   categoryScrollContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 12,
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    maxWidth: 90,
+    maxWidth: 120,
     textAlign: 'center',
   },
   categoryTextWithMargin: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 2,
-    maxWidth: 90,
+    marginLeft: 4,
+    maxWidth: 120,
     textAlign: 'center',
   },
   container: {
@@ -932,6 +1138,8 @@ const styles = StyleSheet.create({
   pickerButton: {
     borderRadius: 12,
     borderWidth: 1,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   pickerButtonActive: {
     borderWidth: 2,
@@ -940,7 +1148,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 14,
   },
   pickerContainer: {
     marginBottom: 10,
@@ -952,8 +1160,63 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pickerText: {
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  optionsSection: {
+    marginTop: 16,
+  },
+  optionContainer: {
+    marginBottom: 16,
+  },
+  optionLabel: {
+    fontSize: 14,
     fontWeight: '500',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  colorHeader: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  selectedColorPreviewContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  selectedColorPreview: {
+    borderRadius: 12,
+    height: 24,
+    marginRight: 12,
+    width: 24,
+  },
+  colorName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  colorSelector: {
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  colorCircle: {
+    alignItems: 'center',
+    borderRadius: 21,
+    height: 42,
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    width: 42,
   },
   primaryButton: {
     elevation: 3,
@@ -1059,6 +1322,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  sectionToggle: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    padding: 12,
+  },
+  sectionToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  optionsContent: {
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   focusContentInput: {
     flex: 1,

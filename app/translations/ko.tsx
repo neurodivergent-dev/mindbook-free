@@ -312,6 +312,7 @@ export default {
     emptyCategoryMessage: '아직 이 카테고리에 노트를 만들지 않았습니다.',
     emptyCategoryNotes: '{{category}} 카테고리에서 노트를 찾을 수 없습니다.',
     lastEdit: '마지막 편집',
+    details: '노트 상세',
     lastUpdate: '마지막 업데이트',
     restoreNotes: '노트 복원',
     encryptionNotAvailable:
@@ -426,6 +427,8 @@ export default {
     noLocalNotesToBackup: '백업할 로컬 노트가 없습니다.',
     noCloudBackupsFound:
       '클라우드 스토리지에서 백업을 찾을 수 없습니다. 먼저 백업을 생성해야 합니다.',
+    upgradeToPro: '프로로 업그레이드',
+    proFeaturesDesc: '클라우드 동기화, AI 기능 등',
   },
   drawer: {
     home: '홈',

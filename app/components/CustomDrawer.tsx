@@ -147,8 +147,19 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
       color: themeColors[accentColor],
     },
     {
-      icon: 'checkmark-circle-outline' as React.ComponentProps<typeof Ionicons>['name'],
-      title: t('drawer.tasks'),
+      icon: 'add-circle-outline' as React.ComponentProps<typeof Ionicons>['name'],
+      title: t('notes.newNote') || 'New Note',
+      onPress: () => {
+        onClose();
+        setTimeout(() => {
+          router.push('/(tabs)/new-note');
+        }, 300);
+      },
+      color: themeColors[accentColor],
+    },
+    {
+      icon: 'checkbox-outline' as React.ComponentProps<typeof Ionicons>['name'],
+      title: t('drawer.tasks') || 'Tasks',
       onPress: () => {
         onClose();
         setTimeout(() => {
@@ -180,17 +191,6 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
       color: themeColors[accentColor],
     },
     {
-      icon: 'lock-closed-outline' as React.ComponentProps<typeof Ionicons>['name'],
-      title: t('drawer.vault'),
-      onPress: () => {
-        onClose();
-        setTimeout(() => {
-          router.push('/(modal)/vault');
-        }, 300);
-      },
-      color: themeColors[accentColor],
-    },
-    {
       icon: 'archive-outline' as React.ComponentProps<typeof Ionicons>['name'],
       title: t('drawer.archive'),
       onPress: () => {
@@ -213,19 +213,8 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
       color: themeColors[accentColor],
     },
     {
-      icon: 'globe-outline' as React.ComponentProps<typeof Ionicons>['name'],
-      title: 'Web to Markdown',
-      onPress: () => {
-        onClose();
-        setTimeout(() => {
-          router.push('/(modal)/web-to-markdown');
-        }, 300);
-      },
-      color: themeColors[accentColor],
-    },
-    {
       icon: 'settings-outline' as React.ComponentProps<typeof Ionicons>['name'],
-      title: t('drawer.settings'),
+      title: t('drawer.settings') || 'Settings',
       onPress: () => {
         onClose();
         setTimeout(() => {
@@ -245,44 +234,6 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
       },
       color: themeColors[accentColor],
     },
-    // Debug screen is visible only in development mode
-    ...(__DEV__
-      ? [
-          {
-            icon: 'chatbubble-ellipses-outline' as React.ComponentProps<typeof Ionicons>['name'],
-            title: t('drawer.aiChat'),
-            onPress: () => {
-              onClose();
-              setTimeout(() => {
-                router.push('/(modal)/ai-chat');
-              }, 300);
-            },
-            color: themeColors[accentColor],
-          },
-          {
-            icon: 'bug-outline' as React.ComponentProps<typeof Ionicons>['name'],
-            title: 'Debug',
-            onPress: () => {
-              onClose();
-              setTimeout(() => {
-                router.push('/(modal)/debug');
-              }, 300);
-            },
-            color: themeColors.red || '#F44336',
-          },
-          {
-            icon: 'speedometer-outline' as React.ComponentProps<typeof Ionicons>['name'],
-            title: 'Performance Test',
-            onPress: () => {
-              onClose();
-              setTimeout(() => {
-                router.push('/(modal)/performance-test');
-              }, 300);
-            },
-            color: themeColors[accentColor],
-          },
-        ]
-      : []),
   ];
 
   const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, color, index }) => {
@@ -392,7 +343,7 @@ export default function CustomDrawer({ isVisible, onClose, onOpen }: CustomDrawe
                         entering={FadeInLeft.delay(500).springify()}
                         style={[styles.appName, { color: theme.text }]}
                       >
-                        Mindbook Pro
+                        Mindbook Free
                       </Animated.Text>
                     </Animated.View>
                   </View>

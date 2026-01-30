@@ -328,6 +328,7 @@ export default {
     emptyCategoryMessage: 'Aún no has creado ninguna nota en esta categoría.',
     emptyCategoryNotes: 'No se encontraron notas en la categoría {{category}}.',
     lastEdit: 'Última edición',
+    details: 'Detalles de la nota',
     lastUpdate: 'Última actualización',
     restoreNotes: 'Restaurar Notas',
     encryptionNotAvailable:
@@ -438,6 +439,8 @@ export default {
     removePhoto: 'Eliminar Foto',
     confirmClearAllData:
       'Esto eliminará permanentemente todas sus notas de la base de datos. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?',
+    upgradeToPro: 'Actualizar a Pro',
+    proFeaturesDesc: 'Sincronización en la nube, funciones de IA y más',
   },
   drawer: {
     home: 'Inicio',

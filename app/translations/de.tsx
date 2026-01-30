@@ -278,6 +278,7 @@ export default {
     code: 'Code',
     quote: 'Zitat',
     image: 'Bild',
+    details: 'Notizdetails',
     coverImage: 'Titelbild',
     addImage: 'Bild hinzufügen',
     permissionRequired: 'Berechtigung erforderlich',
@@ -486,6 +487,8 @@ export default {
     securityMeasuresBullet3: 'Biometrische Authentifizierung für App- und Tresorzugriff',
     securityMeasuresBullet4: 'Automatische Zeitüberschreitungssperren',
     securityMeasuresBullet5: 'Sichere HTTPS-Kommunikationsprotokolle',
+    upgradeToPro: 'Upgrade auf Pro',
+    proFeaturesDesc: 'Cloud-Sync, KI-Funktionen und mehr',
   },
   drawer: {
     home: 'Startseite',

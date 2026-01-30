@@ -15,7 +15,6 @@ import {
   getNotesByCategory,
   buildNoteIndices,
 } from '../utils/storage';
-import { triggerAutoBackup } from '../utils/backup';
 import { useTranslation } from 'react-i18next';
 import EmptyState from '../components/EmptyState';
 import {
@@ -99,19 +98,6 @@ export default function CategoriesScreen() {
 
         // Emit event for other screens to update
         emitCategoryAdded(categoryName.trim());
-
-        // Backup in background (UI blocking)
-        triggerAutoBackup(null)
-          .then(result => {
-            if (result?.success) {
-              // Update UI silently when backup is successful
-              loadCategories();
-              loadNoteCounts();
-            }
-          })
-          .catch(error => {
-            console.error('Background backup failed:', error);
-          });
       } catch (error: unknown) {
         if (error instanceof Error && error.message === 'Category name too long') {
           Alert.alert(t('common.error'), t('notes.categoryTooLong'));
@@ -135,19 +121,6 @@ export default function CategoriesScreen() {
 
         // Emit event for other screens to update
         emitCategoryUpdated(oldName, newName.trim());
-
-        // Backup in background (UI blocking)
-        triggerAutoBackup(null)
-          .then(result => {
-            if (result?.success) {
-              // Update UI silently when backup is successful
-              loadCategories();
-              loadNoteCounts();
-            }
-          })
-          .catch(error => {
-            console.error('Background backup failed:', error);
-          });
       } catch (error: unknown) {
         if (error instanceof Error && error.message === 'Category name too long') {
           Alert.alert(t('common.error'), t('notes.categoryTooLong'));
@@ -199,19 +172,6 @@ export default function CategoriesScreen() {
 
               // Emit event for other screens to update
               emitCategoryDeleted(category);
-
-              // Backup in background (UI blocking)
-              triggerAutoBackup(null)
-                .then(result => {
-                  if (result?.success) {
-                    // Update UI silently when backup is successful
-                    loadCategories();
-                    loadNoteCounts();
-                  }
-                })
-                .catch(error => {
-                  console.error('Background backup failed:', error);
-                });
             } catch (error) {
               Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
             }
@@ -270,19 +230,6 @@ export default function CategoriesScreen() {
               setIsSelectionMode(false);
               await loadCategories();
               await loadNoteCounts();
-
-              // Backup in background (UI blocking)
-              triggerAutoBackup(null)
-                .then(result => {
-                  if (result?.success) {
-                    // Update UI silently when backup is successful
-                    loadCategories();
-                    loadNoteCounts();
-                  }
-                })
-                .catch(error => {
-                  console.error('Background backup failed:', error);
-                });
             } catch (error) {
               Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
             }

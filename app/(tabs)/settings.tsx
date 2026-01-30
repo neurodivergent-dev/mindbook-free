@@ -1,4 +1,5 @@
-// This file is Settings screen component for a React Native application. It includes various settings options such as theme mode, font size, language selection, and backup/restore functionality. The component uses hooks for state management and context for theme and language settings. It also includes modals for selecting fonts and languages, as well as password management features. The component is styled using StyleSheet from React Native and includes error handling and user feedback through alerts.
+// Simplified Settings screen for Mindbook Free - Offline version
+// Removed cloud backup, profile images, and all server-related features
 import { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -6,35 +7,29 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Switch,
-  ActivityIndicator,
   Alert,
   Modal,
   TextInput,
-  Image,
+  Share,
+  Platform,
+  Linking,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  backupToCloud,
-  restoreFromCloud,
-  getLastCloudBackupDate,
-  getCurrentUserId,
-} from '../utils/backup';
-import { NOTES_KEY } from '../utils/storage';
-import { useAuth } from '../context/AuthContext';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
-import i18n from 'i18next';
-import NetInfo from '@react-native-community/netinfo';
-import supabase from '../utils/supabase';
-import * as ImagePicker from 'expo-image-picker';
-import { cloudinaryService } from '../utils/cloudinaryService';
-import profileImageCache from '../utils/profileImageCache';
 import { getEditModeSetting, setEditModeSetting, EditModeOption } from '../utils/editModeSettings';
+import { createBackup, restoreBackup } from '../utils/storage';
+import { showToast } from '../utils/android';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Print from 'expo-print';
+import { getAllNotes } from '../utils/storage';
 
 const OVERLAY_BACKGROUND_COLOR = 'rgba(0,0,0,0.5)';
 const TRANSPARENT = 'transparent';
@@ -42,11 +37,19 @@ const WHITE = '#fff';
 const BORDER_WIDTH = 1;
 const BORDER_COLOR = 'rgba(0,0,0,0.1)';
 const SHADOW_COLOR = '#000';
-const AVATAR_PLACEHOLDER_COLOR = 'rgba(0,0,0,0.05)';
-const DANGER_COLOR = '#ef4444';
-const LOGIN_COLOR = '#3b82f6';
-const ACTIVE_OPACITY = 1;
-const DISABLED_OPACITY = 0.5;
+
+const hexToRgba = (hex: string, opacity: number) => {
+  let c: any;
+  if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+    c = hex.substring(1).split('');
+    if (c.length === 3) {
+      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+    }
+    c = '0x' + c.join('');
+    return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + opacity + ')';
+  }
+  return hex;
+};
 
 const Settings = () => {
   const {
@@ -65,219 +68,21 @@ const Settings = () => {
   } = useTheme();
   const { currentLanguage, changeLanguage, languages } = useLanguage();
   const { t } = useTranslation();
-  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
-  const [lastBackupTime, setLastBackupTime] = useState(null);
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const { user, logout, isGuestMode, forceLogin } = useAuth();
   const [showFontModal, setShowFontModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [hasPassword, setHasPassword] = useState(false);
   const [showColorOptions, setShowColorOptions] = useState(false);
-  const [isConnected, setIsConnected] = useState(true);
-  const [userDisplayName, setUserDisplayName] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [defaultEditMode, setDefaultEditMode] = useState<EditModeOption>('editing');
 
-  // Password visibility states
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const loadAutoBackupSetting = useCallback(async () => {
-    try {
-      const value = await AsyncStorage.getItem('@auto_backup_enabled');
-      if (user && !user.isAnonymous) {
-        if (value !== null) {
-          setAutoBackupEnabled(JSON.parse(value));
-        }
-      } else {
-        setAutoBackupEnabled(false);
-      }
-    } catch (error) {
-      console.error('Error loading auto backup setting:', error);
-    }
-  }, [user]);
-
-  // Get user display name from metadata
-  const getUserDisplayName = useCallback(() => {
-    if (!user) return '';
-
-    // Try to get name from user metadata
-    if (user.user_metadata?.full_name) {
-      return user.user_metadata.full_name;
-    }
-
-    // Try to get from email (username part)
-    if (user.email) {
-      return user.email.split('@')[0];
-    }
-
-    return 'User';
-  }, [user]);
+  // Vault password feature removed for free version
 
   useEffect(() => {
-    if (user) {
-      setUserDisplayName(getUserDisplayName());
-    }
-  }, [user, getUserDisplayName]);
-
-  const loadLastBackupTime = useCallback(async () => {
-    try {
-      const currentUserId = await getCurrentUserId();
-      if (currentUserId) {
-        const localTime = await AsyncStorage.getItem('@last_backup_time');
-        const cloudBackupDate = await getLastCloudBackupDate(currentUserId);
-        if (cloudBackupDate && (!localTime || new Date(cloudBackupDate) > new Date(localTime))) {
-          setLastBackupTime(new Date(cloudBackupDate));
-        } else if (localTime) {
-          setLastBackupTime(new Date(localTime));
-        } else {
-          setLastBackupTime(null);
-        }
-      } else {
-        const localTime = await AsyncStorage.getItem('@last_backup_time');
-        setLastBackupTime(localTime ? new Date(localTime) : null);
-      }
-    } catch (error) {
-      console.error('Error loading backup time:', error);
-    }
-  }, []); // Removed user from dependencies since it's not used
-
-  const checkPasswordStatus = useCallback(async () => {
-    try {
-      // Check for password in SecureStore first (preferred), fallback to AsyncStorage
-      let storedPassword = null;
-      try {
-        storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
-      } catch (secureError) {
-        console.log('SecureStore not available, checking AsyncStorage...');
-        // Fallback to old format for backward compatibility
-        storedPassword = await AsyncStorage.getItem('vault_password');
-      }
-      setHasPassword(!!storedPassword);
-    } catch (error) {
-      console.error('Error checking password status:', error);
-      setHasPassword(false);
-    }
-  }, []); // Removed user dependency
-
-  useEffect(() => {
-    loadAutoBackupSetting();
-    loadLastBackupTime();
-    checkPasswordStatus();
-
-    // Monitor internet connection changes
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(!!state.isConnected);
-    });
-
-    // Clear the listener when the component is unmounted
-    return () => unsubscribe();
-  }, [loadAutoBackupSetting, loadLastBackupTime, checkPasswordStatus]);
-
-  const handleManualBackup = async () => {
-    // Internet connection control
-    if (!isConnected) {
-      return;
-    }
-
-    if (!user) {
-      Alert.alert(t('common.warning'), t('settings.loginRequiredForBackup'));
-      return;
-    }
-
-    try {
-      // Get device notes from AsyncStorage
-      const notesJson = await AsyncStorage.getItem(NOTES_KEY);
-      const notes = notesJson ? JSON.parse(notesJson) : [];
-
-      // Check if there are any notes to backup
-      if (!notes || notes.length === 0) {
-        Alert.alert(t('common.warning'), t('common.noLocalNotesToBackup'));
-        return;
-      }
-
-      setIsBackingUp(true);
-      // Cloud backup process
-      const result = await backupToCloud(user.uid);
-
-      if (result.success) {
-        const now = new Date();
-        await AsyncStorage.setItem('@last_backup_time', now.toISOString());
-        setLastBackupTime(now);
-        Alert.alert(t('common.success'), t('settings.backupSuccess'));
-      } else {
-        Alert.alert(t('common.error'), result.error || t('settings.backupError'));
-      }
-    } catch (error) {
-      console.error('Error during manual backup:', error);
-      Alert.alert(t('common.error'), t('settings.backupError'));
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
-
-  const handleRestoreBackup = async () => {
-    // Internet connection control
-    if (!isConnected) {
-      return;
-    }
-
-    try {
-      const currentUserId = await getCurrentUserId();
-      if (!currentUserId) {
-        Alert.alert(t('common.warning'), t('settings.loginRequiredForRestore'));
-        return;
-      }
-
-      setIsRestoring(true);
-      const result = await restoreFromCloud(currentUserId);
-
-      if (result.success) {
-        const backupDate = new Date(result.backupDate).toLocaleString(
-          i18n.language === 'tr' ? 'tr-TR' : 'en-US',
-          {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }
-        );
-        Alert.alert(t('common.success'), t('settings.restoreSuccess', { date: backupDate }));
-        loadLastBackupTime();
-      } else {
-        Alert.alert(t('common.error'), result.error || t('settings.restoreError'));
-      }
-    } catch (error) {
-      console.error('Error during restore:', error);
-      Alert.alert(t('common.error'), t('settings.restoreError'));
-    } finally {
-      setIsRestoring(false);
-    }
-  };
-
-  const saveAutoBackupSetting = async value => {
-    try {
-      // If logged in and not in guest mode, save user selection
-      if (user && !user.isAnonymous) {
-        await AsyncStorage.setItem('@auto_backup_enabled', JSON.stringify(value));
-        setAutoBackupEnabled(value);
-      } else {
-        // Always closed if not logged in or in guest mode
-        await AsyncStorage.setItem('@auto_backup_enabled', JSON.stringify(false));
-        setAutoBackupEnabled(false);
-      }
-    } catch (error) {
-      console.error('Error saving auto backup setting:', error);
-    }
-  };
+    // Load edit mode setting
+    const loadSettings = async () => {
+      const editMode = await getEditModeSetting();
+      setDefaultEditMode(editMode);
+    };
+    loadSettings();
+  }, []);
 
   const handleEditModeChange = async (mode: EditModeOption) => {
     setDefaultEditMode(mode);
@@ -289,430 +94,186 @@ const Settings = () => {
     }
   };
 
-  const validatePassword = password => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    const errors = [];
-    if (password.length < minLength) {
-      errors.push(t('settings.passwordMinLength', { length: minLength }));
-    }
-    if (!hasUpperCase) {
-      errors.push(t('settings.passwordUppercase'));
-    }
-    if (!hasLowerCase) {
-      errors.push(t('settings.passwordLowercase'));
-    }
-    if (!hasNumbers) {
-      errors.push(t('settings.passwordNumbers'));
-    }
-    if (!hasSpecialChar) {
-      errors.push(t('settings.passwordSpecialChar'));
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
-  };
-
-  const handleSetPassword = async () => {
-    if (hasPassword && !currentPassword) {
-      Alert.alert(t('common.error'), t('settings.currentPasswordRequired'));
-      return;
-    }
-
-    if (!newPassword || !confirmPassword) {
-      Alert.alert(t('common.error'), t('settings.newPasswordRequired'));
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error'), t('settings.passwordsDoNotMatch'));
-      return;
-    }
-
-    const validation = validatePassword(newPassword);
-    if (!validation.isValid) {
-      Alert.alert(
-        t('settings.invalidPassword'),
-        t('settings.passwordRequirements') +
-          '\n\n' +
-          validation.errors.map(error => '• ' + error).join('\n')
-      );
-      return;
-    }
-
+  const handleExportToFile = async () => {
     try {
-      if (hasPassword) {
-        // Verify current password - try SecureStore first, fallback to AsyncStorage
-        let storedPassword = null;
-        try {
-          storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
-        } catch (secureError) {
-          console.log('SecureStore not available, checking AsyncStorage...');
-          storedPassword = await AsyncStorage.getItem('vault_password');
-        }
+      const backupData = await createBackup();
+      const fileName = `mindbook_backup_${new Date().toISOString().split('T')[0]}.json`;
 
-        if (!storedPassword) {
-          Alert.alert(t('common.error'), t('settings.noPasswordFound'));
+      if (Platform.OS === 'android') {
+        // Android: Use Storage Access Framework to pick a directory and save
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        
+        if (!permissions.granted) {
+          showToast('Permission denied');
           return;
         }
 
-        const hashedCurrentPassword = await hashPassword(currentPassword);
-
-        if (hashedCurrentPassword !== storedPassword) {
-          Alert.alert(t('common.error'), t('settings.wrongCurrentPassword'));
-          return;
-        }
-      }
-
-      const hashedPassword = await hashPassword(newPassword);
-
-      // Store in SecureStore with fallback to AsyncStorage
-      try {
-        await SecureStore.setItemAsync('mindbook_vault_password', hashedPassword);
-        console.log('✅ Vault password stored in SecureStore');
-      } catch (secureError) {
-        console.log('⚠️ SecureStore not available, using AsyncStorage...');
-        await AsyncStorage.setItem('vault_password', hashedPassword);
-      }
-
-      // Store password update timestamp
-      await AsyncStorage.setItem('vault_password_updated', new Date().toISOString());
-
-      setShowPasswordModal(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      // Reset password visibility states
-      setShowCurrentPassword(false);
-      setShowNewPassword(false);
-      setShowConfirmPassword(false);
-      setHasPassword(true);
-
-      Alert.alert(t('common.success'), t('settings.passwordUpdated'));
-    } catch (error) {
-      console.error('Error updating password:', error);
-      Alert.alert(t('common.error'), t('settings.passwordUpdateError'));
-    }
-  };
-
-  const hashPassword = async text => {
-    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text);
-    return digest;
-  };
-
-  const handleRemovePassword = async () => {
-    if (!currentPassword) {
-      Alert.alert(t('common.error'), t('settings.currentPasswordRequired'));
-      return;
-    }
-
-    try {
-      // Get stored password - try SecureStore first, fallback to AsyncStorage
-      let storedPassword = null;
-      try {
-        storedPassword = await SecureStore.getItemAsync('mindbook_vault_password');
-      } catch (secureError) {
-        console.log('SecureStore not available, checking AsyncStorage...');
-        storedPassword = await AsyncStorage.getItem('vault_password');
-      }
-
-      if (!storedPassword) {
-        Alert.alert(t('common.error'), t('settings.noPasswordFound'));
-        return;
-      }
-
-      const hashedCurrentPassword = await hashPassword(currentPassword);
-
-      if (hashedCurrentPassword !== storedPassword) {
-        Alert.alert(t('common.error'), t('settings.wrongCurrentPassword'));
-        return;
-      }
-
-      // Check if there are any notes in the vault before removing password
-      const vaultNotesStr = await AsyncStorage.getItem('vault_notes');
-      if (vaultNotesStr && vaultNotesStr.length > 0) {
         try {
-          // Use vault encryption to check notes
-          const { decryptVaultNotes } = require('../utils/vaultEncryption');
-          const vaultNotes = await decryptVaultNotes(vaultNotesStr);
-
-          if (vaultNotes && vaultNotes.length > 0) {
-            Alert.alert(
-              t('common.error'),
-              t('settings.cannotRemovePasswordWithNotes', {
-                fallback:
-                  'The password cannot be removed - move or delete the notes in the vault first.',
-              })
-            );
-            return;
-          }
-        } catch (error) {
-          console.error('Error checking vault notes:', error);
-          Alert.alert(
-            t('common.error'),
-            t('settings.cannotVerifyVault', {
-              fallback:
-                'Vault contents could not be checked. Password cannot be removed for security reasons.',
-            })
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            fileName,
+            'application/json'
           );
-          return;
+
+          await FileSystem.writeAsStringAsync(fileUri, backupData, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          
+          Alert.alert(t('common.success'), t('settings.backupReady'));
+        } catch (e) {
+          console.error('Android SAF error:', e);
+          // Fallback to regular sharing if SAF fails
+          await fallbackShare(backupData, fileName);
         }
+      } else {
+        // iOS: Use regular sharing (which includes "Save to Files")
+        await fallbackShare(backupData, fileName);
       }
-
-      // Remove password from both storage locations
-      try {
-        await SecureStore.deleteItemAsync('mindbook_vault_password');
-        console.log('✅ Vault password removed from SecureStore');
-      } catch (secureError) {
-        console.log('⚠️ SecureStore not available, removing from AsyncStorage...');
-      }
-
-      // Also remove from AsyncStorage for backward compatibility
-      await AsyncStorage.removeItem('vault_password');
-      await AsyncStorage.removeItem('vault_password_updated');
-
-      setShowPasswordModal(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      // Reset password visibility states
-      setShowCurrentPassword(false);
-      setShowNewPassword(false);
-      setShowConfirmPassword(false);
-      setHasPassword(false);
-
-      Alert.alert(t('common.success'), t('settings.passwordRemoved'));
     } catch (error) {
-      console.error('Error removing password:', error);
-      Alert.alert(t('common.error'), t('settings.passwordRemoveError'));
+      console.error('Export error:', error);
+      Alert.alert(t('common.error'), 'Backup export failed');
     }
   };
 
-  const handleClearAllData = async () => {
-    // Internet connection control
-    if (!isConnected) {
-      return;
-    }
+  const fallbackShare = async (data: string, fileName: string) => {
+    const fileUri = FileSystem.documentDirectory + fileName;
+    await FileSystem.writeAsStringAsync(fileUri, data, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
 
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/json',
+        dialogTitle: t('settings.shareBackup'),
+        UTI: 'public.json',
+      });
+    } else {
+      Alert.alert(t('common.error'), 'Sharing is not available on this device');
+    }
+  };
+
+  const handleImportFromFile = async () => {
     try {
-      // First get the user ID
-      const userId = await getCurrentUserId();
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/plain'],
+        copyToCacheDirectory: true,
+      });
 
-      if (!userId) {
-        Alert.alert(t('common.error'), t('settings.userIdNotFound'));
-        return;
-      }
+      if (result.canceled) return;
 
-      // Check if user has backup in cloud
-      const { data, error } = await supabase
-        .from('backups')
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1);
+      const file = result.assets[0];
+      const fileContent = await FileSystem.readAsStringAsync(file.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
 
-      if (error) {
-        console.error('Error checking cloud backups:', error);
-        Alert.alert(t('common.error'), t('settings.generalError'));
-        return;
-      }
-
-      // If there is no backup, stop the process
-      if (!data || data.length === 0) {
-        Alert.alert(t('common.warning'), t('common.noCloudBackupsFound'), [{ text: 'OK' }]);
-        return;
-      }
-
-      // If there is a backup, continue deleting
-      Alert.alert(
-        t('common.warning'),
-        t('settings.confirmCloudDataDelete'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                console.log('Cloud backups are deleted, user ID:', userId);
-
-                const { error } = await supabase.from('backups').delete().eq('user_id', userId);
-
-                if (error) {
-                  console.error('Error while deleting cloud backups:', error);
-                  Alert.alert(
-                    t('common.error'),
-                    t('settings.cloudBackupDeleteError'),
-                    [{ text: 'OK' }],
-                    { cancelable: false }
-                  );
-                  return;
-                }
-
-                // Clear profile image cache as well
-                try {
-                  await profileImageCache.clearAllCache();
-                  console.log('🗑️ Profile image cache cleared with cloud data');
-                } catch (cacheError) {
-                  console.error('⚠️ Error clearing profile image cache:', cacheError);
-                }
-
-                // Successful deletion message
-                Alert.alert(
-                  t('common.success'),
-                  t('settings.cloudBackupDeleteSuccess'),
-                  [{ text: 'OK' }],
-                  { cancelable: false }
-                );
-              } catch (cloudError) {
-                console.error('Error while deleting cloud backups:', cloudError);
-                Alert.alert(
-                  t('common.error'),
-                  t('settings.cloudBackupDeleteError'),
-                  [{ text: 'OK' }],
-                  { cancelable: false }
-                );
-              }
-            },
+      Alert.alert(t('settings.importData'), t('settings.confirmImport'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          style: 'destructive',
+          onPress: async () => {
+            const success = await restoreBackup(fileContent);
+            if (success) {
+              Alert.alert(t('common.success'), t('settings.importSuccess'));
+            } else {
+              Alert.alert(t('common.error'), t('settings.importError'));
+            }
           },
-        ],
-        { cancelable: true }
-      );
+        },
+      ]);
     } catch (error) {
-      console.error('Error in cloud backup check:', error);
-      Alert.alert(t('common.error'), t('settings.generalError'));
+      console.error('Import error:', error);
+      Alert.alert(t('common.error'), 'Backup import failed');
     }
   };
+
+  const handleExportToPDF = async () => {
+    try {
+      const allNotes = await getAllNotes();
+      if (allNotes.length === 0) {
+        Alert.alert(t('common.warning'), t('notes.emptyNotesMessage'));
+        return;
+      }
+
+      let htmlContent = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #333; }
+              .note { margin-bottom: 40px; page-break-inside: avoid; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+              h1 { margin-bottom: 10px; color: #000; }
+              .meta { color: #666; font-size: 12px; margin-bottom: 15px; }
+              .content { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <div style="text-align: center; margin-bottom: 50px;">
+              <h1>Mindbook Notes Backup</h1>
+              <p>Date: ${new Date().toLocaleDateString()}</p>
+              <p>Total Notes: ${allNotes.length}</p>
+            </div>
+      `;
+
+      allNotes.forEach(note => {
+        htmlContent += `
+          <div class="note">
+            <h1>${note.title || 'Untitled Note'}</h1>
+            <div class="meta">
+              <strong>Date:</strong> ${new Date(note.createdAt).toLocaleDateString()}<br/>
+              ${note.category ? `<strong>Category:</strong> ${note.category}` : ''}
+            </div>
+            <div class="content">${note.content || ''}</div>
+          </div>
+        `;
+      });
+
+      htmlContent += `</body></html>`;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+
+      if (Platform.OS === 'android') {
+        try {
+          // Android: Use Storage Access Framework to save file directly
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          
+          if (permissions.granted) {
+            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const fileName = `mindbook-notes-${new Date().toISOString().split('T')[0]}.pdf`;
+            const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/pdf');
+            await FileSystem.writeAsStringAsync(newFileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+            Alert.alert(t('common.success'), 'PDF kaydedildi.');
+          } else {
+            // Permission denied - do nothing or show toast
+            showToast('İzin reddedildi');
+          }
+        } catch (e) {
+          console.error(e);
+          Alert.alert(t('common.error'), 'PDF kaydedilemedi.');
+        }
+      } else {
+        // iOS: Use share sheet which includes "Save to Files"
+        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      }
+    } catch (error) {
+      console.error('PDF Export error:', error);
+      Alert.alert(t('common.error'), 'Failed to export PDF');
+    }
+  };
+
+  // Vault password functions removed for free version
 
   const colors = [
-    // Basic colors
     { id: 'blue', color: themeColors.blue },
+    { id: 'red', color: themeColors.red },
+    { id: 'green', color: themeColors.green },
+    { id: 'orange', color: themeColors.orange },
     { id: 'purple', color: themeColors.purple },
     { id: 'pink', color: themeColors.pink },
-    { id: 'red', color: themeColors.red },
-    { id: 'orange', color: themeColors.orange },
-    { id: 'green', color: themeColors.green },
     { id: 'teal', color: themeColors.teal },
     { id: 'cyan', color: themeColors.cyan },
     { id: 'indigo', color: themeColors.indigo },
-    { id: 'navy', color: themeColors.navy },
-    { id: 'rose', color: themeColors.rose },
-    // Modern colors
-    { id: 'turquoise', color: themeColors.turquoise },
-    { id: 'emerald', color: themeColors.emerald },
-    { id: 'peterRiver', color: themeColors.peterRiver },
-    { id: 'amethyst', color: themeColors.amethyst },
-    { id: 'wetAsphalt', color: themeColors.wetAsphalt },
-    { id: 'sunFlower', color: themeColors.sunFlower },
-    { id: 'carrot', color: themeColors.carrot },
-    { id: 'alizarin', color: themeColors.alizarin },
-    { id: 'crimson', color: themeColors.crimson },
-    { id: 'hotPink', color: themeColors.hotPink },
-    { id: 'skyBlue', color: themeColors.skyBlue },
-    { id: 'slateBlue', color: themeColors.slateBlue },
-    { id: 'magenta', color: themeColors.magenta },
-    { id: 'forestGreen', color: themeColors.forestGreen },
-    { id: 'gold', color: themeColors.gold },
-    { id: 'orchid', color: themeColors.orchid },
-    // Pastel colors
-    { id: 'pastelPink', color: themeColors.pastelPink },
-    { id: 'pastelBlue', color: themeColors.pastelBlue },
-    { id: 'pastelGreen', color: themeColors.pastelGreen },
-    { id: 'pastelPurple', color: themeColors.pastelPurple },
-    { id: 'pastelYellow', color: themeColors.pastelYellow },
-    { id: 'pastelOrange', color: themeColors.pastelOrange },
-    // Metallic colors
-    { id: 'copper', color: themeColors.copper },
-    // Nature colors
-    { id: 'leafGreen', color: themeColors.leafGreen },
-    { id: 'oceanBlue', color: themeColors.oceanBlue },
-    { id: 'sandBeige', color: themeColors.sandBeige },
-    { id: 'sunsetOrange', color: themeColors.sunsetOrange },
-    { id: 'skyAzure', color: themeColors.skyAzure },
-    { id: 'roseWood', color: themeColors.roseWood },
-    // Neon/Vivid colors
-    { id: 'neonPink', color: themeColors.neonPink },
-    { id: 'electricBlue', color: themeColors.electricBlue },
-    { id: 'neonGreen', color: themeColors.neonGreen },
-    { id: 'brightYellow', color: themeColors.brightYellow },
-    { id: 'neonOrange', color: themeColors.neonOrange },
-    { id: 'vividPurple', color: themeColors.vividPurple },
-    // Vintage renkler
-    { id: 'vintageRose', color: themeColors.vintageRose },
-    { id: 'vintageSeafoam', color: themeColors.vintageSeafoam },
-    { id: 'vintageMustard', color: themeColors.vintageMustard },
-    { id: 'vintageNavy', color: themeColors.vintageNavy },
-    // Retro colors
-    { id: 'retroTeal', color: themeColors.retroTeal },
-    { id: 'retroOrange', color: themeColors.retroOrange },
-    { id: 'retroPink', color: themeColors.retroPink },
-    { id: 'retroPurple', color: themeColors.retroPurple },
-    // Space themed colors
-    { id: 'galaxyPurple', color: themeColors.galaxyPurple },
-    { id: 'cosmicBlue', color: themeColors.cosmicBlue },
-    { id: 'nebulaPink', color: themeColors.nebulaPink },
-    { id: 'marsRed', color: themeColors.marsRed },
-    // Gradient effect colors
-    { id: 'sunsetGradient', color: themeColors.sunsetGradient },
-    { id: 'blueLagoon', color: themeColors.blueLagoon },
-    { id: 'cherryBlossom', color: themeColors.cherryBlossom },
-    // Warm colors
-    { id: 'flamingo', color: themeColors.flamingo },
-    { id: 'tangerine', color: themeColors.tangerine },
-    { id: 'terracotta', color: themeColors.terracotta },
-    // Cool colors
-    { id: 'mint', color: themeColors.mint },
-    { id: 'iceBlue', color: themeColors.iceBlue },
-    { id: 'periwinkle', color: themeColors.periwinkle },
-    // Exotic colors
-    { id: 'dragonFruit', color: themeColors.dragonFruit },
-    { id: 'mango', color: themeColors.mango },
-    { id: 'pistachio', color: themeColors.pistachio },
-    { id: 'acai', color: themeColors.acai },
-    // Essential colors (dark & distinctive)
-    { id: 'charcoal', color: themeColors.charcoal },
-    { id: 'deepCharcoal', color: themeColors.deepCharcoal },
-    { id: 'steel', color: themeColors.steel },
-    { id: 'gunmetal', color: themeColors.gunmetal },
-    { id: 'pewter', color: themeColors.pewter },
-    { id: 'bronze', color: themeColors.bronze },
-    { id: 'darkBronze', color: themeColors.darkBronze },
-    { id: 'darkSteel', color: themeColors.darkSteel },
-    { id: 'darkSlate', color: themeColors.darkSlate },
-    { id: 'richBrown', color: themeColors.richBrown },
-    { id: 'dustyRose', color: themeColors.dustyRose },
-    // Professional/Business colors (header-friendly)
     { id: 'slate', color: themeColors.slate },
-    { id: 'darkSlate2', color: themeColors.darkSlate2 },
-    { id: 'graphite', color: themeColors.graphite },
-    { id: 'darkGraphite', color: themeColors.darkGraphite },
-    { id: 'businessBlue', color: themeColors.businessBlue },
-    { id: 'corporateGray', color: themeColors.corporateGray },
-    { id: 'executiveNavy', color: themeColors.executiveNavy },
-    { id: 'professionalTeal', color: themeColors.professionalTeal },
-    { id: 'darkOlive', color: themeColors.darkOlive },
-    // Additional distinctive dark colors
-    { id: 'deepWine', color: themeColors.deepWine },
-    { id: 'darkEmerald', color: themeColors.darkEmerald },
-    { id: 'midnightPurple', color: themeColors.midnightPurple },
-    { id: 'darkCrimson', color: themeColors.darkCrimson },
-    // Creative & Mystical colors (storytelling themes)
-    { id: 'stormySea', color: themeColors.stormySea },
-    { id: 'ancientGold', color: themeColors.ancientGold },
-    { id: 'shadowForest', color: themeColors.shadowForest },
-    { id: 'velvetNight', color: themeColors.velvetNight },
-    { id: 'mysticAmber', color: themeColors.mysticAmber },
-    { id: 'dragonScale', color: themeColors.dragonScale },
-    // Light but readable colors (header-friendly)
-    { id: 'softCoral', color: themeColors.softCoral },
-    { id: 'dustyLavender', color: themeColors.dustyLavender },
-    { id: 'paleGold', color: themeColors.paleGold },
-    { id: 'mistySage', color: themeColors.mistySage },
   ];
 
   const SectionHeader = ({ title }) => (
@@ -851,683 +412,141 @@ const Settings = () => {
     </Modal>
   );
 
-  const renderPasswordSettings = () => (
-    <TouchableOpacity
-      style={[
-        styles.settingButton,
-        {
-          backgroundColor: theme.card,
-          borderColor: themeColors[accentColor],
-        },
-      ]}
-      onPress={() => setShowPasswordModal(true)}
-    >
-      <View style={styles.settingContent}>
-        <View style={styles.settingInfo}>
-          <Text style={[styles.settingValue, { color: theme.text }]}>
-            {t(hasPassword ? 'settings.changePassword' : 'settings.setPassword')}
-          </Text>
-          <Text style={[styles.settingPreview, { color: theme.textSecondary }]}>
-            {hasPassword ? t('settings.removePassword') : t('settings.lockNotes')}
-          </Text>
-        </View>
-        <Ionicons name={hasPassword ? 'lock-closed' : 'lock-open'} size={20} color={theme.text} />
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderPasswordModal = () => (
-    <Modal
-      visible={showPasswordModal}
-      transparent
-      animationType="slide"
-      onRequestClose={() => {
-        setShowPasswordModal(false);
-        // Reset password visibility states when closing modal
-        setShowCurrentPassword(false);
-        setShowNewPassword(false);
-        setShowConfirmPassword(false);
-      }}
-    >
-      <TouchableOpacity
-        style={[styles.modalOverlay, styles.modalOverlayBackground]}
-        activeOpacity={1}
-        onPress={() => {
-          setShowPasswordModal(false);
-          // Reset password visibility states when closing modal
-          setShowCurrentPassword(false);
-          setShowNewPassword(false);
-          setShowConfirmPassword(false);
-        }}
-      >
-        <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              {hasPassword ? t('settings.changePassword') : t('settings.setPassword')}
-            </Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setShowPasswordModal(false);
-                // Reset password visibility states when closing modal
-                setShowCurrentPassword(false);
-                setShowNewPassword(false);
-                setShowConfirmPassword(false);
-              }}
-            >
-              <Ionicons name="close" size={24} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-
-          {hasPassword ? (
-            <>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {t('settings.currentPassword')}
-                </Text>
-                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.passwordInput, { color: theme.text }]}
-                    placeholderTextColor={theme.textSecondary}
-                    secureTextEntry={!showCurrentPassword}
-                    value={currentPassword}
-                    onChangeText={setCurrentPassword}
-                    placeholder={t('settings.currentPassword')}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                  >
-                    <Ionicons
-                      name={showCurrentPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {t('settings.newPassword')}
-                </Text>
-                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.passwordInput, { color: theme.text }]}
-                    placeholderTextColor={theme.textSecondary}
-                    secureTextEntry={!showNewPassword}
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    placeholder={t('settings.newPassword')}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    <Ionicons
-                      name={showNewPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {t('auth.confirmPassword')}
-                </Text>
-                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.passwordInput, { color: theme.text }]}
-                    placeholderTextColor={theme.textSecondary}
-                    secureTextEntry={!showConfirmPassword}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder={t('auth.confirmPassword')}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    <Ionicons
-                      name={showConfirmPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>{t('auth.password')}</Text>
-                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.passwordInput, { color: theme.text }]}
-                    placeholderTextColor={theme.textSecondary}
-                    secureTextEntry={!showNewPassword}
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    placeholder={t('auth.password')}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    <Ionicons
-                      name={showNewPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>
-                  {t('auth.confirmPassword')}
-                </Text>
-                <View style={[styles.passwordInputContainer, { borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.passwordInput, { color: theme.text }]}
-                    placeholderTextColor={theme.textSecondary}
-                    secureTextEntry={!showConfirmPassword}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder={t('auth.confirmPassword')}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeButton}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    <Ionicons
-                      name={showConfirmPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          )}
-
-          <TouchableOpacity
-            style={[styles.modalButton, { backgroundColor: themeColors[accentColor] }]}
-            onPress={hasPassword ? handleSetPassword : handleSetPassword}
-          >
-            <Text style={styles.modalButtonText}>
-              {hasPassword ? t('settings.changePassword') : t('settings.setPassword')}
-            </Text>
-          </TouchableOpacity>
-
-          {hasPassword && (
-            <TouchableOpacity
-              style={[styles.dangerButton, styles.modalButton, styles.marginTop12]}
-              onPress={handleRemovePassword}
-            >
-              <Text style={styles.modalButtonText}>{t('settings.removePassword')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-
-  useEffect(() => {
-    const checkPasswordExpiration = async () => {
-      try {
-        const passwordUpdated = await AsyncStorage.getItem('vault_password_updated');
-        if (passwordUpdated) {
-          const lastUpdate = new Date(passwordUpdated);
-          const now = new Date();
-          const daysSinceUpdate = Math.floor(
-            (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)
-          );
-
-          if (daysSinceUpdate >= 90) {
-            Alert.alert(t('settings.securityAlert'), t('settings.passwordExpired'), [
-              { text: t('settings.later') },
-              {
-                text: t('settings.changeNow'),
-                onPress: () => setShowPasswordModal(true),
-              },
-            ]);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking password expiration:', error);
-      }
-    };
-
-    if (hasPassword) {
-      checkPasswordExpiration();
-    }
-  }, [hasPassword, t]); // Removed user dependency
-
-  // Background function to update cache if needed
-  const updateProfileImageCacheInBackground = useCallback(
-    async (userId: string) => {
-      try {
-        const publicId = user?.user_metadata?.avatar_public_id;
-        let currentImageUrl = null;
-
-        if (publicId) {
-          currentImageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
-        } else if (user?.user_metadata?.profile_image_url) {
-          const url = user.user_metadata.profile_image_url;
-          const timestamp = Date.now();
-          currentImageUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
-        }
-
-        if (currentImageUrl) {
-          const isCached = await profileImageCache.isCached(userId, currentImageUrl);
-          if (!isCached) {
-            console.log('🔄 Updating profile image cache in background');
-            await profileImageCache.cacheProfileImage(userId, currentImageUrl, publicId);
-          }
-        }
-      } catch (error) {
-        console.error('⚠️ Error updating profile image cache:', error);
-      }
-    },
-    [user]
-  );
-
-  // Background function to cache profile image
-  const cacheProfileImageInBackground = useCallback(
-    async (userId: string, imageUrl: string, publicId?: string) => {
-      try {
-        console.log('💾 Caching profile image in background for offline use');
-        const cachedPath = await profileImageCache.cacheProfileImage(userId, imageUrl, publicId);
-
-        if (cachedPath) {
-          console.log('✅ Profile image successfully cached for offline access');
-          // Update the state to use cached version immediately
-          setProfileImage(cachedPath);
-        } else {
-          console.log('⚠️ Failed to cache profile image, keeping URL version');
-        }
-      } catch (error) {
-        console.error('⚠️ Error caching profile image:', error);
-        // Don't throw error, keep using URL version
-      }
-    },
-    []
-  );
-
-  // Get user profile image with offline caching
-  const getUserProfileImage = useCallback(async () => {
-    if (!user || user.isAnonymous) {
-      setProfileImage(null);
-      return;
-    }
-
-    try {
-      const userId = user.id;
-      console.log('🖼️ Loading profile image for user:', userId, {
-        isConnected,
-        hasAvatarPublicId: !!user.user_metadata?.avatar_public_id,
-        hasLegacyUrl: !!user.user_metadata?.profile_image_url,
-      });
-
-      // First, try to get cached image (works offline)
-      const cachedImagePath = await profileImageCache.getCachedProfileImage(userId);
-      if (cachedImagePath) {
-        console.log('✅ Using cached profile image (offline ready)');
-        setProfileImage(cachedImagePath);
-
-        // In background, check if we need to update the cache
-        if (isConnected) {
-          updateProfileImageCacheInBackground(userId);
-        }
-        return;
-      }
-
-      console.log('📊 Cache status: No valid cached image found');
-
-      // If no cache and offline, try to show any existing profile data
-      if (!isConnected) {
-        console.log('🔌 Offline mode: Attempting fallback strategies');
-
-        // Try one more time with any available metadata (for debugging)
-        const publicId = user.user_metadata?.avatar_public_id;
-        const legacyUrl = user.user_metadata?.profile_image_url;
-
-        console.log('🔍 Offline fallback data:', {
-          publicId,
-          legacyUrl,
-          userMetadata: user.user_metadata,
-        });
-
-        // Keep existing profile image if we had one (don't clear it)
-        if (!profileImage) {
-          setProfileImage(null);
-        }
-        return;
-      }
-
-      // Online: Get image URL and cache it
-      let imageUrl = null;
-
-      // Check for Cloudinary image first (new method)
-      const publicId = user.user_metadata?.avatar_public_id;
-      if (publicId) {
-        imageUrl = cloudinaryService.getProfileImageUrl(publicId, 250, 250);
-        if (imageUrl) {
-          console.log('🌤️ Using Cloudinary image URL:', imageUrl);
-        }
-      }
-
-      // Fallback to legacy method (direct URL from metadata)
-      if (!imageUrl && user.user_metadata?.profile_image_url) {
-        console.log('📷 Using legacy profile image URL from metadata');
-        const url = user.user_metadata.profile_image_url;
-        const timestamp = Date.now();
-        imageUrl = url.includes('?') ? `${url}&t=${timestamp}` : `${url}?t=${timestamp}`;
-      }
-
-      if (imageUrl) {
-        console.log('🚀 Setting profile image URL and starting cache process');
-        // Set image immediately for responsive UX
-        setProfileImage(imageUrl);
-
-        // Cache image in background for offline access
-        cacheProfileImageInBackground(userId, imageUrl, publicId);
-      } else {
-        console.log('❌ No profile image URL found in user metadata');
-        setProfileImage(null);
-      }
-    } catch (error) {
-      console.error('❌ Error loading profile image:', error);
-      // Don't clear existing image on error, just log it
-    }
-  }, [
-    user,
-    isConnected,
-    profileImage,
-    updateProfileImageCacheInBackground,
-    cacheProfileImageInBackground,
-  ]);
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      await loadAutoBackupSetting();
-      await loadLastBackupTime();
-      await checkPasswordStatus();
-
-      // Load edit mode setting
-      const editMode = await getEditModeSetting();
-      setDefaultEditMode(editMode);
-    };
-
-    loadSettings();
-
-    if (user) {
-      setUserDisplayName(getUserDisplayName());
-      getUserProfileImage();
-    }
-
-    // Monitor internet connection changes
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(!!state.isConnected);
-    });
-
-    // Clear the listener when the component is unmounted
-    return () => unsubscribe();
-  }, [
-    loadAutoBackupSetting,
-    loadLastBackupTime,
-    checkPasswordStatus,
-    getUserDisplayName,
-    getUserProfileImage,
-    user,
-  ]);
-
-  // Pick and upload profile image
-  const handleProfileImageUpload = async () => {
-    if (!user || user.isAnonymous) {
-      Alert.alert(t('common.warning'), t('settings.loginRequiredForProfileImage'));
-      return;
-    }
-
-    if (!isConnected) {
-      Alert.alert(t('common.error'), t('common.noInternetConnection'));
-      return;
-    }
-
-    try {
-      // Request media library permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('settings.cameraPermissionDenied'));
-        return;
-      }
-
-      // Launch image picker
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
-
-      if (result.canceled) return;
-
-      setIsUploadingImage(true);
-
-      // Get image URI
-      const imageUri = result.assets[0].uri;
-
-      // Upload to Cloudinary using our service
-      const uploadResult = await cloudinaryService.uploadProfileImage(imageUri, user.id);
-
-      if (!uploadResult.success) {
-        console.error('Error uploading image:', uploadResult.error);
-        Alert.alert(t('common.error'), `${t('settings.imageUploadFailed')}: ${uploadResult.error}`);
-        return;
-      }
-
-      // Update UI with new image URL
-      setProfileImage(uploadResult.url);
-
-      // Cache the new image for offline access
-      try {
-        await profileImageCache.cacheProfileImage(user.id, uploadResult.url, uploadResult.publicId);
-        console.log('✅ New profile image cached successfully');
-      } catch (cacheError) {
-        console.error('⚠️ Error caching new profile image:', cacheError);
-      }
-
-      Alert.alert(t('common.success'), t('settings.profileImageUpdated'));
-
-      // Also refresh the user data to ensure we have the latest metadata
-      try {
-        const { data } = await supabase.auth.refreshSession();
-        if (data.user) {
-          // Update any other UI that depends on user data
-          setUserDisplayName(getUserDisplayName());
-        }
-      } catch (refreshError) {
-        console.error('Error refreshing session:', refreshError);
-      }
-    } catch (error) {
-      console.error('Profile image upload error:', error);
-      Alert.alert(t('common.error'), t('settings.imageUploadFailed'));
-    } finally {
-      setIsUploadingImage(false);
-    }
-  };
-
-  // Remove profile image
-  const handleRemoveProfileImage = async () => {
-    if (!user || user.isAnonymous || !profileImage) return;
-
-    if (!isConnected) {
-      Alert.alert(t('common.error'), t('common.noInternetConnection'));
-      return;
-    }
-
-    try {
-      Alert.alert(t('settings.removeProfileImage'), t('settings.removeProfileImageConfirm'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.remove'),
-          style: 'destructive',
-          onPress: async () => {
-            setIsUploadingImage(true);
-
-            try {
-              // Remove profile image using our Cloudinary service
-              const result = await cloudinaryService.removeProfileImage(user.id);
-
-              if (!result.success) {
-                console.error('Error removing profile image:', result.error);
-                Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
-                return;
-              }
-
-              // Clear cached image
-              try {
-                await profileImageCache.removeCachedProfileImage(user.id);
-                console.log('🗑️ Profile image cache cleared');
-              } catch (cacheError) {
-                console.error('⚠️ Error clearing profile image cache:', cacheError);
-              }
-
-              // Update UI
-              setProfileImage(null);
-              Alert.alert(t('common.success'), t('settings.profileImageRemoved'));
-
-              // Refresh session to get updated metadata
-              await supabase.auth.refreshSession();
-            } catch (error) {
-              console.error('Error in profile image removal:', error);
-              Alert.alert(t('common.error'), t('settings.profileUpdateFailed'));
-            } finally {
-              setIsUploadingImage(false);
-            }
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error('Error in remove profile image dialog:', error);
-    }
-  };
-
-  // User Profile Card Component
-  const UserProfileCard = () => {
-    if (!user || isGuestMode) {
-      return (
-        <View
-          style={[
-            styles.profileCard,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-            },
-            styles.profileCardMargin,
-          ]}
-        >
-          <View style={styles.profileCardContent}>
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={32} color={theme.textSecondary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: theme.text }]}>
-                {t('settings.guestUser')}
-              </Text>
-              <Text
-                style={[styles.profileEmail, { color: theme.textSecondary }]}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {t('settings.signInToSync')}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.loginButton, { backgroundColor: themeColors[accentColor] }]}
-              onPress={forceLogin}
-            >
-              <Text style={styles.loginButtonText}>{t('common.login')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
-
-    // First letter of name for avatar
-    const avatarInitial = userDisplayName.charAt(0).toUpperCase();
-
-    return (
-      <View
-        style={[
-          styles.profileCard,
-          {
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-          },
-          styles.profileCardMargin,
-        ]}
-      >
-        <View style={styles.profileCardContent}>
-          <TouchableOpacity
-            style={styles.profileImageContainer}
-            onPress={handleProfileImageUpload}
-            disabled={isUploadingImage}
-          >
-            {isUploadingImage ? (
-              <View style={[styles.avatar, { backgroundColor: theme.card }]}>
-                <ActivityIndicator color={themeColors[accentColor]} size="small" />
-              </View>
-            ) : profileImage ? (
-              <View style={styles.avatarWithImage}>
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.profileImage}
-                  resizeMode="cover"
-                />
-              </View>
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: themeColors[accentColor] }]}>
-                <Text style={styles.avatarText}>{avatarInitial}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: theme.text }]}>{userDisplayName}</Text>
-            <Text
-              style={[styles.profileEmail, { color: theme.textSecondary }]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {user.email}
-            </Text>
-
-            {profileImage && (
-              <TouchableOpacity
-                style={[styles.removePhotoButton, { borderColor: theme.border }]}
-                onPress={handleRemoveProfileImage}
-                disabled={isUploadingImage}
-              >
-                <Text style={[styles.removePhotoText, { color: DANGER_COLOR }]}>
-                  {t('settings.removePhoto')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
-    );
-  };
+  // Vault password UI and modal removed for free version
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={[
+          hexToRgba(themeColors[accentColor], themeMode === 'dark' ? 0.15 : 0.08),
+          hexToRgba(themeColors[accentColor], 0),
+          theme.background,
+        ]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
       <FontModal />
       <LanguageModal />
       <ScrollView style={styles.content}>
-        {/* User Profile Card */}
-        <UserProfileCard />
+        {/* Free Version Info Card */}
+        <View
+          style={[
+            styles.infoCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: themeColors[accentColor],
+            },
+          ]}
+        >
+          <View style={styles.infoCardContent}>
+            <Ionicons
+              name="information-circle"
+              size={24}
+              color={themeColors[accentColor]}
+            />
+            <View style={styles.infoCardText}>
+              <Text style={[styles.infoCardTitle, { color: theme.text }]}>
+                {t('settings.freeVersion') || 'Mindbook Free'}
+              </Text>
+              <Text style={[styles.infoCardDescription, { color: theme.textSecondary }]}>
+                {t('settings.allDataStoredLocally') || 'All your data is stored locally on your device. No cloud sync, no account required.'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Upgrade to Pro Button */}
+        <TouchableOpacity
+          style={[
+            styles.proButton,
+            {
+              backgroundColor: themeColors[accentColor],
+              shadowColor: themeColors[accentColor],
+            },
+          ]}
+          onPress={() =>
+            Linking.openURL(
+              'https://play.google.com/store/apps/details?id=com.melihcandemir.mindbook&hl=en'
+            )
+          }
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Ionicons name="rocket" size={24} color={WHITE} />
+          <View style={styles.proButtonTextContainer}>
+            <Text style={styles.proButtonTitle}>{t('settings.upgradeToPro') || 'Upgrade to Pro'}</Text>
+            <Text style={styles.proButtonSubtitle}>
+              {t('settings.proFeaturesDesc') || 'Cloud sync, AI features and more'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={WHITE} />
+        </TouchableOpacity>
+
+        {/* Manual Backup Section */}
+        <View style={[styles.section, { borderBottomColor: theme.border }]}>
+          <SectionHeader title={t('settings.manualBackup')} />
+          <View style={styles.backupButtonsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.backupButton,
+                { backgroundColor: theme.card, borderColor: themeColors[accentColor] },
+              ]}
+              onPress={handleExportToFile}
+            >
+              <Ionicons name="document-text-outline" size={24} color={themeColors[accentColor]} />
+              <View style={styles.backupButtonTextContainer}>
+                <Text style={[styles.backupButtonTitle, { color: theme.text }]}>
+                  {t('settings.exportData')}
+                </Text>
+                <Text style={[styles.backupButtonDesc, { color: theme.textSecondary }]}>
+                  {t('settings.exportDescription')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.backupButton,
+                { backgroundColor: theme.card, borderColor: themeColors[accentColor] },
+              ]}
+              onPress={handleImportFromFile}
+            >
+              <Ionicons name="folder-open-outline" size={24} color={themeColors[accentColor]} />
+              <View style={styles.backupButtonTextContainer}>
+                <Text style={[styles.backupButtonTitle, { color: theme.text }]}>
+                  {t('settings.importData')}
+                </Text>
+                <Text style={[styles.backupButtonDesc, { color: theme.textSecondary }]}>
+                  {t('settings.importDescription')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.backupButton,
+                { backgroundColor: theme.card, borderColor: themeColors[accentColor] },
+              ]}
+              onPress={handleExportToPDF}
+            >
+              <Ionicons name="document-text-outline" size={24} color={themeColors[accentColor]} />
+              <View style={styles.backupButtonTextContainer}>
+                <Text style={[styles.backupButtonTitle, { color: theme.text }]}>
+                  Export to PDF
+                </Text>
+                <Text style={[styles.backupButtonDesc, { color: theme.textSecondary }]}>
+                  Save all notes as a PDF document
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Theme Mode */}
         <View style={[styles.section, { borderBottomColor: theme.border }]}>
@@ -1783,210 +802,7 @@ const Settings = () => {
           </View>
         </View>
 
-        {/* Backup */}
-        <View style={[styles.section, { borderBottomColor: theme.border }]}>
-          <SectionHeader title={t('settings.backup')} />
-          <View style={styles.settingGroup}>
-            {!user?.isAnonymous ? (
-              <>
-                <View
-                  style={[
-                    styles.settingItem,
-                    styles.settingItemContainer,
-                    {
-                      borderBottomColor: theme.border,
-                      borderColor: themeColors[accentColor],
-                      borderWidth: BORDER_WIDTH,
-                    },
-                  ]}
-                >
-                  <View style={styles.settingItemInfo}>
-                    <Text style={[styles.settingItemTitle, { color: theme.text }]}>
-                      {t('settings.autoBackup')}
-                    </Text>
-                    <Text style={[styles.settingItemSubtitle, { color: theme.textSecondary }]}>
-                      {autoBackupEnabled
-                        ? t('settings.lastBackup') +
-                          ': ' +
-                          (lastBackupTime
-                            ? new Date(lastBackupTime).toLocaleString()
-                            : t('common.notAvailable'))
-                        : t('settings.autoBackupDescription') +
-                          ' ' +
-                          t('settings.realTimeBackupDescription')}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={autoBackupEnabled}
-                    onValueChange={saveAutoBackupSetting}
-                    trackColor={{ false: '#ccc', true: themeColors[accentColor] + '99' }}
-                    thumbColor={autoBackupEnabled ? themeColors[accentColor] : '#f4f3f4'}
-                    disabled={!user || user?.isAnonymous}
-                  />
-                </View>
-              </>
-            ) : (
-              <View
-                style={[
-                  styles.settingItem,
-                  styles.settingItemContainer,
-                  {
-                    borderBottomColor: theme.border,
-                    borderColor: themeColors[accentColor],
-                    borderWidth: BORDER_WIDTH,
-                  },
-                ]}
-              >
-                <View style={styles.settingItemInfo}>
-                  <Text style={[styles.settingItemTitle, { color: theme.text }]}>
-                    {t('settings.autoBackup')}
-                  </Text>
-                  <Text style={[styles.settingItemSubtitle, { color: theme.textSecondary }]}>
-                    {t('settings.loginRequiredForBackup')}
-                  </Text>
-                </View>
-                <Ionicons name="log-in-outline" size={24} color={themeColors[accentColor]} />
-              </View>
-            )}
-            {/* Before the View component containing the backupButtonContainer */}
-            <View style={styles.backupButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.manualBackupButton,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: themeColors[accentColor],
-                    opacity:
-                      !user || user?.isAnonymous || isBackingUp || !isConnected
-                        ? DISABLED_OPACITY
-                        : ACTIVE_OPACITY,
-                  },
-                ]}
-                onPress={handleManualBackup}
-                disabled={!user || user?.isAnonymous || isBackingUp || !isConnected}
-              >
-                {isBackingUp ? (
-                  <ActivityIndicator size="small" color={themeColors[accentColor]} />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="cloud-upload-outline"
-                      size={20}
-                      color={
-                        !user || user?.isAnonymous || !isConnected
-                          ? theme.textSecondary
-                          : themeColors[accentColor]
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.manualBackupText,
-                        {
-                          color:
-                            !user || user?.isAnonymous || !isConnected
-                              ? theme.textSecondary
-                              : themeColors[accentColor],
-                        },
-                      ]}
-                    >
-                      {t('settings.backupNow')}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.manualBackupButton,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: themeColors[accentColor],
-                    opacity:
-                      !user || user?.isAnonymous || isRestoring || !isConnected
-                        ? DISABLED_OPACITY
-                        : ACTIVE_OPACITY,
-                  },
-                ]}
-                onPress={handleRestoreBackup}
-                disabled={!user || user?.isAnonymous || isRestoring || !isConnected}
-              >
-                {isRestoring ? (
-                  <ActivityIndicator size="small" color={themeColors[accentColor]} />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="cloud-download-outline"
-                      size={20}
-                      color={
-                        !user || user?.isAnonymous || !isConnected
-                          ? theme.textSecondary
-                          : themeColors[accentColor]
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.manualBackupText,
-                        {
-                          color:
-                            !user || user?.isAnonymous || !isConnected
-                              ? theme.textSecondary
-                              : themeColors[accentColor],
-                        },
-                      ]}
-                    >
-                      {t('settings.restoreFromBackup')}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Clear entire database button */}
-              <TouchableOpacity
-                style={[
-                  styles.manualBackupButton,
-                  styles.marginTop16,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: DANGER_COLOR,
-                    opacity:
-                      !user || user?.isAnonymous || !isConnected
-                        ? DISABLED_OPACITY
-                        : ACTIVE_OPACITY,
-                  },
-                ]}
-                onPress={handleClearAllData}
-                disabled={!user || user?.isAnonymous || !isConnected}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={20}
-                  color={
-                    !user || user?.isAnonymous || !isConnected ? theme.textSecondary : DANGER_COLOR
-                  }
-                />
-                <Text
-                  style={[
-                    styles.manualBackupText,
-                    {
-                      color:
-                        !user || user?.isAnonymous || !isConnected
-                          ? theme.textSecondary
-                          : DANGER_COLOR,
-                    },
-                  ]}
-                >
-                  {t('settings.clearAllData')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Security */}
-        <View style={[styles.section, { borderBottomColor: theme.border }]}>
-          <SectionHeader title={t('settings.security')} />
-          <View style={styles.settingGroup}>{renderPasswordSettings()}</View>
-        </View>
+        {/* Security section removed for free version (vault password) */}
 
         {/* Language */}
         <View style={[styles.section, { borderBottomColor: theme.border }]}>
@@ -2017,66 +833,13 @@ const Settings = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Session */}
-        <View style={[styles.section, styles.marginTop24, { borderBottomColor: theme.border }]}>
-          {isGuestMode ? (
-            <TouchableOpacity
-              style={[
-                styles.settingButton,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: LOGIN_COLOR,
-                  opacity: isConnected ? ACTIVE_OPACITY : DISABLED_OPACITY,
-                },
-              ]}
-              onPress={forceLogin}
-              disabled={!isConnected}
-            >
-              <View style={styles.rowLayout}>
-                <View style={styles.centerContainer}>
-                  <Text style={styles.loginText}>{t('drawer.loginOption')}</Text>
-                  <Ionicons name="log-in-outline" size={24} color={LOGIN_COLOR} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.settingButton,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: DANGER_COLOR,
-                  opacity: isConnected ? ACTIVE_OPACITY : DISABLED_OPACITY,
-                },
-              ]}
-              onPress={() => {
-                if (!isConnected) return;
-
-                Alert.alert(t('settings.signOut'), t('settings.confirmSignOut'), [
-                  {
-                    text: t('common.cancel'),
-                    style: 'cancel',
-                  },
-                  {
-                    text: t('settings.signOut'),
-                    style: 'destructive',
-                    onPress: logout,
-                  },
-                ]);
-              }}
-              disabled={!isConnected}
-            >
-              <View style={styles.rowLayout}>
-                <View style={styles.centerContainer}>
-                  <Text style={styles.dangerText}>{t('settings.signOut')}</Text>
-                  <Ionicons name="log-out-outline" size={24} color={DANGER_COLOR} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
+        {/* Version Information */}
+        <View style={styles.versionContainer}>
+          <Text style={[styles.versionText, { color: theme.textSecondary }]}>
+            {t('settings.version')} 4.2.2
+          </Text>
         </View>
       </ScrollView>
-      {renderPasswordModal()}
     </View>
   );
 };
@@ -2084,82 +847,6 @@ const Settings = () => {
 export default Settings;
 
 const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: AVATAR_PLACEHOLDER_COLOR,
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarText: {
-    color: WHITE,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  avatarWithImage: {
-    alignItems: 'center',
-    borderRadius: 30,
-    height: 60,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-    width: 60,
-  },
-  backupButtonContainer: {
-    alignItems: 'center',
-    flexDirection: 'column',
-    gap: 8,
-    justifyContent: 'center',
-    marginBottom: 16,
-    marginTop: -8,
-  },
-  centerContainer: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  closeButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  colorButton: {
-    alignItems: 'center',
-    borderRadius: 16,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-    padding: 12,
-  },
-  colorHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  colorPreview: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
   container: {
     flex: 1,
   },
@@ -2167,244 +854,54 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  dangerButton: {
-    backgroundColor: DANGER_COLOR,
-  },
-  dangerText: {
-    color: DANGER_COLOR,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  eyeButton: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    marginLeft: 8,
-    width: 40,
-  },
-  fontSizeButton: {
+  infoCard: {
     borderRadius: 12,
-    borderWidth: BORDER_WIDTH,
-    overflow: 'hidden',
+    borderWidth: 1,
+    marginBottom: 24,
+    padding: 16,
   },
-  fontSizeContent: {
-    alignItems: 'center',
+  infoCardContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 12,
-  },
-  fontSizeControls: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
-  fontSizeInfo: {
+  infoCardText: {
     flex: 1,
   },
-  fontSizePreview: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  fontSizeValue: {
+  infoCardTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
+  infoCardDescription: {
     fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
+    lineHeight: 20,
   },
-  loginButton: {
-    alignItems: 'center',
-    borderRadius: 8,
-    minWidth: 80,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  loginButtonText: {
-    color: WHITE,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loginText: {
-    color: LOGIN_COLOR,
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  manualBackupButton: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: BORDER_WIDTH,
-    elevation: 2,
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    marginTop: 8,
-    padding: 12,
-    shadowColor: SHADOW_COLOR,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    width: '100%',
-  },
-  manualBackupText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  marginTop12: {
-    marginTop: 12,
-  },
-  marginTop16: {
-    marginTop: 16,
-  },
-  marginTop24: {
-    marginTop: 24,
-  },
-  modalButton: {
-    alignItems: 'center',
-    borderRadius: 12,
-    height: 48,
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  modalButtonText: {
-    color: WHITE,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalContent: {
+  proButton: {
     borderRadius: 16,
-    elevation: 5,
-    maxHeight: '80%',
-    maxWidth: 350,
-    padding: 20,
-    shadowColor: SHADOW_COLOR,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    width: '90%',
-  },
-  modalHeader: {
-    alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    width: '100%',
-  },
-  modalItem: {
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-  },
-  modalItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    alignItems: 'center',
-    backgroundColor: OVERLAY_BACKGROUND_COLOR,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  modalOverlayBackground: {
-    backgroundColor: OVERLAY_BACKGROUND_COLOR,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  modalView: {
-    borderRadius: 20,
-    elevation: 5,
-    margin: 20,
-    maxHeight: '70%',
-    padding: 20,
-    shadowColor: SHADOW_COLOR,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    width: '90%',
-  },
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    height: '100%',
-  },
-  passwordInputContainer: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: BORDER_WIDTH,
-    flexDirection: 'row',
-    height: 48,
-    paddingHorizontal: 16,
-  },
-  profileCard: {
-    borderRadius: 12,
-    borderWidth: BORDER_WIDTH,
-    marginBottom: 16,
-    padding: 12,
-  },
-  profileCardContent: {
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  profileCardMargin: {
+    padding: 16,
     marginBottom: 24,
+    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
-  profileEmail: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  profileImage: {
-    borderRadius: 30,
-    height: '100%',
-    width: '100%',
-  },
-  profileImageContainer: {
-    position: 'relative',
-  },
-  profileInfo: {
+  proButtonTextContainer: {
     flex: 1,
     marginLeft: 12,
-    marginRight: 8,
   },
-  profileName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
+  proButtonTitle: {
+    color: WHITE,
+    fontSize: 18,
+    fontWeight: '700',
   },
-  removePhotoButton: {
-    alignSelf: 'flex-start',
-    borderRadius: 4,
-    borderWidth: 1,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  removePhotoText: {
+  proButtonSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    fontWeight: '500',
-  },
-  rowLayout: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    height: 72,
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  scrollContentContainer: {
-    flexGrow: 0,
+    marginTop: 2,
   },
   section: {
     borderBottomWidth: BORDER_WIDTH,
@@ -2419,21 +916,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1,
   },
-  selectedColor: {
-    elevation: 6,
-    shadowColor: SHADOW_COLOR,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    transform: [{ scale: 1.1 }],
-  },
-  selectedColorPreview: {
-    borderColor: BORDER_COLOR,
-    borderRadius: 14,
-    borderWidth: BORDER_WIDTH,
-    height: 28,
-    width: 28,
-  },
   settingButton: {
     borderRadius: 12,
     borderWidth: BORDER_WIDTH,
@@ -2446,35 +928,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
   },
-  settingGroup: {
-    backgroundColor: TRANSPARENT,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
   settingInfo: {
     flex: 1,
   },
-  settingItem: {
-    alignItems: 'center',
-    backgroundColor: TRANSPARENT,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  settingItemContainer: {
-    borderRadius: 12,
-    marginBottom: 8,
-    padding: 8,
-  },
-  settingItemInfo: {
-    flex: 1,
-  },
-  settingItemSubtitle: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  settingItemTitle: {
+  settingValue: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
@@ -2483,22 +940,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.7,
   },
-  settingValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  sizeControl: {
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: BORDER_WIDTH,
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
-  },
-  sizeControlText: {
-    fontSize: 12,
-    fontWeight: '600',
+  settingGroup: {
+    backgroundColor: TRANSPARENT,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   themeContainer: {
     flexDirection: 'row',
@@ -2517,5 +962,232 @@ const styles = StyleSheet.create({
   themeText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  colorHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  colorPreview: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  selectedColorPreview: {
+    borderColor: BORDER_COLOR,
+    borderRadius: 14,
+    borderWidth: BORDER_WIDTH,
+    height: 28,
+    width: 28,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  colorButton: {
+    alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  selectedColor: {
+    elevation: 6,
+    shadowColor: SHADOW_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    transform: [{ scale: 1.1 }],
+  },
+  fontSizeButton: {
+    borderRadius: 12,
+    borderWidth: BORDER_WIDTH,
+    overflow: 'hidden',
+  },
+  fontSizeContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  fontSizeInfo: {
+    flex: 1,
+  },
+  fontSizeValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  fontSizePreview: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  fontSizeControls: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sizeControl: {
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: BORDER_WIDTH,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  sizeControlText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: OVERLAY_BACKGROUND_COLOR,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  modalOverlayBackground: {
+    backgroundColor: OVERLAY_BACKGROUND_COLOR,
+  },
+  modalView: {
+    borderRadius: 20,
+    elevation: 5,
+    margin: 20,
+    maxHeight: '70%',
+    padding: 20,
+    shadowColor: SHADOW_COLOR,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    width: '90%',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  scrollContentContainer: {
+    flexGrow: 0,
+  },
+  modalItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  modalItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalContent: {
+    borderRadius: 16,
+    elevation: 5,
+    maxHeight: '80%',
+    maxWidth: 350,
+    padding: 20,
+    shadowColor: SHADOW_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    width: '90%',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  passwordInputContainer: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: BORDER_WIDTH,
+    flexDirection: 'row',
+    height: 48,
+    paddingHorizontal: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+  },
+  eyeButton: {
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+    marginLeft: 8,
+    width: 40,
+  },
+  modalButton: {
+    alignItems: 'center',
+    borderRadius: 12,
+    height: 48,
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  modalButtonText: {
+    color: WHITE,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerButton: {
+    backgroundColor: '#ef4444',
+  },
+  marginTop12: {
+    marginTop: 12,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 40,
+    paddingVertical: 16,
+  },
+  versionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    opacity: 0.6,
+  },
+  // Backup Styles
+  backupButtonsContainer: {
+    gap: 12,
+  },
+  backupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: BORDER_WIDTH,
+    gap: 16,
+  },
+  backupButtonTextContainer: {
+    flex: 1,
+  },
+  backupButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  backupButtonDesc: {
+    fontSize: 12,
   },
 });

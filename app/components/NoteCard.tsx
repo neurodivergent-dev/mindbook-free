@@ -37,7 +37,7 @@ const getPreviewContent = content => {
     .trim();
 
   // Fixed character count limitation - consistent preview regardless of font size
-  const MAX_CHARS = 120;
+  const MAX_CHARS = 60;
 
   // Cut content to character limit
   const preview =
@@ -423,14 +423,18 @@ export default function NoteCard({
             <View style={styles.headerLeft}>
               {note.category && (
                 <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor() }]}>
-                  <Text style={[styles.categoryText, { color: getCategoryTextColor() }]}>
+                  <Text 
+                    style={[styles.categoryText, { color: getCategoryTextColor() }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {note.category}
                   </Text>
                 </View>
               )}
 
-              {/* Reading time */}
-              {showReadingTime && readingTime > 0 && (
+              {/* Reading time - Hide in compact mode to save space */}
+              {!compact && showReadingTime && readingTime > 0 && (
                 <View style={[styles.readingTimeBadge, { backgroundColor: getCategoryColor() }]}>
                   <Ionicons name="time-outline" size={12} color={getCategoryTextColor()} />
                   <Text style={[styles.readingTimeText, { color: getCategoryTextColor() }]}>
@@ -441,7 +445,8 @@ export default function NoteCard({
             </View>
 
             <View style={styles.headerRight}>
-              {showLastEditInfo && (
+              {/* Date - Hide in compact mode to save space */}
+              {!compact && showLastEditInfo && (
                 <Text style={[styles.dateText, { color: getNoteColors().text + '99' }]}>
                   {getFormattedDate(note.updatedAt)}
                 </Text>
@@ -454,7 +459,7 @@ export default function NoteCard({
                 >
                   <Ionicons
                     name={statusIcon.name}
-                    size={18}
+                    size={compact ? 16 : 18}
                     color={statusIcon.color}
                     style={{ opacity: 0.9 as number }}
                   />
@@ -651,100 +656,119 @@ export default function NoteCard({
                   )}
                 </View>
               )}
-              <Markdown
-                key={`markdown-preview-${note.id}`}
-                style={{
-                  body: {
-                    color: getNoteColors().text + (compact ? 'AA' : 'DD'),
-                    fontSize: fontSizes[fontSize].contentSize * (compact ? 0.9 : 1),
-                    fontFamily: fontFamilies[fontFamily].family,
-                    lineHeight: fontSizes[fontSize].contentSize * (compact ? 1.3 : 1.5),
-                  },
-                  heading1: {
-                    fontSize: fontSizes[fontSize].contentSize * 1.8,
-                    fontWeight: 'bold',
-                    color: getNoteColors().text,
-                    marginVertical: 16,
-                    lineHeight: fontSizes[fontSize].contentSize * 2,
-                    fontFamily: fontFamilies[fontFamily].family,
-                  },
-                  heading2: {
-                    fontSize: fontSizes[fontSize].contentSize * 1.5,
-                    fontWeight: 'bold',
-                    color: getNoteColors().text,
-                    marginVertical: 12,
-                    lineHeight: fontSizes[fontSize].contentSize * 1.8,
-                    fontFamily: fontFamilies[fontFamily].family,
-                  },
-                  heading3: {
-                    fontSize: fontSizes[fontSize].contentSize * 1.2,
-                    fontWeight: 'bold',
-                    color: getNoteColors().text,
-                    marginVertical: 8,
-                    lineHeight: fontSizes[fontSize].contentSize * 1.5,
-                    fontFamily: fontFamilies[fontFamily].family,
-                  },
-                  link: {
-                    color: themeColors[accentColor],
-                    textDecorationLine: 'underline',
-                  },
-                  list_item: {
-                    marginVertical: 4,
-                    flexDirection: 'row',
-                    alignItems: 'flex-start',
-                  },
-                  bullet_list: {
-                    marginVertical: 8,
-                  },
-                  ordered_list: {
-                    marginVertical: 8,
-                  },
-                  strong: {
-                    fontWeight: 'bold',
-                    color: getNoteColors().text,
-                  },
-                  em: {
-                    fontStyle: 'italic',
-                    color: getNoteColors().text,
-                  },
-                  blockquote: {
-                    backgroundColor: theme.border + '20',
-                    borderLeftWidth: 4,
-                    borderLeftColor: themeColors[accentColor],
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    marginVertical: 8,
-                  },
-                  code_inline: {
-                    backgroundColor: theme.border + '30',
-                    color: getNoteColors().text,
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                    fontFamily: 'monospace',
-                  },
-                  code_block: {
-                    backgroundColor: '#272822',
-                    padding: 12,
-                    borderRadius: 8,
-                    marginVertical: 8,
-                    fontFamily: 'monospace',
-                  },
-                  fence: {
-                    backgroundColor: '#272822',
-                    padding: 12,
-                    borderRadius: 8,
-                    marginVertical: 8,
-                    fontFamily: 'monospace',
-                  },
-                  paragraph: {
-                    marginVertical: 8,
-                    color: getNoteColors().text,
-                  },
-                }}
-              >
-                {getPreviewContent(note.content)}
-              </Markdown>
+              
+              {/* Content Preview */}
+              {compact ? (
+                <View style={{ height: (fontSizes[fontSize].contentSize * 1.2) * 2, overflow: 'hidden' }}>
+                  <Text
+                    style={{
+                      color: getNoteColors().text + 'AA',
+                      fontSize: fontSizes[fontSize].contentSize * 0.85,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      lineHeight: fontSizes[fontSize].contentSize * 1.2,
+                    }}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
+                    {getPreviewContent(note.content)}
+                  </Text>
+                </View>
+              ) : (
+                <Markdown
+                  key={`markdown-preview-${note.id}`}
+                  style={{
+                    body: {
+                      color: getNoteColors().text + 'DD',
+                      fontSize: fontSizes[fontSize].contentSize,
+                      fontFamily: fontFamilies[fontFamily].family,
+                      lineHeight: fontSizes[fontSize].contentSize * 1.5,
+                    },
+                    heading1: {
+                      fontSize: fontSizes[fontSize].contentSize * 1.8,
+                      fontWeight: 'bold',
+                      color: getNoteColors().text,
+                      marginVertical: 16,
+                      lineHeight: fontSizes[fontSize].contentSize * 2,
+                      fontFamily: fontFamilies[fontFamily].family,
+                    },
+                    heading2: {
+                      fontSize: fontSizes[fontSize].contentSize * 1.5,
+                      fontWeight: 'bold',
+                      color: getNoteColors().text,
+                      marginVertical: 12,
+                      lineHeight: fontSizes[fontSize].contentSize * 1.8,
+                      fontFamily: fontFamilies[fontFamily].family,
+                    },
+                    heading3: {
+                      fontSize: fontSizes[fontSize].contentSize * 1.2,
+                      fontWeight: 'bold',
+                      color: getNoteColors().text,
+                      marginVertical: 8,
+                      lineHeight: fontSizes[fontSize].contentSize * 1.5,
+                      fontFamily: fontFamilies[fontFamily].family,
+                    },
+                    link: {
+                      color: themeColors[accentColor],
+                      textDecorationLine: 'underline',
+                    },
+                    list_item: {
+                      marginVertical: 4,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                    },
+                    bullet_list: {
+                      marginVertical: 8,
+                    },
+                    ordered_list: {
+                      marginVertical: 8,
+                    },
+                    strong: {
+                      fontWeight: 'bold',
+                      color: getNoteColors().text,
+                    },
+                    em: {
+                      fontStyle: 'italic',
+                      color: getNoteColors().text,
+                    },
+                    blockquote: {
+                      backgroundColor: theme.border + '20',
+                      borderLeftWidth: 4,
+                      borderLeftColor: themeColors[accentColor],
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginVertical: 8,
+                    },
+                    code_inline: {
+                      backgroundColor: theme.border + '30',
+                      color: getNoteColors().text,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 4,
+                      fontFamily: 'monospace',
+                    },
+                    code_block: {
+                      backgroundColor: '#272822',
+                      padding: 12,
+                      borderRadius: 8,
+                      marginVertical: 8,
+                      fontFamily: 'monospace',
+                    },
+                    fence: {
+                      backgroundColor: '#272822',
+                      padding: 12,
+                      borderRadius: 8,
+                      marginVertical: 8,
+                      fontFamily: 'monospace',
+                    },
+                    paragraph: {
+                      marginVertical: 8,
+                      color: getNoteColors().text,
+                    },
+                  }}
+                >
+                  {getPreviewContent(note.content)}
+                </Markdown>
+              )}
             </View>
 
             {/* Tags */}
@@ -887,7 +911,7 @@ const styles = StyleSheet.create({
     borderRadius: 14 as number,
     elevation: 3 as number,
     marginHorizontal: 0 as number,
-    marginVertical: 4 as number,
+    marginVertical: 2 as number,
     overflow: 'hidden' as const,
     shadowColor: '#000' as string,
     shadowOffset: { width: 0, height: 2 } as { width: number; height: number },

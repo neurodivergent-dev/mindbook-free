@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(find:*)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Melih\\\\Documents\\\\mindbook-free\\\\supabase\")",
+      "Bash(rd /s /q \"C:\\\\Users\\\\Melih\\\\Documents\\\\mindbook-free\\\\supabase\")"
+    ]
+  }
+}

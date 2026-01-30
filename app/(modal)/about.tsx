@@ -58,11 +58,6 @@ export default function AboutScreen() {
       description: t('about.noteFeatureDesc'),
     },
     {
-      icon: 'lock-closed',
-      title: t('about.vaultFeature'),
-      description: t('about.vaultFeatureDesc'),
-    },
-    {
       icon: 'color-palette',
       title: t('about.customizationFeature'),
       description: t('about.customizationFeatureDesc'),
@@ -91,11 +86,6 @@ export default function AboutScreen() {
       icon: 'trash-bin',
       title: t('about.trashFeature'),
       description: t('about.trashFeatureDesc'),
-    },
-    {
-      icon: 'cloud-upload',
-      title: t('about.cloudFeature'),
-      description: t('about.cloudFeatureDesc'),
     },
     {
       icon: 'language',
@@ -153,7 +143,7 @@ export default function AboutScreen() {
               }}
             />
           </View>
-          <Text style={[styles.appName, { color: theme.text }]}>Mindbook Pro</Text>
+          <Text style={[styles.appName, { color: theme.text }]}>Mindbook Free</Text>
           <Text style={[styles.appVersion, { color: theme.textSecondary }]}>
             {t('about.version')} {APP_VERSION}
           </Text>
@@ -206,13 +196,6 @@ export default function AboutScreen() {
               theme={theme}
             />
             <SocialButton
-              icon="logo-linkedin"
-              title={t('about.linkedin')}
-              url="https://linkedin.com/in/melihcandemir"
-              color="#0A66C2"
-              theme={theme}
-            />
-            <SocialButton
               icon="star-outline"
               title={t('about.rate')}
               url={
@@ -221,27 +204,6 @@ export default function AboutScreen() {
                   : 'https://play.google.com/store/apps/details?id=com.melihcandemir.mindbook&hl=en'
               }
               color="#FFD700"
-              theme={theme}
-            />
-            <SocialButton
-              icon="logo-instagram"
-              title={t('about.instagram')}
-              url="https://instagram.com/mindbookpro"
-              color="#E1306C"
-              theme={theme}
-            />
-            <SocialButton
-              icon="logo-github"
-              title={t('about.github')}
-              url="https://github.com/melihcanndemir"
-              color={theme.text}
-              theme={theme}
-            />
-            <SocialButton
-              icon="mail"
-              title={t('about.email')}
-              url="mailto:promindbook@gmail.com"
-              color={themeColors[accentColor]}
               theme={theme}
             />
           </View>
@@ -263,14 +225,6 @@ export default function AboutScreen() {
               {t('about.madeWith').split('❤️')[1]}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.privacyButton}
-            onPress={() => router.push('/(modal)/privacy')}
-          >
-            <Text style={[styles.privacyButtonText, { color: themeColors[accentColor] }]}>
-              {t('about.privacyPolicy')}
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -388,13 +342,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     marginBottom: 8,
-  },
-  privacyButton: {
-    padding: 8,
-  },
-  privacyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   scrollContent: {
     padding: 20,

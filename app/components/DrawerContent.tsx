@@ -18,11 +18,6 @@ const DrawerContent = ({ navigation }) => {
       route: '/',
     },
     {
-      icon: 'checkbox-outline',
-      label: t('notes.tasks'),
-      route: '/(tabs)/tasks',
-    },
-    {
       icon: 'heart-outline',
       label: t('notes.favorites'),
       route: '/favorites',
@@ -33,14 +28,16 @@ const DrawerContent = ({ navigation }) => {
       route: '/categories',
     },
     {
-      icon: 'trash-outline',
-      label: t('notes.trash'),
-      route: '/trash',
+      icon: 'archive-outline',
+      label: t('drawer.archive') || 'Archive',
+      route: '/(modal)/archive',
+      color: '#FF9500', // Orange
     },
     {
-      icon: 'globe-outline',
-      label: 'Web to Markdown',
-      route: '/(modal)/web-to-markdown',
+      icon: 'trash-outline',
+      label: t('notes.trash'),
+      route: '/(modal)/trash',
+      color: '#FF3B30', // Red
     },
   ];
 

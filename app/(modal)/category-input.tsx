@@ -22,7 +22,6 @@ import {
   addCategory,
   updateCategory,
 } from '../utils/storage';
-import { triggerAutoBackup } from '../utils/backup';
 import { Alert } from 'react-native';
 import { emitCategoryAdded, emitCategoryUpdated } from '../utils/categoryEvents';
 
@@ -118,15 +117,6 @@ const CategoryInputPage = memo(() => {
         // Emit event for other screens to update
         emitCategoryAdded(trimmedText);
       }
-
-      // Backup in background
-      triggerAutoBackup(null)
-        .then(result => {
-          console.log('Background backup completed:', result?.success);
-        })
-        .catch(error => {
-          console.error('Background backup failed:', error);
-        });
 
       router.back();
     } catch (error: unknown) {

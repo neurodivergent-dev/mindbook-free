@@ -314,6 +314,7 @@ export default {
     emptyCategoryMessage: 'आपने अभी तक इस श्रेणी में कोई नोट्स नहीं बनाए हैं।',
     emptyCategoryNotes: '{{category}} श्रेणी में कोई नोट नहीं मिला।',
     lastEdit: 'अंतिम संपादन',
+    details: 'नोट विवरण',
     lastUpdate: 'अंतिम अपडेट',
     restoreNotes: 'नोट्स पुनर्स्थापित करें',
     encryptionNotAvailable:
@@ -433,6 +434,8 @@ export default {
     noCloudBackupsFound:
       'क्लाउड स्टोरेज में कोई बैकअप नहीं मिला। आपको पहले एक बैकअप बनाने की आवश्यकता है।',
     login: 'लॉगिन',
+    upgradeToPro: 'प्रो में अपग्रेड करें',
+    proFeaturesDesc: 'क्लाउड सिंक, एआई फीचर्स और बहुत कुछ',
   },
   drawer: {
     home: 'होम',

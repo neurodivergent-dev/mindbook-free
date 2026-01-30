@@ -319,6 +319,7 @@ export default {
     emptyCategoryMessage: 'Вы еще не создали заметок в этой категории.',
     emptyCategoryNotes: 'Заметки в категории {{category}} не найдены.',
     lastEdit: 'Последнее изменение',
+    details: 'Детали заметки',
     lastUpdate: 'Последнее обновление',
     restoreNotes: 'Восстановить Заметки',
     encryptionNotAvailable:
@@ -425,6 +426,8 @@ export default {
     cannotVerifyVault:
       'Невозможно проверить содержимое хранилища. Пароль не может быть удален по соображениям безопасности',
     removePhoto: 'Удалить фото',
+    upgradeToPro: 'Обновиться до Pro',
+    proFeaturesDesc: 'Облачная синхронизация, функции ИИ и другое',
   },
   drawer: {
     home: 'Главная',

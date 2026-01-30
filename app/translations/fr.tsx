@@ -282,6 +282,7 @@ export default {
     code: 'Code',
     quote: 'Citation',
     image: 'Image',
+    details: 'Détails de la note',
     coverImage: 'Image de couverture',
     addImage: 'Ajouter une image',
     permissionRequired: 'Permission requise',
@@ -451,6 +452,8 @@ export default {
     removePhoto: 'Supprimer la Photo',
     confirmClearAllData:
       'Cela supprimera définitivement toutes vos notes de la base de données. Cette action ne peut pas être annulée. Êtes-vous sûr de vouloir continuer ?',
+    upgradeToPro: 'Passer à la version Pro',
+    proFeaturesDesc: 'Sync cloud, fonctions IA et plus',
   },
   drawer: {
     home: 'Accueil',

@@ -19,30 +19,19 @@
       "node": "20.18.1",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "APP_ENV": "production",
-        "SUPABASE_URL": "SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "SUPABASE_ANON_KEY",
-        "ENCRYPTION_KEY": "ENCRYPTION_KEY",
-        "GOOGLE_WEB_CLIENT_ID": "GOOGLE_WEB_CLIENT_ID",
-        "GOOGLE_ANDROID_CLIENT_ID": "GOOGLE_ANDROID_CLIENT_ID",
-        "GEMINI_API_KEY": "GEMINI_API_KEY"
       }
     },
     "production": {
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "APP_ENV": "production",
-        "SUPABASE_URL": "SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "SUPABASE_ANON_KEY",
-        "ENCRYPTION_KEY": "ENCRYPTION_KEY",
-        "GOOGLE_WEB_CLIENT_ID": "GOOGLE_WEB_CLIENT_ID",
-        "GOOGLE_ANDROID_CLIENT_ID": "GOOGLE_ANDROID_CLIENT_ID",
-        "GEMINI_API_KEY": "GEMINI_API_KEY"
+      }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
       }
     }
   },

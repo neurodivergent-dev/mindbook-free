@@ -336,19 +336,6 @@ export default function TabLayout() {
               ),
               headerRight: () => (
                 <View style={styles.headerRightContainer}>
-                  {__DEV__ && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        // AI content generator trigger
-                        if (window.showAIGenerator) {
-                          window.showAIGenerator();
-                        }
-                      }}
-                      style={styles.headerButton}
-                    >
-                      <Ionicons name="sparkles" size={24} color={COLORS.white} />
-                    </TouchableOpacity>
-                  )}
                   <TouchableOpacity
                     onPress={() => setShowNewNoteMenu(!showNewNoteMenu)}
                     style={styles.headerButton}

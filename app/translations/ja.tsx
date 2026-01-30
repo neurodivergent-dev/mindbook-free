@@ -315,6 +315,7 @@ export default {
     emptyCategoryMessage: 'このカテゴリにはまだノートが作成されていません。',
     emptyCategoryNotes: '{{category}}カテゴリにノートが見つかりません。',
     lastEdit: '最終編集',
+    details: 'ノートの詳細',
     lastUpdate: '最終更新',
     restoreNotes: 'ノートを復元',
     encryptionNotAvailable:
@@ -427,6 +428,8 @@ export default {
       'これにより、データベースからすべてのノートが完全に削除されます。この操作は取り消せません。続行してもよろしいですか？',
     website: 'ウェブサイト',
     rate: '評価する',
+    upgradeToPro: 'プロにアップグレード',
+    proFeaturesDesc: 'クラウド同期、AI機能など',
   },
   drawer: {
     home: 'ホーム',

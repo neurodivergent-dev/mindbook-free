@@ -16,7 +16,6 @@ export interface Note {
   updatedAt: string;
   isArchived?: boolean;
   isTrash?: boolean;
-  isVaulted?: boolean;
   isFavorite?: boolean;
   trashedAt?: string;
   tags?: string[];
@@ -72,7 +71,6 @@ export const createEmptyNote = (): Note => ({
   updatedAt: new Date().toISOString(),
   isArchived: false,
   isTrash: false,
-  isVaulted: false,
   isFavorite: false,
 });
 

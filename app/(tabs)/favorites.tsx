@@ -20,8 +20,6 @@ import EmptyState from '../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
-import { backupToCloud } from '../utils/backup';
-import { useAuth } from '../context/AuthContext';
 
 // Color constants
 const COLORS = {
@@ -40,10 +38,9 @@ export default function FavoritesScreen() {
   const { theme, accentColor, themeColors, themeMode } = useTheme();
   const { searchQuery } = useSearch();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedNotes, setSelectedNotes] = useState(new Set());
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const [selectedNotes, setSelectedNotes] = useState(new Set<string>());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Filter function
   const filterNotes = useCallback(
@@ -247,19 +244,6 @@ export default function FavoritesScreen() {
 
       // Perform bulk update
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
-
-      // Auto backup kontrolü ve bulut güncellemesi
-      try {
-        const autoBackupEnabled = await AsyncStorage.getItem('@auto_backup_enabled');
-        if (autoBackupEnabled === 'true' && user && !user.isAnonymous) {
-          const result = await backupToCloud(user.uid);
-          if (result.success) {
-            await AsyncStorage.setItem('@last_backup_time', new Date().toISOString());
-          }
-        }
-      } catch (error) {
-        console.error('Auto backup after unfavorite failed:', error);
-      }
 
       // Update UI
       const favoriteNotes = updatedNotes.filter(
