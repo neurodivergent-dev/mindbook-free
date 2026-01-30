@@ -1,4 +1,4 @@
-# Mindbook Pro
+# Mindbook Free
 
 <p align="center">
   <img src="assets/icon.png" alt="Mindbook Logo" width="200"/>
