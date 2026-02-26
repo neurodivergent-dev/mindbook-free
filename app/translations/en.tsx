@@ -515,6 +515,7 @@ export default {
     importData: 'Select Backup File',
     exportDescription: 'Save all your notes as a .json file to your device',
     importDescription: 'Select a backup file from your device to restore notes',
+    storagePermissionDenied: 'Storage permission denied. Please allow access and try again.',
     backupCopied: 'Backup data copied to clipboard!',
     pasteBackup: 'Paste your backup code here',
     importSuccess: 'Backup successfully restored!',

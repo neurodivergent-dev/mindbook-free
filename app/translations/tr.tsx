@@ -526,6 +526,7 @@ export default {
     importData: 'Yedek Dosyası Seç',
     exportDescription: 'Tüm notlarınızı bir .json dosyası olarak cihazınıza kaydedin',
     importDescription: 'Cihazınızdaki bir yedek dosyasını seçerek notları geri yükleyin',
+    storagePermissionDenied: 'Depolama izni reddedildi. Lütfen izin verip tekrar deneyin.',
     backupCopied: 'Yedek verisi panoya kopyalandı!',
     pasteBackup: 'Yedekleme kodunu buraya yapıştırın',
     importSuccess: 'Yedek başarıyla geri yüklendi!',

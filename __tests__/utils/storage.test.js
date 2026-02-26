@@ -120,5 +120,45 @@ describe('Storage Utilities', () => {
     });
   });
 
+  describe('backup/restore', () => {
+    const { createBackup, restoreBackup } = require('../../app/utils/storage');
+
+    test('createBackup should output valid JSON containing notes and categories', async () => {
+      const notes = [{ id: 'a', title: 'Foo' }];
+      const cats = [{ id: 'c1', name: 'General' }];
+      AsyncStorage.getItem.mockImplementation(key => {
+        if (key === NOTES_KEY) return Promise.resolve(JSON.stringify(notes));
+        if (key === CATEGORIES_KEY) return Promise.resolve(JSON.stringify(cats));
+        return Promise.resolve(null);
+      });
+
+      const result = await createBackup();
+      const parsed = JSON.parse(result);
+
+      expect(parsed).toHaveProperty('version', 1);
+      expect(parsed).toHaveProperty('notes');
+      expect(parsed.notes).toEqual(notes);
+      expect(parsed.categories).toEqual(cats);
+    });
+
+    test('restoreBackup should write notes and categories and return true', async () => {
+      const backup = JSON.stringify({ version: 1, date: new Date().toISOString(), notes: [{ id: 'b' }], categories: [{ id: 'x' }] });
+      const ret = await restoreBackup(backup);
+      expect(ret).toBe(true);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(NOTES_KEY, JSON.stringify([{ id: 'b' }]));
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(CATEGORIES_KEY, JSON.stringify([{ id: 'x' }]));
+    });
+
+    test('restoreBackup should return false on invalid JSON', async () => {
+      const ret = await restoreBackup('not valid json');
+      expect(ret).toBe(false);
+    });
+
+    test('restoreBackup should return false on wrong structure', async () => {
+      const ret = await restoreBackup(JSON.stringify({ foo: 'bar' }));
+      expect(ret).toBe(false);
+    });
+  });
+
   // You can add similar tests to test other methods
 });

@@ -22,9 +22,10 @@ import * as Crypto from 'expo-crypto';
 import { useTranslation } from 'react-i18next';
 import { getEditModeSetting, setEditModeSetting, EditModeOption } from '../utils/editModeSettings';
 import { createBackup, restoreBackup } from '../utils/storage';
+import { exportBackupToFile } from '../utils/backupFile';
 import { showToast } from '../utils/android';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Print from 'expo-print';
@@ -94,43 +95,36 @@ const Settings = () => {
   };
 
   const handleExportToFile = async () => {
+    const fileName = `mindbook_backup_${new Date().toISOString().split('T')[0]}.json`;
+
     try {
       const backupData = await createBackup();
-      const fileName = `mindbook_backup_${new Date().toISOString().split('T')[0]}.json`;
-
-      if (Platform.OS === 'android') {
-        // Android: Use Storage Access Framework to pick a directory and save
-        const permissions =
-          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-
-        if (!permissions.granted) {
-          showToast('Permission denied');
-          return;
-        }
-
-        try {
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            fileName,
-            'application/json'
+      try {
+        const uri = await exportBackupToFile(backupData);
+        Alert.alert(
+          t('common.success'),
+          `${t('settings.backupReady')}\n${uri}`
+        );
+      } catch (innerError: any) {
+        if (innerError?.message === 'permission-denied') {
+          Alert.alert(
+            t('common.error'),
+            t('settings.storagePermissionDenied') || t('common.permissionDenied')
           );
-
-          await FileSystem.writeAsStringAsync(fileUri, backupData, {
-            encoding: FileSystem.EncodingType.UTF8,
-          });
-
-          Alert.alert(t('common.success'), t('settings.backupReady'));
-        } catch (e) {
-          console.error('Android SAF error:', e);
-          // Fallback to regular sharing if SAF fails
+          // if the user opted out of granting permission we still give them the
+          // ability to share the file manually
           await fallbackShare(backupData, fileName);
+        } else if (innerError?.message === 'saf-unavailable') {
+          // StorageAccessFramework not available in this SDK version
+          // gracefully fall back to sharing
+          console.warn('[Settings] SAF unavailable, falling back to share');
+          await fallbackShare(backupData, fileName);
+        } else {
+          throw innerError;
         }
-      } else {
-        // iOS: Use regular sharing (which includes "Save to Files")
-        await fallbackShare(backupData, fileName);
       }
     } catch (error) {
-      console.error('Export error:', error);
+      console.error('[Settings] Export error:', error);
       Alert.alert(t('common.error'), 'Backup export failed');
     }
   };
@@ -138,7 +132,7 @@ const Settings = () => {
   const fallbackShare = async (data: string, fileName: string) => {
     const fileUri = FileSystem.documentDirectory + fileName;
     await FileSystem.writeAsStringAsync(fileUri, data, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: 'utf8',
     });
 
     if (await Sharing.isAvailableAsync()) {
@@ -154,36 +148,77 @@ const Settings = () => {
 
   const handleImportFromFile = async () => {
     try {
+      console.log('[Settings] Dosya seçici açılıyor...');
+      
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/json', 'text/plain'],
+        type: ['application/json', 'text/plain', '*/*'],
         copyToCacheDirectory: true,
+      } as any);
+
+      console.log('[Settings] DocumentPicker sonucu:', JSON.stringify(result, null, 2));
+
+      // Yeni Expo SDK'da: { cancelled: false, assets: [{uri, name, ...}] }
+      // Eski Expo SDK'da: { type: 'success' | 'cancel', uri, name, ... }
+      
+      const isCancelled = (result as any).cancelled === true || (result as any).type === 'cancel';
+      if (isCancelled) {
+        console.log('[Settings] Kullanıcı dosya seçimini iptal etti');
+        return;
+      }
+
+      // Yeni SDK: assets array, eski SDK: uri doğrudan
+      let fileUri: string | undefined;
+      if ((result as any).assets && Array.isArray((result as any).assets) && (result as any).assets.length > 0) {
+        fileUri = (result as any).assets[0].uri;
+        console.log('[Settings] Yeni SDK - URI:', fileUri);
+      } else if ((result as any).uri) {
+        fileUri = (result as any).uri;
+        console.log('[Settings] Eski SDK - URI:', fileUri);
+      }
+
+      if (!fileUri) {
+        console.error('[Settings] DocumentPicker hiçbir URI döndürmedi');
+        Alert.alert('Hata', 'Dosya seçilemedi');
+        return;
+      }
+
+      console.log('[Settings] Dosya okunuyor:', fileUri);
+      const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: 'utf8',
       });
+      console.log('[Settings] Dosya okundu. Boyut:', fileContent?.length || 0);
 
-      if (result.canceled) return;
-
-      const file = result.assets[0];
-      const fileContent = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      Alert.alert(t('settings.importData'), t('settings.confirmImport'), [
-        { text: t('common.cancel'), style: 'cancel' },
+      Alert.alert('Yedek Dosyasını İçe Aktar', 'Tüm notlarınızın üzerine yazılacak. Devam et?', [
+        { text: 'İptal', style: 'cancel' },
         {
-          text: t('common.confirm'),
+          text: 'Onayla',
           style: 'destructive',
           onPress: async () => {
-            const success = await restoreBackup(fileContent);
-            if (success) {
-              Alert.alert(t('common.success'), t('settings.importSuccess'));
-            } else {
-              Alert.alert(t('common.error'), t('settings.importError'));
+            try {
+              console.log('[Settings] === BAŞLADI: Yedek geri yükleme ===');
+              console.log('[Settings] Dosya içeriği:', fileContent.substring(0, 100) + '...');
+              
+              const success = await restoreBackup(fileContent);
+              
+              console.log('[Settings] === SONA ERDİ: Geri yükleme, sonuç:', success);
+              
+              if (success) {
+                Alert.alert('✓ BAŞARILI', 'Notlarınız geri yüklendi!');
+              } else {
+                Alert.alert('✗ HATA', 'Yedek dosyası geçersiz veya bozuk');
+              }
+            } catch (error: any) {
+              console.error('[Settings] === HATA: Geri yükleme başarısız ===');
+              console.error(error);
+              Alert.alert('✗ HATA', error?.message || 'Bilinmeyen hata');
             }
           },
         },
       ]);
     } catch (error) {
-      console.error('Import error:', error);
-      Alert.alert(t('common.error'), 'Backup import failed');
+      console.error('[Settings] İçe aktarma hatası:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      Alert.alert('Hata', `Yedek yüklemesi başarısız: ${errorMsg}`);
     }
   };
 
@@ -240,7 +275,7 @@ const Settings = () => {
 
           if (permissions.granted) {
             const base64 = await FileSystem.readAsStringAsync(uri, {
-              encoding: FileSystem.EncodingType.Base64,
+              encoding: 'base64',
             });
             const fileName = `mindbook-notes-${new Date().toISOString().split('T')[0]}.pdf`;
             const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
@@ -249,7 +284,7 @@ const Settings = () => {
               'application/pdf'
             );
             await FileSystem.writeAsStringAsync(newFileUri, base64, {
-              encoding: FileSystem.EncodingType.Base64,
+              encoding: 'base64',
             });
             Alert.alert(t('common.success'), 'PDF kaydedildi.');
           } else {

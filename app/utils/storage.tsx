@@ -318,22 +318,36 @@ export const deleteNote = async noteId => {
     const allNotes = await getAllNotes();
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
 
+    console.log('[Storage] Kalıcı silme işlemi başladı. Silinecek ID\'ler:', noteIds);
+
+    // Verify notes exist before deletion
+    const notesToDelete = allNotes.filter(note => noteIds.includes(note.id));
+    if (notesToDelete.length === 0) {
+      console.warn('[Storage] Silinecek not bulunamadı:', noteIds);
+      return false;
+    }
+
+    console.log('[Storage] Silinecek notlar:', notesToDelete.length, 'adet');
+
     // 1. Update memory cache immediately
     notesCache = allNotes.filter(note => !noteIds.includes(note.id));
     invalidateCache();
 
     // 2. Background disk write
     AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
-      console.error('Disk delete failed:', err)
+      console.error('[Storage] Disk silme hatası:', err)
     );
 
+    // Wait for indices to rebuild
     await debouncedBuildNoteIndices();
     const now = new Date().toISOString();
     await AsyncStorage.setItem('@lastChangeTimestamp', now);
 
+    console.log('[Storage] Kalıcı silme tamamlandı. Kalan not sayısı:', notesCache.length);
     return true;
   } catch (error) {
-    throw new Error('Error deleting note');
+    console.error('[Storage] Silme hatası:', error);
+    throw new Error('Not silinirken hata oluştu');
   }
 };
 
@@ -993,10 +1007,13 @@ export const createBackup = async (): Promise<string> => {
     const notes = await getAllNotes();
     const categories = await getCategories();
 
+    // Silinen notları (çöp kutusundakiler) backup'a dahil etme
+    const activeNotes = notes.filter(note => !note.isTrash);
+
     const backupData = {
       version: 1,
       date: new Date().toISOString(),
-      notes,
+      notes: activeNotes,
       categories,
     };
 
@@ -1014,17 +1031,22 @@ export const restoreBackup = async (backupString: string): Promise<boolean> => {
     try {
       data = JSON.parse(backupString);
     } catch (e) {
+      console.error('[Storage] JSON parse error:', e);
       throw new Error('Invalid JSON format');
     }
 
     // Basic validation
     if (!data || typeof data !== 'object') {
+      console.error('[Storage] Invalid data object:', typeof data);
       throw new Error('Invalid backup data');
     }
 
     if (!Array.isArray(data.notes)) {
+      console.error('[Storage] Invalid notes format, type:', typeof data.notes);
       throw new Error('Invalid notes format in backup');
     }
+
+    console.log('[Storage] Restoring', data.notes.length, 'notes');
 
     // Restore notes
     const notes = data.notes;
@@ -1034,6 +1056,7 @@ export const restoreBackup = async (backupString: string): Promise<boolean> => {
 
     // Restore categories if available
     if (Array.isArray(data.categories)) {
+      console.log('[Storage] Restoring', data.categories.length, 'categories');
       await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(data.categories));
     }
 
@@ -1041,9 +1064,10 @@ export const restoreBackup = async (backupString: string): Promise<boolean> => {
     await debouncedBuildNoteIndices();
     await AsyncStorage.setItem('@lastChangeTimestamp', new Date().toISOString());
 
+    console.log('[Storage] Restore complete');
     return true;
   } catch (error) {
-    console.error('Restore backup error:', error);
+    console.error('[Storage] Restore backup error:', error);
     return false;
   }
 };
