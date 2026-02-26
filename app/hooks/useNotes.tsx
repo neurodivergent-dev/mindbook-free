@@ -31,7 +31,7 @@ const useNotes = () => {
   }, []);
 
   // Save notes
-  const saveNotes = async (updatedNotes) => {
+  const saveNotes = async updatedNotes => {
     try {
       await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes));
       setNotes(updatedNotes);
@@ -46,36 +46,34 @@ const useNotes = () => {
   }, [loadNotes]);
 
   // Add note
-  const addNote = async (newNote) => {
+  const addNote = async newNote => {
     const updatedNotes = [newNote, ...notes];
     await saveNotes(updatedNotes);
   };
 
   // Update note
   const updateNote = async (id, updatedNote) => {
-    const updatedNotes = notes.map((note) =>
-      note.id === id ? { ...note, ...updatedNote } : note
-    );
+    const updatedNotes = notes.map(note => (note.id === id ? { ...note, ...updatedNote } : note));
     await saveNotes(updatedNotes);
   };
 
   // Delete note
-  const deleteNote = async (id) => {
-    const updatedNotes = notes.filter((note) => note.id !== id);
+  const deleteNote = async id => {
+    const updatedNotes = notes.filter(note => note.id !== id);
     await saveNotes(updatedNotes);
   };
 
   // Archive/Unarchive note
-  const toggleArchive = async (id) => {
-    const updatedNotes = notes.map((note) =>
+  const toggleArchive = async id => {
+    const updatedNotes = notes.map(note =>
       note.id === id ? { ...note, isArchived: !note.isArchived } : note
     );
     await saveNotes(updatedNotes);
   };
 
   // Move to trash/Undo trash
-  const toggleTrash = async (id) => {
-    const updatedNotes = notes.map((note) =>
+  const toggleTrash = async id => {
+    const updatedNotes = notes.map(note =>
       note.id === id ? { ...note, isDeleted: !note.isDeleted } : note
     );
     await saveNotes(updatedNotes);

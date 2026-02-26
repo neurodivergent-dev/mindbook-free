@@ -12,7 +12,7 @@ export default {
     splash: {
       image: './assets/icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#1a91FF',
+      backgroundColor: '#22ae3b',
     },
     assetBundlePatterns: ['**/*'],
     ios: {
@@ -21,12 +21,9 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/icons/res/mipmap-xxxhdpi/ic_launcher_foreground.png',
-        backgroundImage: './assets/icons/res/mipmap-xxxhdpi/ic_launcher_background.png',
-        backgroundColor: '#1a91FF',
-        monochromeImage: './assets/icons/res/mipmap-xxxhdpi/ic_launcher_monochrome.png',
+        backgroundColor: '#22ae3b',
       },
-      icon: './assets/icons/res/mipmap-xxxhdpi/ic_launcher.png',
+      icon: './assets/icon.png',
       package: 'com.melihcandemir.mindbook.free',
       newArchEnabled: true,
       versionCode: 1,
@@ -37,6 +34,7 @@ export default {
     plugins: [
       'expo-router',
       'expo-font',
+      'expo-localization',
       [
         'expo-build-properties',
         {
@@ -59,11 +57,6 @@ export default {
       eas: {
         projectId: '933c4851-4494-44ae-acc3-8183ed3c96b9',
       },
-      /*
-      eas: {
-        projectId: '2f77920c-b155-4d50-a42a-f4427ecf24e2',
-      },
-      */
     },
     primaryColor: '#63FF61',
     newArchEnabled: true,

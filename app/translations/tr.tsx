@@ -475,7 +475,6 @@ export default {
     account: 'Hesap',
     profile: 'Profil',
     displayName: 'Görünen Ad',
-    notifications: 'Bildirimler',
     signOut: 'Çıkış Yap',
     confirmSignOut: 'Çıkış yapmak istediğinize emin misiniz?',
     currentPasswordRequired: 'Mevcut şifreyi girmelisiniz.',
@@ -531,7 +530,8 @@ export default {
     pasteBackup: 'Yedekleme kodunu buraya yapıştırın',
     importSuccess: 'Yedek başarıyla geri yüklendi!',
     importError: 'Geçersiz yedek dosyası. Lütfen doğru dosyayı seçtiğinizden emin olun.',
-    confirmImport: 'Bu işlem mevcut tüm notlarınızın üzerine yazacaktır. Devam etmek istediğinize emin misiniz?',
+    confirmImport:
+      'Bu işlem mevcut tüm notlarınızın üzerine yazacaktır. Devam etmek istediğinize emin misiniz?',
     copyToClipboard: 'Panoya Kopyala',
     shareBackup: 'Yedeği Paylaş / Kaydet',
     backupReady: 'Yedek Hazır',
@@ -551,7 +551,8 @@ export default {
     noInternetConnection: 'İnternet bağlantısı yok',
     website: 'Websitesi',
     freeVersion: 'Mindbook Ücretsiz',
-    allDataStoredLocally: 'Tüm verileriniz cihazınızda yerel olarak saklanır. Bulut senkronizasyonu veya hesap gerekmez.',
+    allDataStoredLocally:
+      'Tüm verileriniz cihazınızda yerel olarak saklanır. Bulut senkronizasyonu veya hesap gerekmez.',
     upgradeToPro: 'Pro Sürüme Geç',
     proFeaturesDesc: 'Bulut senkronizasyonu, AI özellikleri ve daha fazlası',
   },
@@ -635,7 +636,7 @@ export default {
       'Uygulamamız 13 yaşın altındaki çocuklardan bilerek veri toplamaz. Eğer bir ebeveyn veya veli iseniz ve çocuğunuzun bize kişisel bilgiler verdiğini düşünüyorsanız, lütfen bizimle iletişime geçin.',
     changes: 'Değişiklikler',
     changesText:
-      'Bu gizlilik politikasını zaman zaman güncelleyebiliriz. Önemli değişiklikler olması durumunda sizi uygulama içi bildirimlerle bilgilendireceğiz.',
+      'Bu gizlilik politikasını zaman zaman güncelleyebiliriz.',
     contact: 'İletişim',
     contactText:
       'Bu gizlilik politikası hakkında sorularınız veya endişeleriniz varsa, lütfen melihcandemir@protonmail.com adresinden bizimle iletişime geçin.',

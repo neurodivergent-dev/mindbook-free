@@ -56,7 +56,12 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
       console.log('Saved language:', savedLanguage);
 
       // Get device language
-      const deviceLanguageCode = Localization.locale.split('-')[0]; // Get language code without region (e.g., 'en' from 'en-US')
+      const locales = Localization.getLocales();
+      const deviceLanguageCode =
+        locales && locales.length > 0
+          ? locales[0].languageCode
+          : (Localization.locale || 'en').split('-')[0];
+
       console.log('Device language code:', deviceLanguageCode);
 
       if (isFirstLaunch) {

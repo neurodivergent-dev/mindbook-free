@@ -355,7 +355,7 @@ node app/utils/performanceTest.js
 | PBKDF2 Key Derivation       | ✅ Complete | 100,000+ iterations               |
 | Cryptographic IV            | ✅ Complete | `CryptoJS.lib.WordArray.random()` |
 | Zero-Knowledge Architecture | ✅ Complete | No keys client-side               |
-| Hardware Security           | ✅ Complete | `expo-secure-store`               |
+| Hardware Security           | ✅ Complete | Secure Storage                    |
 | Memory-Safe Operations      | ✅ Complete | Automatic key cleanup             |
 | Rate Limiting               | ✅ Complete | API abuse prevention              |
 | Session Security            | ✅ Complete | Encrypted sessions                |

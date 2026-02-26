@@ -19,7 +19,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import { getEditModeSetting, setEditModeSetting, EditModeOption } from '../utils/editModeSettings';
 import { createBackup, restoreBackup } from '../utils/storage';
@@ -101,8 +100,9 @@ const Settings = () => {
 
       if (Platform.OS === 'android') {
         // Android: Use Storage Access Framework to pick a directory and save
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        
+        const permissions =
+          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
         if (!permissions.granted) {
           showToast('Permission denied');
           return;
@@ -118,7 +118,7 @@ const Settings = () => {
           await FileSystem.writeAsStringAsync(fileUri, backupData, {
             encoding: FileSystem.EncodingType.UTF8,
           });
-          
+
           Alert.alert(t('common.success'), t('settings.backupReady'));
         } catch (e) {
           console.error('Android SAF error:', e);
@@ -235,13 +235,22 @@ const Settings = () => {
       if (Platform.OS === 'android') {
         try {
           // Android: Use Storage Access Framework to save file directly
-          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-          
+          const permissions =
+            await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
           if (permissions.granted) {
-            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const base64 = await FileSystem.readAsStringAsync(uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
             const fileName = `mindbook-notes-${new Date().toISOString().split('T')[0]}.pdf`;
-            const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/pdf');
-            await FileSystem.writeAsStringAsync(newFileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+            const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              fileName,
+              'application/pdf'
+            );
+            await FileSystem.writeAsStringAsync(newFileUri, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
             Alert.alert(t('common.success'), 'PDF kaydedildi.');
           } else {
             // Permission denied - do nothing or show toast
@@ -440,17 +449,14 @@ const Settings = () => {
           ]}
         >
           <View style={styles.infoCardContent}>
-            <Ionicons
-              name="information-circle"
-              size={24}
-              color={themeColors[accentColor]}
-            />
+            <Ionicons name="information-circle" size={24} color={themeColors[accentColor]} />
             <View style={styles.infoCardText}>
               <Text style={[styles.infoCardTitle, { color: theme.text }]}>
                 {t('settings.freeVersion') || 'Mindbook Free'}
               </Text>
               <Text style={[styles.infoCardDescription, { color: theme.textSecondary }]}>
-                {t('settings.allDataStoredLocally') || 'All your data is stored locally on your device. No cloud sync, no account required.'}
+                {t('settings.allDataStoredLocally') ||
+                  'All your data is stored locally on your device. No cloud sync, no account required.'}
               </Text>
             </View>
           </View>
@@ -480,7 +486,9 @@ const Settings = () => {
           />
           <Ionicons name="rocket" size={24} color={WHITE} />
           <View style={styles.proButtonTextContainer}>
-            <Text style={styles.proButtonTitle}>{t('settings.upgradeToPro') || 'Upgrade to Pro'}</Text>
+            <Text style={styles.proButtonTitle}>
+              {t('settings.upgradeToPro') || 'Upgrade to Pro'}
+            </Text>
             <Text style={styles.proButtonSubtitle}>
               {t('settings.proFeaturesDesc') || 'Cloud sync, AI features and more'}
             </Text>
@@ -537,9 +545,7 @@ const Settings = () => {
             >
               <Ionicons name="document-text-outline" size={24} color={themeColors[accentColor]} />
               <View style={styles.backupButtonTextContainer}>
-                <Text style={[styles.backupButtonTitle, { color: theme.text }]}>
-                  Export to PDF
-                </Text>
+                <Text style={[styles.backupButtonTitle, { color: theme.text }]}>Export to PDF</Text>
                 <Text style={[styles.backupButtonDesc, { color: theme.textSecondary }]}>
                   Save all notes as a PDF document
                 </Text>
@@ -861,8 +867,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   infoCardContent: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 12,
   },
   infoCardText: {
@@ -878,16 +884,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   proButton: {
-    borderRadius: 16,
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: 16,
     elevation: 8,
+    flexDirection: 'row',
+    marginBottom: 24,
+    overflow: 'hidden',
+    padding: 16,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    overflow: 'hidden',
   },
   proButtonTextContainer: {
     flex: 1,
@@ -1158,8 +1164,8 @@ const styles = StyleSheet.create({
   },
   versionContainer: {
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 40,
+    marginTop: 8,
     paddingVertical: 16,
   },
   versionText: {
@@ -1172,12 +1178,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backupButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     borderRadius: 12,
     borderWidth: BORDER_WIDTH,
+    flexDirection: 'row',
     gap: 16,
+    padding: 16,
   },
   backupButtonTextContainer: {
     flex: 1,

@@ -31,7 +31,7 @@
 
 - Write new encryption functions.
 - Create an API endpoint: When the user logs in, return the new key.
-- Store the key on the device using Secure Storage (e.g., expo-secure-store).
+- Store the key on the device using Secure Storage.
 
 ### b) **Migration Flag**
 

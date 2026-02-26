@@ -449,7 +449,6 @@ export default {
     account: 'Account',
     profile: 'Profile',
     displayName: 'Display Name',
-    notifications: 'Notifications',
     signOut: 'Sign Out',
     confirmSignOut: 'Are you sure you want to sign out?',
     currentPasswordRequired: 'Current password is required.',
@@ -507,7 +506,8 @@ export default {
     removePhoto: 'Remove Photo',
     noInternetConnection: 'No internet connection available',
     freeVersion: 'Mindbook Free',
-    allDataStoredLocally: 'All your data is stored locally on your device. No cloud sync, no account required.',
+    allDataStoredLocally:
+      'All your data is stored locally on your device. No cloud sync, no account required.',
     upgradeToPro: 'Upgrade to Pro',
     proFeaturesDesc: 'Cloud sync, AI features and more',
     manualBackup: 'File Backup',
@@ -606,7 +606,7 @@ export default {
       'Our application does not knowingly collect data from children under 13. If you are a parent or guardian and you think your child has provided us with personal information, please contact us.',
     changes: 'Changes',
     changesText:
-      'We may update this privacy policy from time to time. In case of significant changes, we will inform you with in-app notifications.',
+      'We may update this privacy policy from time to time.',
     contact: 'Contact',
     contactText:
       'If you have any questions or concerns about this privacy policy, please contact us at melihcandemir@protonmail.com.',

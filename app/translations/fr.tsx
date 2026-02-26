@@ -421,7 +421,6 @@ export default {
     account: 'Compte',
     profile: 'Profil',
     displayName: "Nom d'affichage",
-    notifications: 'Notifications',
     signOut: 'Déconnexion',
     confirmSignOut: 'Êtes-vous sûr de vouloir vous déconnecter ?',
     currentPasswordRequired: 'Le mot de passe actuel est requis.',
@@ -570,7 +569,7 @@ export default {
       "Notre application ne collecte pas sciemment de données auprès d'enfants de moins de 13 ans. Si vous êtes un parent ou un tuteur et pensez que votre enfant nous a fourni des informations personnelles, veuillez nous contacter.",
     changes: 'Modifications',
     changesText:
-      "Nous pouvons mettre à jour cette politique de confidentialité de temps en temps. En cas de changements significatifs, nous vous informerons via des notifications dans l'application.",
+      'Nous pouvons mettre à jour cette politique de confidentialité de temps en temps.',
     contact: 'Contact',
     contactText:
       'Si vous avez des questions ou des préoccupations concernant cette politique de confidentialité, veuillez nous contacter à melihcandemir@protonmail.com.',
@@ -688,8 +687,9 @@ export default {
   },
   ai: {
     contentGenerator: 'Générateur de contenu IA',
-    whatToWrite: 'Que voulez-vous que j\'écrive ?',
-    promptPlaceholder: 'Décrivez ce que vous voulez créer... (ex: "Écrivez un article sur les conseils de productivité")',
+    whatToWrite: "Que voulez-vous que j'écrive ?",
+    promptPlaceholder:
+      'Décrivez ce que vous voulez créer... (ex: "Écrivez un article sur les conseils de productivité")',
     quickPrompts: {
       title: 'Invites rapides',
       article: 'Écrire un article informatif',
@@ -706,13 +706,15 @@ export default {
     insertContentMessage: 'Vous avez déjà du contenu dans votre note. Que voulez-vous faire ?',
     replace: 'Remplacer',
     append: 'Ajouter à la fin',
-    enterPrompt: 'Veuillez entrer ce que vous voulez que j\'écrive.',
+    enterPrompt: "Veuillez entrer ce que vous voulez que j'écrive.",
     generationError: 'Échec de la génération de contenu. Veuillez réessayer.',
-    generateContentPrompt: 'Écrivez du contenu détaillé et bien structuré au format markdown sur ce sujet',
+    generateContentPrompt:
+      'Écrivez du contenu détaillé et bien structuré au format markdown sur ce sujet',
     contentHistory: 'Historique du contenu',
     noHistory: 'Aucun contenu généré pour le moment. Créez votre premier contenu IA !',
     clear: 'Effacer',
-    clearHistory: 'Effacer l\'historique',
-    clearHistoryConfirmation: 'Êtes-vous sûr de vouloir supprimer tout l\'historique du contenu généré ? Cette action ne peut pas être annulée.',
+    clearHistory: "Effacer l'historique",
+    clearHistoryConfirmation:
+      "Êtes-vous sûr de vouloir supprimer tout l'historique du contenu généré ? Cette action ne peut pas être annulée.",
   },
 };

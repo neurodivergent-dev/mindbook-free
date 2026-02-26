@@ -530,8 +530,8 @@ const styles = StyleSheet.create({
   categoryInfo: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
     flex: 1,
+    gap: 12,
   },
   categoryItem: {
     alignItems: 'center',
@@ -541,14 +541,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
     marginHorizontal: 8,
+    minHeight: 72,
     paddingHorizontal: 18,
     paddingVertical: 20,
-    minHeight: 72,
   },
   categoryName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    flex: 1,
   },
   checkboxContainer: {
     marginRight: 4,
@@ -600,8 +600,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   scrollContent: {
-    paddingVertical: 16,
     paddingBottom: 100,
+    paddingVertical: 16,
   },
   selectionActions: {
     flexDirection: 'row',

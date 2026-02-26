@@ -399,7 +399,6 @@ export default {
     account: 'Аккаунт',
     profile: 'Профиль',
     displayName: 'Отображаемое имя',
-    notifications: 'Уведомления',
     signOut: 'Выйти',
     confirmSignOut: 'Вы уверены, что хотите выйти?',
     currentPasswordRequired: 'Требуется текущий пароль.',

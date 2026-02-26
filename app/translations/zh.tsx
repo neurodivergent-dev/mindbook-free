@@ -381,7 +381,6 @@ export default {
     account: '账户',
     profile: '个人资料',
     displayName: '显示名称',
-    notifications: '通知',
     signOut: '退出',
     confirmSignOut: '您确定要退出吗？',
     currentPasswordRequired: '需要当前密码。',

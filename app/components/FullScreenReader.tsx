@@ -358,47 +358,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.medium,
-    paddingVertical: SPACING.small,
-  },
-  headerAction: {
-    width: SIZES.icon + SPACING.small,
-    alignItems: 'flex-start',
-  },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: SIZES.title,
-    fontWeight: '600',
-    marginHorizontal: SPACING.small,
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: 10,
   },
   contentScrollView: {
     flex: 1,
     paddingHorizontal: SPACING.large,
   },
-  contentContainer: {
-    paddingBottom: 10,
-    flexGrow: 1,
+  coverImage: {
+    borderRadius: BORDER_RADIUS.medium,
+    height: SIZES.coverImageHeight,
+    width: '100%',
   },
   coverImageContainer: {
+    elevation: 5,
     marginBottom: SPACING.medium,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 5,
   },
-  coverImage: {
-    width: '100%',
-    height: SIZES.coverImageHeight,
-    borderRadius: BORDER_RADIUS.medium,
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.medium,
+    paddingVertical: SPACING.small,
+  },
+  headerAction: {
+    alignItems: 'flex-start',
+    width: SIZES.icon + SPACING.small,
   },
   markdownContainer: {
     flex: 1,
+  },
+  title: {
+    flex: 1,
+    fontSize: SIZES.title,
+    fontWeight: '600',
+    marginHorizontal: SPACING.small,
+    textAlign: 'center',
   },
 });
 

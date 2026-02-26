@@ -423,7 +423,7 @@ export default function NoteCard({
             <View style={styles.headerLeft}>
               {note.category && (
                 <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor() }]}>
-                  <Text 
+                  <Text
                     style={[styles.categoryText, { color: getCategoryTextColor() }]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
@@ -656,10 +656,12 @@ export default function NoteCard({
                   )}
                 </View>
               )}
-              
+
               {/* Content Preview */}
               {compact ? (
-                <View style={{ height: (fontSizes[fontSize].contentSize * 1.2) * 2, overflow: 'hidden' }}>
+                <View
+                  style={{ height: fontSizes[fontSize].contentSize * 1.2 * 2, overflow: 'hidden' }}
+                >
                   <Text
                     style={{
                       color: getNoteColors().text + 'AA',
@@ -858,6 +860,16 @@ export default function NoteCard({
 // Styles for the NoteCard component
 // These styles are used to define the layout and appearance of the component.
 const styles = StyleSheet.create({
+  additionalImageItem: {
+    width: '48%' as string, // Keep additional images at 48% for side-by-side layout
+    aspectRatio: 1.1 as number, // Keep aspect ratio for additional images
+    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
+  },
+  additionalImageStyle: {
+    borderRadius: 8 as number,
+    height: '100%' as string,
+    width: '100%' as string,
+  },
   categoryBadge: {
     alignSelf: 'flex-start' as const,
     borderRadius: 20 as number,
@@ -948,6 +960,21 @@ const styles = StyleSheet.create({
     marginRight: 16 as number,
     width: 50 as number,
   },
+  firstImageItem: {
+    width: '100%' as string, // Changed from 48% to 100% for larger first image
+    aspectRatio: 1.8 as number, // Changed from 1.1 to 1.8 for better proportions
+    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
+  },
+  firstImageStyle: {
+    width: '100%' as string,
+    height: 180 as number, // Increased from 120 to 180
+    borderRadius: 8 as number,
+  },
+  galleryImage: {
+    borderRadius: 8 as number,
+    height: '100%' as string,
+    width: '100%' as string,
+  },
   header: {
     alignItems: 'flex-start' as const,
     flexDirection: 'row' as const,
@@ -973,88 +1000,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16 as number,
     textAlign: 'center' as const,
   },
+  imageCaption: {
+    position: 'absolute' as const,
+    bottom: 0 as number,
+    left: 0 as number,
+    right: 0 as number,
+    backgroundColor: 'rgba(0,0,0,0.5)' as string, // Reduced opacity from 0.7 to 0.5
+    paddingVertical: 2 as number, // Reduced from 4 to 2
+    paddingHorizontal: 8 as number,
+    borderBottomLeftRadius: 8 as number,
+    borderBottomRightRadius: 8 as number,
+    zIndex: 1 as number,
+  },
+  imageCaptionText: {
+    fontSize: 12 as number,
+    textAlign: 'center' as const,
+  },
   imageContainer: {
     backgroundColor: 'rgba(0,0,0,0.05)' as string,
     borderRadius: 8 as number,
     marginBottom: 8 as number,
     overflow: 'hidden' as const,
-  },
-  imageErrorContainer: {
-    alignItems: 'center' as const,
-    borderRadius: 8 as number,
-    gap: 8 as number,
-    height: 150 as number,
-    justifyContent: 'center' as const,
-    width: '100%' as string,
-  },
-  imageLoadingOverlay: {
-    alignItems: 'center' as const,
-    bottom: 0 as number,
-    justifyContent: 'center' as const,
-    left: 0 as number,
-    position: 'absolute' as const,
-    right: 0 as number,
-    top: 0 as number,
-  },
-  imageGalleryContainer: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    justifyContent: 'space-between' as const,
-    marginBottom: 8 as number,
-    gap: 4 as number,
-  },
-  singleImageContainer: {
-    flexDirection: 'column' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: 8 as number,
-  },
-  multiImageContainer: {
-    flexDirection: 'column' as const, // Changed from 'row' to 'column' for better layout
-    alignItems: 'stretch' as const, // Changed from 'center' to 'stretch'
-    justifyContent: 'flex-start' as const, // Changed from 'space-between' to 'flex-start'
-    marginBottom: 8 as number,
-    gap: 8 as number, // Increased from 4 to 8 for better spacing
-  },
-  imageGalleryItem: {
-    borderRadius: 8 as number,
-    overflow: 'hidden' as const,
-    backgroundColor: 'rgba(0,0,0,0.05)' as string,
-  },
-  singleImageItem: {
-    width: '100%' as string,
-    aspectRatio: 1.5 as number, // Changed from 1.2 to 1.5 for better proportions
-    marginBottom: 4 as number,
-  },
-  firstImageItem: {
-    width: '100%' as string, // Changed from 48% to 100% for larger first image
-    aspectRatio: 1.8 as number, // Changed from 1.1 to 1.8 for better proportions
-    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
-  },
-  additionalImageItem: {
-    width: '48%' as string, // Keep additional images at 48% for side-by-side layout
-    aspectRatio: 1.1 as number, // Keep aspect ratio for additional images
-    marginBottom: 8 as number, // Increased from 4 to 8 for better spacing
-  },
-  galleryImage: {
-    width: '100%' as string,
-    height: '100%' as string,
-    borderRadius: 8 as number,
-  },
-  singleImageStyle: {
-    width: '100%' as string,
-    height: 250 as number, // Increased from 180 to 250
-    borderRadius: 8 as number,
-  },
-  firstImageStyle: {
-    width: '100%' as string,
-    height: 180 as number, // Increased from 120 to 180
-    borderRadius: 8 as number,
-  },
-  additionalImageStyle: {
-    width: '100%' as string,
-    height: '100%' as string,
-    borderRadius: 8 as number,
   },
   imageCountOverlay: {
     position: 'absolute' as const,
@@ -1070,6 +1036,96 @@ const styles = StyleSheet.create({
     color: '#fff' as string,
     fontSize: 12 as number,
     fontWeight: 'bold' as const,
+  },
+  imageErrorContainer: {
+    alignItems: 'center' as const,
+    borderRadius: 8 as number,
+    gap: 8 as number,
+    height: 150 as number,
+    justifyContent: 'center' as const,
+    width: '100%' as string,
+  },
+  imageGalleryContainer: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 4 as number,
+    justifyContent: 'space-between' as const,
+    marginBottom: 8 as number,
+  },
+  imageGalleryItem: {
+    backgroundColor: 'rgba(0,0,0,0.05)' as string,
+    borderRadius: 8 as number,
+    overflow: 'hidden' as const,
+  },
+  imageLoadingOverlay: {
+    alignItems: 'center' as const,
+    bottom: 0 as number,
+    justifyContent: 'center' as const,
+    left: 0 as number,
+    position: 'absolute' as const,
+    right: 0 as number,
+    top: 0 as number,
+  },
+  imagePlaceholder: {
+    alignItems: 'center' as const,
+    borderRadius: 8 as number,
+    justifyContent: 'center' as const,
+    marginTop: 8 as number,
+    paddingHorizontal: 16 as number,
+    paddingVertical: 20 as number,
+  },
+  imagePlaceholderText: {
+    fontSize: 14 as number,
+    marginTop: 8 as number,
+    textAlign: 'center' as const,
+  },
+  menuButton: {
+    padding: 4 as number,
+  },
+  menuContainer: {
+    position: 'relative' as const,
+    zIndex: 1000 as number,
+  },
+  menuDropdown: {
+    borderRadius: 12 as number,
+    borderWidth: 1 as number,
+    elevation: 5 as number,
+    minWidth: 150 as number,
+    paddingVertical: 8 as number,
+    position: 'absolute' as const,
+    right: 8 as number,
+    shadowColor: '#000' as string,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25 as number,
+    shadowRadius: 3.84 as number,
+    top: 45 as number,
+    zIndex: 999 as number,
+  },
+  menuItem: {
+    alignItems: 'center' as const,
+    flexDirection: 'row' as const,
+    gap: 12 as number,
+    paddingHorizontal: 16 as number,
+    paddingVertical: 12 as number,
+  },
+  menuOverlay: {
+    bottom: -1000 as number,
+    left: -1000 as number,
+    position: 'absolute' as const,
+    right: -1000 as number,
+    top: -1000 as number,
+    zIndex: 998 as number,
+  },
+  menuText: {
+    fontSize: 14 as number,
+    fontWeight: '500' as const,
+  },
+  multiImageContainer: {
+    flexDirection: 'column' as const, // Changed from 'row' to 'column' for better layout
+    alignItems: 'stretch' as const, // Changed from 'center' to 'stretch'
+    justifyContent: 'flex-start' as const, // Changed from 'space-between' to 'flex-start'
+    marginBottom: 8 as number,
+    gap: 8 as number, // Increased from 4 to 8 for better spacing
   },
   noteInfo: {
     flexDirection: 'row' as const,
@@ -1103,6 +1159,22 @@ const styles = StyleSheet.create({
     fontSize: 11 as number,
     fontWeight: '500' as const,
   },
+  singleImageContainer: {
+    alignItems: 'center' as const,
+    flexDirection: 'column' as const,
+    justifyContent: 'center' as const,
+    marginBottom: 8 as number,
+  },
+  singleImageItem: {
+    width: '100%' as string,
+    aspectRatio: 1.5 as number, // Changed from 1.2 to 1.5 for better proportions
+    marginBottom: 4 as number,
+  },
+  singleImageStyle: {
+    width: '100%' as string,
+    height: 250 as number, // Increased from 180 to 250
+    borderRadius: 8 as number,
+  },
   statusIconButton: {
     padding: 4 as number,
   },
@@ -1131,75 +1203,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.25 as number,
     lineHeight: 24 as number,
     marginBottom: 8 as number,
-  },
-  imageCaption: {
-    position: 'absolute' as const,
-    bottom: 0 as number,
-    left: 0 as number,
-    right: 0 as number,
-    backgroundColor: 'rgba(0,0,0,0.5)' as string, // Reduced opacity from 0.7 to 0.5
-    paddingVertical: 2 as number, // Reduced from 4 to 2
-    paddingHorizontal: 8 as number,
-    borderBottomLeftRadius: 8 as number,
-    borderBottomRightRadius: 8 as number,
-    zIndex: 1 as number,
-  },
-  imageCaptionText: {
-    fontSize: 12 as number,
-    textAlign: 'center' as const,
-  },
-  imagePlaceholder: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    borderRadius: 8 as number,
-    marginTop: 8 as number,
-    paddingVertical: 20 as number,
-    paddingHorizontal: 16 as number,
-  },
-  imagePlaceholderText: {
-    fontSize: 14 as number,
-    marginTop: 8 as number,
-    textAlign: 'center' as const,
-  },
-  menuContainer: {
-    position: 'relative' as const,
-    zIndex: 1000 as number,
-  },
-  menuButton: {
-    padding: 4 as number,
-  },
-  menuOverlay: {
-    position: 'absolute' as const,
-    top: -1000 as number,
-    left: -1000 as number,
-    right: -1000 as number,
-    bottom: -1000 as number,
-    zIndex: 998 as number,
-  },
-  menuDropdown: {
-    position: 'absolute' as const,
-    top: 45 as number,
-    right: 8 as number,
-    minWidth: 150 as number,
-    borderRadius: 12 as number,
-    borderWidth: 1 as number,
-    shadowColor: '#000' as string,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25 as number,
-    shadowRadius: 3.84 as number,
-    elevation: 5 as number,
-    zIndex: 999 as number,
-    paddingVertical: 8 as number,
-  },
-  menuItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 12 as number,
-    paddingHorizontal: 16 as number,
-    gap: 12 as number,
-  },
-  menuText: {
-    fontSize: 14 as number,
-    fontWeight: '500' as const,
   },
 });

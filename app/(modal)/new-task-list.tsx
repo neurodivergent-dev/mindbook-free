@@ -44,7 +44,7 @@ export default function NewTaskListScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme?.background || '#FFFFFF' }]}>
       <Stack.Screen
         options={{
           title: t('notes.newTaskList'),
@@ -54,15 +54,15 @@ export default function NewTaskListScreen() {
         }}
       />
 
-      <View style={[styles.card, { backgroundColor: theme.card }]}>
+      <View style={[styles.card, { backgroundColor: theme?.card || '#F5F5F5' }]}>
         <View style={styles.inputContainer}>
           <Ionicons name="list" size={24} color={themeColors[accentColor]} />
           <TextInput
-            style={[styles.input, { color: theme.text }]}
+            style={[styles.input, { color: theme?.text || '#000000' }]}
             value={name}
             onChangeText={setName}
             placeholder={t('notes.taskName')}
-            placeholderTextColor={theme.textSecondary}
+            placeholderTextColor={theme?.textSecondary || '#666666'}
           />
         </View>
       </View>

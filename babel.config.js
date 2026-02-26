@@ -15,9 +15,9 @@ module.exports = function (api) {
           allowUndefined: true,
         },
       ],
-      'react-native-reanimated/plugin',
       // Remove all console messages (even if NODE_ENV=development)
       ['transform-remove-console', { exclude: ['error'] }],
+      'react-native-reanimated/plugin',
     ],
   };
 };

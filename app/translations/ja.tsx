@@ -395,7 +395,6 @@ export default {
     account: 'アカウント',
     profile: 'プロフィール',
     displayName: '表示名',
-    notifications: '通知',
     signOut: 'サインアウト',
     confirmSignOut: '本当にサインアウトしますか？',
     currentPasswordRequired: '現在のパスワードが必要です。',
@@ -654,7 +653,8 @@ export default {
   ai: {
     contentGenerator: 'AIコンテンツジェネレーター',
     whatToWrite: '何を書いてほしいですか？',
-    promptPlaceholder: '作成したい内容を説明してください...（例：「生産性のヒントについて記事を書く」）',
+    promptPlaceholder:
+      '作成したい内容を説明してください...（例：「生産性のヒントについて記事を書く」）',
     quickPrompts: {
       title: 'クイックプロンプト',
       article: '情報豊富な記事を書く',
@@ -673,11 +673,13 @@ export default {
     append: '最後に追加',
     enterPrompt: '何を書いてほしいか入力してください。',
     generationError: 'コンテンツの生成に失敗しました。もう一度お試しください。',
-    generateContentPrompt: 'このトピックについて詳細で構造化されたマークダウン形式のコンテンツを書く',
+    generateContentPrompt:
+      'このトピックについて詳細で構造化されたマークダウン形式のコンテンツを書く',
     contentHistory: 'コンテンツ履歴',
     noHistory: 'まだ生成されたコンテンツがありません。最初のAIコンテンツを作成しましょう！',
     clear: 'クリア',
     clearHistory: '履歴をクリア',
-    clearHistoryConfirmation: '生成されたコンテンツの履歴をすべて削除してもよろしいですか？この操作は元に戻せません。',
+    clearHistoryConfirmation:
+      '生成されたコンテンツの履歴をすべて削除してもよろしいですか？この操作は元に戻せません。',
   },
 };

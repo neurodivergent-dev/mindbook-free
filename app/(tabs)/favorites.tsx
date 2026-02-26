@@ -1,15 +1,7 @@
 // This file is Favorites Screen component, which displays a list of favorite notes.
 // It allows users to share, archive, un-favorite, or delete notes.
 import { useState, useCallback, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-  Alert,
-  Share,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Share, Platform } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
@@ -456,7 +448,7 @@ export default function FavoritesScreen() {
         )}
         keyExtractor={item => item.id}
         contentContainerStyle={
-          isSelectionMode 
+          isSelectionMode
             ? { ...styles.listContent, ...styles.listPaddingWithSelection }
             : { ...styles.listContent, ...styles.listPaddingWithoutSelection }
         }

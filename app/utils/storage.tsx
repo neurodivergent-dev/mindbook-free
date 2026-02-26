@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Performance optimization: debounce index building
 let indexBuildTimeout: NodeJS.Timeout | null = null;
-let backupTimeout: NodeJS.Timeout | null = null;
+const backupTimeout: NodeJS.Timeout | null = null;
 
 // Memory cache for notes - massive performance boost!
 let notesCache: Note[] | null = null;
@@ -28,7 +28,7 @@ export const DATE_INDEX_KEY = '@notes_index_dates';
 
 // Cache management
 const invalidateCache = () => {
-  // If we just nullify, next read will be slow. 
+  // If we just nullify, next read will be slow.
   // We'll handle cache updates manually in write functions for maximum speed.
   clearPaginationCache();
   searchCache = {};
@@ -140,7 +140,7 @@ export const searchNotesOptimized = async (query: string): Promise<Note[]> => {
   // Fast search using simple loop for better V8 optimization than filter
   const results = [];
   const len = allNotes.length;
-  
+
   for (let i = 0; i < len; i++) {
     const note = allNotes[i];
     // Check title first (fastest)
@@ -224,10 +224,10 @@ export const batchUpdateNotes = async (notesToUpdate: Partial<Note>[]): Promise<
 
     // 3. IMMEDIATELY update memory cache for instant UI response
     notesCache = updatedAllNotes;
-    invalidateCache(); 
+    invalidateCache();
 
     // 4. Save to disk in background
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedAllNotes)).catch(err =>
       console.error('Background disk write failed:', err)
     );
 
@@ -246,7 +246,7 @@ export const saveNote = async note => {
   try {
     const allNotes = await getAllNotes();
     const now = new Date().toISOString();
-    
+
     const newNote = {
       ...note,
       id: generateId(),
@@ -262,7 +262,7 @@ export const saveNote = async note => {
     invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
       console.error('Disk save failed:', err)
     );
 
@@ -299,7 +299,7 @@ export const updateNote = async (noteId, updatedNote) => {
     invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
       console.error('Disk update failed:', err)
     );
 
@@ -317,13 +317,13 @@ export const deleteNote = async noteId => {
   try {
     const allNotes = await getAllNotes();
     const noteIds = Array.isArray(noteId) ? noteId : [noteId];
-    
+
     // 1. Update memory cache immediately
     notesCache = allNotes.filter(note => !noteIds.includes(note.id));
     invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
       console.error('Disk delete failed:', err)
     );
 
@@ -359,7 +359,7 @@ export const toggleFavorite = async noteId => {
   invalidateCache();
 
   // 2. Background disk write
-  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
     console.error('Disk toggle favorite failed:', err)
   );
 
@@ -394,7 +394,7 @@ export const toggleArchive = async noteId => {
   invalidateCache();
 
   // 2. Background disk write
-  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
     console.error('Disk toggle archive failed:', err)
   );
 
@@ -438,7 +438,7 @@ export const moveToTrash = async noteId => {
     invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
       console.error('Disk move to trash failed:', err)
     );
 
@@ -472,12 +472,12 @@ export const restoreFromTrash = async noteId => {
       isTrash: false,
       updatedAt: new Date().toISOString(),
     };
-    
+
     notesCache = updatedAllNotes;
     invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notesCache)).catch(err =>
       console.error('Disk restore failed:', err)
     );
 
@@ -606,10 +606,10 @@ export const updateCategory = async (oldCategoryName: string, newCategoryName: s
 
     // 1. Update memory cache immediately
     notesCache = updatedNotes;
-    invalidateCache(); 
+    invalidateCache();
 
     // 2. Background disk write
-    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err => 
+    AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err =>
       console.error('Disk update category notes failed:', err)
     );
 
@@ -643,10 +643,10 @@ export const deleteCategory = async category => {
 
   // 1. Update memory cache immediately
   notesCache = updatedNotes;
-  invalidateCache(); 
+  invalidateCache();
 
   // 2. Background disk write
-  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err => 
+  AsyncStorage.setItem(NOTES_KEY, JSON.stringify(updatedNotes)).catch(err =>
     console.error('Disk delete category notes failed:', err)
   );
 
@@ -992,14 +992,14 @@ export const createBackup = async (): Promise<string> => {
   try {
     const notes = await getAllNotes();
     const categories = await getCategories();
-    
+
     const backupData = {
       version: 1,
       date: new Date().toISOString(),
       notes,
       categories,
     };
-    
+
     return JSON.stringify(backupData);
   } catch (error) {
     console.error('Create backup error:', error);
@@ -1029,7 +1029,7 @@ export const restoreBackup = async (backupString: string): Promise<boolean> => {
     // Restore notes
     const notes = data.notes;
     notesCache = notes;
-    invalidateCache(); 
+    invalidateCache();
     await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 
     // Restore categories if available

@@ -414,7 +414,6 @@ export default {
     account: 'Konto',
     profile: 'Profil',
     displayName: 'Anzeigename',
-    notifications: 'Benachrichtigungen',
     signOut: 'Abmelden',
     confirmSignOut: 'Möchtest du dich wirklich abmelden?',
     currentPasswordRequired: 'Aktuelles Passwort ist erforderlich.',
@@ -692,7 +691,8 @@ export default {
   ai: {
     contentGenerator: 'KI-Inhaltsgenerator',
     whatToWrite: 'Was möchtest du, dass ich schreibe?',
-    promptPlaceholder: 'Beschreibe, was du erstellen möchtest... (z.B. "Schreibe einen Artikel über Produktivitätstipps")',
+    promptPlaceholder:
+      'Beschreibe, was du erstellen möchtest... (z.B. "Schreibe einen Artikel über Produktivitätstipps")',
     quickPrompts: {
       title: 'Schnelle Eingaben',
       article: 'Informativen Artikel schreiben',
@@ -711,11 +711,13 @@ export default {
     append: 'Am Ende hinzufügen',
     enterPrompt: 'Bitte gib ein, was ich schreiben soll.',
     generationError: 'Inhaltsgenerierung fehlgeschlagen. Bitte versuche es erneut.',
-    generateContentPrompt: 'Schreibe detaillierten, gut strukturierten Inhalt im Markdown-Format zu diesem Thema',
+    generateContentPrompt:
+      'Schreibe detaillierten, gut strukturierten Inhalt im Markdown-Format zu diesem Thema',
     contentHistory: 'Inhaltsverlauf',
     noHistory: 'Noch kein generierter Inhalt. Erstelle deinen ersten KI-Inhalt!',
     clear: 'Löschen',
     clearHistory: 'Verlauf löschen',
-    clearHistoryConfirmation: 'Bist du sicher, dass du den gesamten generierten Inhaltsverlauf löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.',
+    clearHistoryConfirmation:
+      'Bist du sicher, dass du den gesamten generierten Inhaltsverlauf löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.',
   },
 };

@@ -101,14 +101,14 @@ export default function TabLayout() {
     container: {
       flex: 1,
     },
+    headerButton: {
+      marginRight: 4,
+      padding: 4,
+    },
     headerRightContainer: {
       flexDirection: 'row',
       gap: 12,
       marginRight: 8,
-    },
-    headerButton: {
-      marginRight: 4,
-      padding: 4,
     },
     headerRow: {
       alignItems: 'center',
@@ -128,6 +128,47 @@ export default function TabLayout() {
     },
     menuButton: {
       marginLeft: 16,
+    },
+    menuOverlay: {
+      bottom: -1000,
+      left: -1000,
+      position: 'absolute',
+      right: -1000,
+      top: -1000,
+      zIndex: 99998,
+    },
+    newNoteMenuContainer: {
+      borderRadius: 12,
+      borderWidth: 1,
+      elevation: 10,
+      minWidth: 160,
+      paddingVertical: 8,
+      position: 'absolute',
+      right: 4,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      top: Platform.OS === 'ios' ? 100 : 90,
+      zIndex: 99999,
+    },
+    newNoteMenuItem: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    newNoteMenuItemDanger: {
+      borderTopColor: '#ff475720',
+      borderTopWidth: 1,
+    },
+    newNoteMenuText: {
+      fontSize: 14,
+      fontWeight: '500',
     },
     searchBackButton: {
       alignItems: 'center',
@@ -196,47 +237,6 @@ export default function TabLayout() {
     },
     sortMenuText: {
       fontSize: 14,
-    },
-    newNoteMenuContainer: {
-      borderRadius: 12,
-      borderWidth: 1,
-      elevation: 10,
-      position: 'absolute',
-      right: 4,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      top: Platform.OS === 'ios' ? 100 : 90,
-      minWidth: 160,
-      zIndex: 99999,
-      paddingVertical: 8,
-    },
-    menuOverlay: {
-      position: 'absolute',
-      top: -1000,
-      left: -1000,
-      right: -1000,
-      bottom: -1000,
-      zIndex: 99998,
-    },
-    newNoteMenuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      gap: 12,
-    },
-    newNoteMenuItemDanger: {
-      borderTopWidth: 1,
-      borderTopColor: '#ff475720',
-    },
-    newNoteMenuText: {
-      fontSize: 14,
-      fontWeight: '500',
     },
   });
 

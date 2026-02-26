@@ -18,10 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
-import {
-  addCategory,
-  updateCategory,
-} from '../utils/storage';
+import { addCategory, updateCategory } from '../utils/storage';
 import { Alert } from 'react-native';
 import { emitCategoryAdded, emitCategoryUpdated } from '../utils/categoryEvents';
 
@@ -49,7 +46,7 @@ const CategoryInputPage = memo(() => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+
   // Get mode and editing category from params
   const mode = (params.mode as 'add' | 'edit') || 'add';
   const editingCategory = (params.editingCategory as string) || '';
@@ -127,7 +124,10 @@ const CategoryInputPage = memo(() => {
       } else if (error instanceof Error && error.message === 'Category name cannot be empty') {
         Alert.alert(t('common.error'), t('notes.emptyCategoryError'));
       } else {
-        Alert.alert(t('common.error'), mode === 'edit' ? t('notes.editCategoryError') : t('notes.addCategoryError'));
+        Alert.alert(
+          t('common.error'),
+          mode === 'edit' ? t('notes.editCategoryError') : t('notes.addCategoryError')
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -163,7 +163,12 @@ const CategoryInputPage = memo(() => {
       />
 
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: themeColors[accentColor], paddingTop: insets.top + 16 }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: themeColors[accentColor], paddingTop: insets.top + 16 },
+        ]}
+      >
         <TouchableOpacity
           style={styles.closeButton}
           onPress={handleClose}
@@ -417,10 +422,10 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
     letterSpacing: 0.2,
+    lineHeight: 24,
     opacity: 0.8,
+    textAlign: 'center',
   },
   descriptionContainer: {
     marginBottom: 40,
@@ -460,16 +465,16 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 18,
+    fontWeight: '500',
+    letterSpacing: 0.2,
     paddingHorizontal: 0,
     paddingVertical: 20,
-    letterSpacing: 0.2,
-    fontWeight: '500',
   },
   inputLabel: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 20,
     letterSpacing: 0.3,
+    marginBottom: 20,
   },
   inputSection: {
     marginBottom: 32,
@@ -518,8 +523,8 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 17,
     fontWeight: '700',
-    marginLeft: 8,
     letterSpacing: 0.3,
+    marginLeft: 8,
   },
 });
 

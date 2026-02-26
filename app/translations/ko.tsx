@@ -389,7 +389,6 @@ export default {
     account: '계정',
     profile: '프로필',
     displayName: '표시 이름',
-    notifications: '알림',
     signOut: '로그아웃',
     confirmSignOut: '정말로 로그아웃하시겠습니까?',
     currentPasswordRequired: '현재 비밀번호가 필요합니다.',
@@ -677,6 +676,7 @@ export default {
     noHistory: '아직 생성된 콘텐츠가 없습니다. 첫 번째 AI 콘텐츠를 만들어보세요!',
     clear: '지우기',
     clearHistory: '기록 지우기',
-    clearHistoryConfirmation: '생성된 모든 콘텐츠 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+    clearHistoryConfirmation:
+      '생성된 모든 콘텐츠 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   },
 };

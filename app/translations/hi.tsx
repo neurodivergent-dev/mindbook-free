@@ -393,7 +393,6 @@ export default {
     account: 'खाता',
     profile: 'प्रोफाइल',
     displayName: 'प्रदर्शन नाम',
-    notifications: 'सूचनाएं',
     signOut: 'साइन आउट',
     confirmSignOut: 'क्या आप वाकई साइन आउट करना चाहते हैं?',
     currentPasswordRequired: 'वर्तमान पासवर्ड आवश्यक है।',

@@ -120,17 +120,21 @@ function ThemedApp() {
     const setSystemUIStyle = async () => {
       if (Platform.OS === 'android') {
         try {
-          await SystemUI.setBackgroundColorAsync(theme.background);
-          SystemNavigationBar.setNavigationColor(
-            theme.background,
-            colorScheme === 'dark' ? 'light' : 'dark',
-            'navigation'
-          );
+          const bgColor = theme?.background || (colorScheme === 'dark' ? '#121212' : '#FFFFFF');
+          await SystemUI.setBackgroundColorAsync(bgColor);
+
+          if (SystemNavigationBar && typeof SystemNavigationBar.setNavigationColor === 'function') {
+            await SystemNavigationBar.setNavigationColor(
+              bgColor,
+              colorScheme === 'dark' ? 'light' : 'dark',
+              'navigation'
+            ).catch(() => {});
+          }
         } catch (e) {}
       }
     };
     setSystemUIStyle();
-  }, [theme.background, colorScheme]);
+  }, [theme?.background, colorScheme]);
 
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': Poppins_400Regular,
@@ -150,7 +154,7 @@ function ThemedApp() {
           await AsyncStorage.setItem('@theme_mode', 'system');
         }
         if ((await AsyncStorage.getItem('@accent_color')) === null) {
-          await AsyncStorage.setItem('@accent_color', 'blue');
+          await AsyncStorage.setItem('@accent_color', 'green');
         }
         if ((await AsyncStorage.getItem('@language')) === null) {
           await AsyncStorage.setItem('@language', 'en');
@@ -165,8 +169,8 @@ function ThemedApp() {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      card: theme.background,
-      background: theme.background,
+      card: theme?.background || '#121212',
+      background: theme?.background || '#121212',
       border: 'transparent',
     },
   };
@@ -175,15 +179,22 @@ function ThemedApp() {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      card: theme.background,
-      background: theme.background,
+      card: theme?.background || '#FFFFFF',
+      background: theme?.background || '#FFFFFF',
       border: 'transparent',
     },
   };
 
   if (!themeInitialized || !fontsLoaded) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]} />
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme?.background || (colorScheme === 'dark' ? '#121212' : '#FFFFFF'),
+          },
+        ]}
+      />
     );
   }
 
@@ -195,7 +206,15 @@ function ThemedApp() {
         >
           <LanguageProvider>
             <SearchProvider>
-              <View style={[styles.container, { backgroundColor: theme.background }]}>
+              <View
+                style={[
+                  styles.container,
+                  {
+                    backgroundColor:
+                      theme?.background || (colorScheme === 'dark' ? '#121212' : '#FFFFFF'),
+                  },
+                ]}
+              >
                 <RootLayoutNav />
               </View>
             </SearchProvider>

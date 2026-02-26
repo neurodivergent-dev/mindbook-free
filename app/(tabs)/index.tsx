@@ -29,7 +29,6 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { Note } from '../models/Note';
-import * as SecureStore from 'expo-secure-store';
 
 // Color constants
 const COLORS = {
@@ -94,7 +93,7 @@ export default function NotesScreen() {
     if (viewMode === 'list') newMode = 'grid';
     else if (viewMode === 'grid') newMode = 'compact';
     else newMode = 'list';
-    
+
     setViewMode(newMode);
     try {
       await AsyncStorage.setItem('@view_mode', newMode);
@@ -565,10 +564,12 @@ export default function NotesScreen() {
   // Render a note item
   const renderNoteItem = useCallback(
     ({ item }: { item: Note }) => (
-      <View style={[
-        viewMode === 'grid' ? styles.gridItemContainer : styles.listItemContainer,
-        viewMode === 'compact' && styles.compactItemContainer
-      ]}>
+      <View
+        style={[
+          viewMode === 'grid' ? styles.gridItemContainer : styles.listItemContainer,
+          viewMode === 'compact' && styles.compactItemContainer,
+        ]}
+      >
         <NoteCard
           key={item.id}
           note={item}
@@ -731,7 +732,13 @@ export default function NotesScreen() {
             onPress={toggleViewMode}
           >
             <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : viewMode === 'grid' ? 'list-outline' : 'albums-outline'}
+              name={
+                viewMode === 'list'
+                  ? 'grid-outline'
+                  : viewMode === 'grid'
+                  ? 'list-outline'
+                  : 'albums-outline'
+              }
               size={20}
               color={themeColors[accentColor]}
             />
@@ -885,6 +892,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
   },
+  compactItemContainer: {
+    paddingBottom: 1,
+  },
   container: {
     flex: 1,
   },
@@ -908,6 +918,14 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
+  gridItemContainer: {
+    flex: 1,
+    padding: 6,
+  },
+  gridNoteCard: {
+    flex: 1,
+    marginHorizontal: 0,
+  },
   header: {
     alignItems: 'center',
     borderBottomColor: COLORS.TRANSPARENT_LIGHT,
@@ -916,20 +934,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
   },
-  headerIcon: {
-    marginRight: 6,
-  },
   headerActions: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 8,
   },
-  iconButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  headerIcon: {
+    marginRight: 6,
   },
   headerLeft: {
     flex: 1,
@@ -939,6 +950,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
+  iconButton: {
+    alignItems: 'center',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
   lastSyncText: {
     fontSize: 12,
     marginTop: 4,
@@ -946,30 +964,19 @@ const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
   },
+  listItemContainer: {
+    flex: 1,
+    paddingBottom: 2,
+    paddingHorizontal: 0,
+  },
   loaderContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 10,
   },
   noteItemMargin: {
-    marginHorizontal: 2,
     marginBottom: 4,
-  },
-  gridItemContainer: {
-    flex: 1,
-    padding: 6,
-  },
-  listItemContainer: {
-    flex: 1,
-    paddingHorizontal: 0,
-    paddingBottom: 2,
-  },
-  compactItemContainer: {
-    paddingBottom: 1,
-  },
-  gridNoteCard: {
-    flex: 1,
-    marginHorizontal: 0,
+    marginHorizontal: 2,
   },
   notesCountBadge: {
     alignItems: 'center',

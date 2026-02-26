@@ -391,7 +391,6 @@ export default {
     account: 'الحساب',
     profile: 'الملف الشخصي',
     displayName: 'اسم العرض',
-    notifications: 'الإشعارات',
     signOut: 'تسجيل الخروج',
     confirmSignOut: 'هل أنت متأكد من أنك تريد تسجيل الخروج؟',
     currentPasswordRequired: 'كلمة المرور الحالية مطلوبة.',
@@ -684,7 +683,7 @@ export default {
         tutorial: 'درس تعليمي',
         summary: 'ملخص',
         outline: 'مخطط',
-        custom: 'مخصص'
+        custom: 'مخصص',
       },
       toneOptions: {
         professional: 'مهني',
@@ -694,13 +693,13 @@ export default {
         technical: 'تقني',
         friendly: 'ودي',
         formal: 'رسمي',
-        humorous: 'فكاهي'
+        humorous: 'فكاهي',
       },
       lengthOptions: {
         short: 'قصير (100-300 كلمة)',
         medium: 'متوسط (300-800 كلمة)',
         long: 'طويل (800+ كلمة)',
-        custom: 'طول مخصص'
+        custom: 'طول مخصص',
       },
       languageOptions: {
         english: 'الإنجليزية',
@@ -714,7 +713,7 @@ export default {
         portuguese: 'البرتغالية',
         arabic: 'العربية',
         hindi: 'الهندية',
-        chinese: 'الصينية'
+        chinese: 'الصينية',
       },
       settings: {
         title: 'إعدادات الإنشاء',
@@ -731,7 +730,7 @@ export default {
         writingStyle: 'أسلوب الكتابة',
         writingStylePlaceholder: 'صف أسلوب الكتابة المطلوب...',
         additionalInstructions: 'تعليمات إضافية',
-        additionalInstructionsPlaceholder: 'أي متطلبات أو رغبات إضافية...'
+        additionalInstructionsPlaceholder: 'أي متطلبات أو رغبات إضافية...',
       },
       history: {
         title: 'تاريخ الإنشاء',
@@ -742,7 +741,7 @@ export default {
         saveToNotes: 'حفظ في الملاحظات',
         savedToNotes: 'تم حفظ المحتوى في الملاحظات',
         deleteFromHistory: 'حذف من التاريخ',
-        deletedFromHistory: 'تم الحذف من التاريخ'
+        deletedFromHistory: 'تم الحذف من التاريخ',
       },
       templates: {
         title: 'القوالب',
@@ -757,14 +756,14 @@ export default {
         academicPaper: 'ورقة أكاديمية',
         marketingCopy: 'نص تسويقي',
         socialMediaPost: 'منشور وسائل التواصل الاجتماعي',
-        emailTemplate: 'قالب بريد إلكتروني'
+        emailTemplate: 'قالب بريد إلكتروني',
       },
       quality: {
         title: 'جودة المحتوى',
         high: 'عالية',
         medium: 'متوسطة',
         low: 'منخفضة',
-        description: 'الجودة العالية تنشئ محتوى أكثر تفصيلاً وتطويراً، ولكن قد يستغرق وقتاً أطول'
+        description: 'الجودة العالية تنشئ محتوى أكثر تفصيلاً وتطويراً، ولكن قد يستغرق وقتاً أطول',
       },
       feedback: {
         title: 'التقييم',
@@ -774,8 +773,8 @@ export default {
         reportPlaceholder: 'صف المشكلة مع المحتوى...',
         reportSubmitted: 'تم إرسال التقرير. شكراً لك على التقييم!',
         rateContent: 'تقييم المحتوى',
-        ratePlaceholder: 'قيّم جودة المحتوى المُنشأ من 1 إلى 5'
-      }
-    }
-  }
+        ratePlaceholder: 'قيّم جودة المحتوى المُنشأ من 1 إلى 5',
+      },
+    },
+  },
 };

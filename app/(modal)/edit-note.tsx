@@ -451,7 +451,7 @@ export default function EditNoteModal() {
             }
             await deleteCategory(categoryToDelete);
             loadCategories();
-// Backup removed for free version
+            // Backup removed for free version
           } catch (error) {
             Alert.alert(t('common.error'), t('notes.deleteCategoryError'));
           }
@@ -1288,8 +1288,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
     marginBottom: 16,
+    marginTop: 12,
     padding: 12,
   },
   sectionToggleText: {
@@ -1329,8 +1329,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 42,
     justifyContent: 'center',
-    marginRight: 8,
     marginBottom: 8,
+    marginRight: 8,
     minWidth: 80,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1343,8 +1343,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 42,
     justifyContent: 'center',
-    marginRight: 8,
     marginBottom: 8,
+    marginRight: 8,
     minWidth: 80,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1363,8 +1363,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 42,
     justifyContent: 'center',
-    marginRight: 8,
     marginBottom: 8,
+    marginRight: 8,
     minWidth: 80,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1469,46 +1469,46 @@ const styles = StyleSheet.create({
     zIndex: 10000,
   },
   headerDropdown: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    minWidth: 180,
     borderRadius: 12,
     borderWidth: 1,
+    elevation: 10,
+    minWidth: 180,
+    paddingVertical: 8,
+    position: 'absolute',
+    right: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 10,
+    top: 5,
     zIndex: 99999,
-    paddingVertical: 8,
   },
   headerMenuItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerMenuItemDanger: {
-    borderTopWidth: 1,
     borderTopColor: '#ff475720',
+    borderTopWidth: 1,
   },
   headerMenuText: {
     fontSize: 14,
     fontWeight: '500',
   },
   headerMenuOverlay: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
     bottom: -1000,
+    left: -1000,
+    position: 'absolute',
+    right: -1000,
+    top: -1000,
     zIndex: 99998,
   },
   headerRightContainer: {
-    flexDirection: 'row' as const,
     alignItems: 'flex-end',
+    flexDirection: 'row' as const,
   },
   optionContainer: {
     marginBottom: 16,
@@ -1526,8 +1526,8 @@ const styles = StyleSheet.create({
   pickerButton: {
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 52,
     justifyContent: 'center',
+    minHeight: 52,
   },
   pickerButtonContent: {
     alignItems: 'center',
@@ -1621,12 +1621,12 @@ const styles = StyleSheet.create({
   },
   // Focus Mode Styles
   focusModeContainer: {
-    flex: 1,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
+    flex: 1,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
     zIndex: 999,
   },
   focusKeyboardContainer: {
@@ -1640,30 +1640,30 @@ const styles = StyleSheet.create({
     minHeight: '100%',
   },
   focusHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderBottomWidth: 1,
   },
   focusExitButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 8,
-    paddingVertical: 6,
     paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   focusExitText: {
     fontSize: 16,
     fontWeight: '600',
   },
   focusSaveButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
     justifyContent: 'center',
+    width: 40,
   },
   focusTextInput: {
     flex: 1,

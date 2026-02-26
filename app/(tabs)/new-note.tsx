@@ -144,8 +144,16 @@ const NewNote = () => {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const router = useRouter();
-  const { theme, accentColor, themeColors, fontSize, fontSizes, fontFamily, fontFamilies, themeMode } =
-    useTheme();
+  const {
+    theme,
+    accentColor,
+    themeColors,
+    fontSize,
+    fontSizes,
+    fontFamily,
+    fontFamilies,
+    themeMode,
+  } = useTheme();
   const { t } = useTranslation();
 
   const colors = themeMode === 'dark' ? DARK_NOTE_COLORS : NOTE_COLORS;
@@ -837,9 +845,9 @@ const NewNote = () => {
                           styles.selectedColorPreview,
                           {
                             backgroundColor: selectedColor
-                              ? (allColors[selectedColor]?.background === 'transparent'
+                              ? allColors[selectedColor]?.background === 'transparent'
                                 ? theme.card
-                                : allColors[selectedColor]?.background)
+                                : allColors[selectedColor]?.background
                               : theme.card,
                           },
                         ]}
@@ -868,10 +876,16 @@ const NewNote = () => {
                             style={[
                               styles.colorCircle,
                               {
-                                backgroundColor: color.background === 'transparent' ? theme.card : color.background,
-                                borderColor: selectedColor === color.id ? themeColors[accentColor] : 'transparent',
+                                backgroundColor:
+                                  color.background === 'transparent'
+                                    ? theme.card
+                                    : color.background,
+                                borderColor:
+                                  selectedColor === color.id
+                                    ? themeColors[accentColor]
+                                    : 'transparent',
                                 borderWidth: selectedColor === color.id ? 2 : 0,
-                              }
+                              },
                             ]}
                             onPress={() => {
                               setSelectedColor(color.id);
@@ -1018,7 +1032,6 @@ const NewNote = () => {
         title={title}
         coverImage={coverImage}
       />
-
     </View>
   );
 };
@@ -1048,8 +1061,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 42,
     justifyContent: 'center',
-    marginRight: 8,
     marginBottom: 8,
+    marginRight: 8,
     minWidth: 80,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1138,8 +1151,8 @@ const styles = StyleSheet.create({
   pickerButton: {
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 52,
     justifyContent: 'center',
+    minHeight: 52,
   },
   pickerButtonActive: {
     borderWidth: 2,
@@ -1294,16 +1307,16 @@ const styles = StyleSheet.create({
   },
   // Focus Mode Styles
   focusHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   focusExitButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 8,
   },
   focusExitText: {
@@ -1311,12 +1324,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   focusSaveButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 8,
+    flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
   },
   focusSaveButtonText: {
     color: 'white',
@@ -1342,9 +1355,9 @@ const styles = StyleSheet.create({
   },
   focusContentInput: {
     flex: 1,
-    padding: 16,
     fontSize: 16,
     lineHeight: 24,
+    padding: 16,
     textAlignVertical: 'top',
   },
 });

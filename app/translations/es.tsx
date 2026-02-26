@@ -408,7 +408,6 @@ export default {
     account: 'Cuenta',
     profile: 'Perfil',
     displayName: 'Nombre de visualización',
-    notifications: 'Notificaciones',
     signOut: 'Cerrar sesión',
     confirmSignOut: '¿Estás seguro de que quieres cerrar sesión?',
     currentPasswordRequired: 'Se requiere la contraseña actual.',
@@ -672,7 +671,8 @@ export default {
   ai: {
     contentGenerator: 'Generador de Contenido IA',
     whatToWrite: '¿Qué te gustaría que escriba?',
-    promptPlaceholder: 'Describe lo que quieres crear... (ej: "Escribe un artículo sobre consejos de productividad")',
+    promptPlaceholder:
+      'Describe lo que quieres crear... (ej: "Escribe un artículo sobre consejos de productividad")',
     quickPrompts: {
       title: 'Comandos Rápidos',
       article: 'Escribir un artículo informativo',
@@ -691,11 +691,13 @@ export default {
     append: 'Agregar al Final',
     enterPrompt: 'Por favor ingresa lo que quieres que escriba.',
     generationError: 'Error al generar contenido. Por favor inténtalo de nuevo.',
-    generateContentPrompt: 'Escribe contenido detallado y bien estructurado en formato markdown sobre este tema',
+    generateContentPrompt:
+      'Escribe contenido detallado y bien estructurado en formato markdown sobre este tema',
     contentHistory: 'Historial de Contenido',
     noHistory: 'Aún no hay contenido generado. ¡Crea tu primer contenido IA!',
     clear: 'Limpiar',
     clearHistory: 'Limpiar Historial',
-    clearHistoryConfirmation: '¿Estás seguro de que quieres eliminar todo el historial de contenido generado? Esta acción no se puede deshacer.',
+    clearHistoryConfirmation:
+      '¿Estás seguro de que quieres eliminar todo el historial de contenido generado? Esta acción no se puede deshacer.',
   },
 };

@@ -251,7 +251,7 @@ const darkTheme = {
 export function ThemeProvider({ children }) {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState('system');
-  const [accentColor, setAccentColor] = useState('blue');
+  const [accentColor, setAccentColor] = useState('green');
   const [fontSize, setFontSize] = useState('medium');
   const [fontFamily, setFontFamily] = useState('system');
 
@@ -271,8 +271,8 @@ export function ThemeProvider({ children }) {
       // Set theme with default fallback
       setThemeMode(savedTheme || 'system');
 
-      // Set accent color with default blue
-      setAccentColor(savedAccent || 'blue');
+      // Set accent color with default green
+      setAccentColor(savedAccent || 'green');
 
       // Set font size with default medium
       setFontSize(savedFontSize || 'medium');
@@ -282,7 +282,7 @@ export function ThemeProvider({ children }) {
     } catch (error) {
       // If error occurs, set default values
       setThemeMode('system');
-      setAccentColor('blue');
+      setAccentColor('green');
       setFontSize('medium');
       setFontFamily('system');
     }
